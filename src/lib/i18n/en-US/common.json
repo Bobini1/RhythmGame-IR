@@ -1,14 +1,14 @@
 {
 	"locales": {
-		"he-IL": "עברית",
+		"pl-PL": "polski",
 		"en-US": "English"
 	},
 	"brand": {
-		"name": "My Brand",
-		"description": "The best brand that does amazing things",
-		"support-email": "support@my-brand.com"
+		"name": "RhythmGame",
+		"description": "A customizable BMS player for Windows and Linux",
+		"support-email": "Bobini@rhythmgame.eu"
 	},
-	"copyright": "© {{year}} My Brand. All rights reserved.",
+	"copyright": "© {{year}} Tomasz Kalisiak.",
 	"privacy_policy": "Privacy Policy",
 	"terms_of_service": "Terms of Service",
 	"error_number": "Error ({{number}})",

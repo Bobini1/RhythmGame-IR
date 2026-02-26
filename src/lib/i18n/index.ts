@@ -1,6 +1,6 @@
 import i18n, { type Config } from 'sveltekit-i18n';
 import { Locale } from '../../routes/api';
-import { AvailableLocals } from '$lib/enums/available-locales';
+import { AvailableLocales } from '$lib/enums/available-locales';
 
 interface Params {
 	year?: string;
@@ -13,32 +13,32 @@ interface Params {
 const config: Config<Params> = {
 	loaders: [
 		{
-			locale: AvailableLocals.Hebrew,
+			locale: AvailableLocales.Polish,
 			key: 'common',
-			loader: async () => (await import('./he-IL/common.json')).default
+			loader: async () => (await import('$lib/i18n/pl-PL/common.json')).default
 		},
 		{
-			locale: AvailableLocals.Hebrew,
+			locale: AvailableLocales.Polish,
 			key: 'seo',
-			loader: async () => (await import('./he-IL/seo.json')).default
+			loader: async () => (await import('$lib/i18n/pl-PL/seo.json')).default
 		},
 		{
-			locale: AvailableLocals.Hebrew,
+			locale: AvailableLocales.Polish,
 			key: 'homepage',
-			loader: async () => (await import('./he-IL/homepage.json')).default
+			loader: async () => (await import('$lib/i18n/pl-PL/homepage.json')).default
 		},
 		{
-			locale: AvailableLocals.English_US,
+			locale: AvailableLocales.English_US,
 			key: 'common',
 			loader: async () => (await import('./en-US/common.json')).default
 		},
 		{
-			locale: AvailableLocals.English_US,
+			locale: AvailableLocales.English_US,
 			key: 'seo',
 			loader: async () => (await import('./en-US/seo.json')).default
 		},
 		{
-			locale: AvailableLocals.English_US,
+			locale: AvailableLocales.English_US,
 			key: 'homepage',
 			loader: async () => (await import('./en-US/homepage.json')).default
 		}

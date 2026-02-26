@@ -1,5 +1,5 @@
 {
-	"description": "A Sveltekit FullStack application template",
+	"description": "RhythmGame Internet Ranking",
 	"pages": {
 		"example": {
 			"description": "An example page that renders scrollable dummy text"

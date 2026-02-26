@@ -1,4 +1,4 @@
-export enum AvailableLocals {
-	Hebrew = 'he-IL',
+export enum AvailableLocales {
+	Polish = 'pl-PL',
 	English_US = 'en-US'
 }

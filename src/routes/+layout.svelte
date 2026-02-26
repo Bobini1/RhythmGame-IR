@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { locale } from '$lib/i18n';
-	import type { AvailableLocals } from '$lib/enums/available-locales';
+	import type { AvailableLocales } from '$lib/enums/available-locales';
 	import { direction, metaTags } from '$lib/stores';
 	import { directionMap } from '$lib/api/configurations/common';
 	import SEO from '$lib/components/seo/seo.svelte';
@@ -18,11 +18,11 @@
 
 	onMount(() => {
 		locale.subscribe((seletedLocale) => {
-			updateDirection(seletedLocale as AvailableLocals);
+			updateDirection(seletedLocale as AvailableLocales);
 		});
 	});
 
-	function updateDirection(locale: AvailableLocals) {
+	function updateDirection(locale: AvailableLocales) {
 		if (!locale) {
 			return;
 		}

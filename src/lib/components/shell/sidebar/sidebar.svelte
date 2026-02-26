@@ -6,7 +6,7 @@
 	import { locale, t } from '$lib/i18n';
 	import { directionMap } from '$lib/api/configurations/common';
 	import { direction } from '$lib/stores';
-	import type { AvailableLocals } from '$lib/enums/available-locales';
+	import type { AvailableLocales } from '$lib/enums/available-locales';
 	import { onMount } from 'svelte';
 	import SidebarUser from './sidebar-user.svelte';
 
@@ -17,12 +17,12 @@
 	);
 
 	onMount(() => {
-		locale.subscribe((seletedLocale) => {
-			updateSide(seletedLocale as AvailableLocals);
+		locale.subscribe((selectedLocale) => {
+			updateSide(selectedLocale as AvailableLocales);
 		});
 	});
 
-	function updateSide(locale: AvailableLocals) {
+	function updateSide(locale: AvailableLocales) {
 		if (!locale) {
 			return;
 		}

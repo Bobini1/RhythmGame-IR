@@ -1,0 +1,26 @@
+{
+	"description": "RhythmGame Internet Ranking",
+	"pages": {
+		"example": {
+			"description": "Przykładowa strona, która renderuje przewijany tekst zastępczy"
+		},
+		"settings": {
+			"description": "Ustawienia ogólne"
+		},
+		"accessibility_statement": {
+			"description": "Informacje o funkcjach dostępności i zgodności z przepisami"
+		},
+		"manage_cookies": {
+			"description": "Zarządzaj preferencjami i ustawieniami plików cookie"
+		},
+		"cookies_policy": {
+			"description": "Polityka dotycząca plików cookie i technologii śledzenia"
+		},
+		"privacy_policy": {
+			"description": "Jak zbieramy, używamy i chronimy Twoje dane osobowe"
+		},
+		"terms_of_service": {
+			"description": "Warunki korzystania z usługi"
+		}
+	}
+}

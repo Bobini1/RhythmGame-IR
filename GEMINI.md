@@ -273,7 +273,7 @@ GITHUB_CLIENT_SECRET=your_github_client_secret
 
 The authentication system integrates seamlessly with other template features:
 
-*   **Internationalization** - Auth UI supports Hebrew/English with RTL/LTR layouts
+*   **Internationalization** - Auth UI supports Polish/English with RTL/LTR layouts
 *   **Theme System** - Authentication pages respect dark/light theme preferences
 *   **Database Layer** - Uses the same Drizzle ORM setup as other database operations
 *   **API Patterns** - Follows established request/response patterns for consistency

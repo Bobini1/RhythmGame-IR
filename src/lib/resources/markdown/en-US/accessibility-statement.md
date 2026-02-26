@@ -12,7 +12,7 @@ We are committed to ensuring that our website is accessible to all users, includ
 
 ## Standards and Guidelines
 
-Our website is based on the international accessibility guidelines WCAG 2.1 (Web Content Accessibility Guidelines) at AA level, as specified in Israeli Standard IS 5568.
+Our website is based on the international accessibility guidelines WCAG 2.1 (Web Content Accessibility Guidelines) at AA level.
 
 ## Accessibility Features on Our Site
 

@@ -28,14 +28,14 @@ bun run create:api-controller <path>    # API endpoint template
 - **shadcn-svelte** (bits-ui) + Tailwind CSS v4
 - **Drizzle ORM** + PostgreSQL + Docker
 - **better-auth** - Modern authentication library with OAuth & email/password
-- **sveltekit-i18n** (Hebrew/English with RTL/LTR)
+- **sveltekit-i18n** (Polish/English with RTL/LTR)
 - **Vitest** + Playwright for testing
 
 ## Features
 
 - **Authentication System** - better-auth with OAuth (Google) & email/password
 - **Database Layer** - Abstract service pattern with CRUD operations
-- **Internationalization** - Hebrew & English with RTL/LTR support
+- **Internationalization** - Polish & English with RTL/LTR support
 - **Theme System** - Dark/light mode with persistence
 - **Cookie Management** - GDPR-compliant consent system
 - **SEO Optimized** - Meta tags, structured data, sitemap
@@ -55,7 +55,7 @@ src/lib/
 │   ├── signin/            # Authentication components
 │   └── signup/            # Registration components
 ├── api/configurations/     # Server configs
-├── i18n/                  # Translations (en-US, he-IL)
+├── i18n/                  # Translations (en-US, pl-PL)
 └── resources/markdown/    # Localized content
 
 src/routes/
@@ -293,7 +293,7 @@ $t('common.navigation.home')
 t.get('common.navigation.home')
 
 // Translation files: src/lib/i18n/[locale]/[namespace].json
-// Supported: en-US, he-IL (with RTL/LTR support)
+// Supported: en-US, pl-PL (with RTL/LTR support)
 ```
 
 ## Component Patterns
@@ -326,7 +326,7 @@ bun run create:api-controller users/[user_id]/orders
 ## Important Notes
 
 - **Template repository** - customize for your specific needs
-- Hebrew (RTL) and English (LTR) preconfigured
+- Polish (RTL) and English (LTR) preconfigured
 - Policy pages are placeholder content
 - Services are cached per table in singleton factory
 - Use configuration-driven architecture for maintainable code
