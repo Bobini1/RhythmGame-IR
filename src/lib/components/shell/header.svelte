@@ -24,7 +24,7 @@
 		</h1>
 	</div>
 	<div class="flex flex-row items-center justify-end gap-2">
-		<a href="https://github.com/GantonL/templates/tree/main/sveltekit-shadcn-v5" target="_blank">
+		<a href="https://github.com/Bobini1/RhythmGame" target="_blank">
 			<Button variant="outline" size="icon">
 				<Github />
 			</Button>
