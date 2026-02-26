@@ -75,11 +75,6 @@ export const AppRoutes: GroupedRoutes[] = [
 				label: 'common.terms_of_service',
 				path: '/policies/terms',
 				icon: Handshake
-			},
-			{
-				label: 'common.accessibility_statement',
-				path: '/accessibility-statement',
-				icon: PersonStanding
 			}
 		]
 	},

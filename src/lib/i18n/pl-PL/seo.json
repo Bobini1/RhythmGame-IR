@@ -7,9 +7,6 @@
 		"settings": {
 			"description": "Ustawienia ogólne"
 		},
-		"accessibility_statement": {
-			"description": "Informacje o funkcjach dostępności i zgodności z przepisami"
-		},
 		"manage_cookies": {
 			"description": "Zarządzaj preferencjami i ustawieniami plików cookie"
 		},

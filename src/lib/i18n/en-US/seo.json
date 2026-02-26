@@ -7,9 +7,6 @@
 		"settings": {
 			"description": "General application settings"
 		},
-		"accessibility_statement": {
-			"description": "Information about accessibility features and compliance"
-		},
 		"manage_cookies": {
 			"description": "Manage your cookie preferences and settings"
 		},

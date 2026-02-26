@@ -1,6 +1,8 @@
 import i18n, { type Config } from 'sveltekit-i18n';
 import { Locale } from '../../routes/api';
 import { AvailableLocales } from '$lib/enums/available-locales';
+import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
 
 interface Params {
 	year?: string;
@@ -47,9 +49,55 @@ const config: Config<Params> = {
 
 export const { t, locale, locales, loading, loadTranslations, initialized } = new i18n(config);
 
-export const changeLocale = (newLocale: string) => {
+export const changeLocale = async (newLocale: string): Promise<boolean> => {
+	// validate against available locales
+	const availableLocales = locales.get();
+	if (!availableLocales.includes(newLocale)) {
+		console.warn('Attempted to set unsupported locale:', newLocale);
+		return false;
+	}
+
+	// update UI immediately
 	locale.set(newLocale);
-	const formData = new FormData();
-	formData.append('locale', newLocale);
-	fetch(Locale, { method: 'POST', body: formData });
+
+	// persist on server
+	try {
+		const formData = new FormData();
+		formData.append('locale', newLocale);
+		const res = await fetch(Locale, { method: 'POST', body: formData });
+		if (!res.ok) {
+			console.error('Failed to persist locale on server:', res.status);
+			return false;
+		}
+	} catch (err) {
+		console.error('Locale persistence request failed:', err);
+		return false;
+	}
+
+	// If we're in the browser, check the current path's first segment. If the URL
+	// is language-prefixed and the prefix no longer matches the new locale,
+	// navigate to the same path without the prefix so the route and cookie agree.
+	if (browser) {
+		try {
+			const { pathname, search, hash } = window.location;
+			// split into segments, ignoring leading/trailing slashes
+			const segments = pathname.split('/').filter(Boolean);
+			if (segments.length > 0) {
+				const first = segments[0];
+				if (availableLocales.includes(first) && first !== newLocale) {
+					// remove the first segment (language) and rebuild path
+					const rest = segments.slice(1).join('/');
+					const newPath = '/' + (rest ? rest : '');
+					const url = newPath + (search || '') + (hash || '');
+					// use client-side navigation; replace history entry so user isn't left with a back
+					await goto(url, { replaceState: true });
+				}
+			}
+		} catch (err) {
+			// non-fatal: if redirect fails, don't block the locale change
+			console.error('Redirect after locale change failed:', err);
+		}
+	}
+
+	return true;
 };

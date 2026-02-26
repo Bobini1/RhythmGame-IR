@@ -1,0 +1,1 @@
+Ten endpoint (GET /api/health) wykonuje podstawowy test sanityzujący, aby sprawdzić, czy serwer jest responsywny i działa poprawnie. Zapewnia prosty mechanizm „ping”, który potwierdza, że serwer aplikacji działa i może przetwarzać żądania.
