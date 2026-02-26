@@ -3,7 +3,7 @@ import { AvailableLocales } from '$lib/enums/available-locales';
 export const localeCookieName = 'locale';
 export const defaultLocale = AvailableLocales.English_US;
 export const directionMap: Partial<Record<AvailableLocales, DirectionSetting>> = {
-	[AvailableLocales.Polish]: 'rl',
+	[AvailableLocales.Polish]: 'lr',
 	[AvailableLocales.English_US]: 'lr'
 };
 export const getDirection = (locale: AvailableLocales): DirectionSetting => {
