@@ -6,7 +6,7 @@
 	"brand": {
 		"name": "RhythmGame",
 		"description": "Konfigurowalny BMS player na Windowsa i Linuxa",
-		"support-email": "Bobini@rhythmgame.eu"
+		"support-email": "tomasz.kalisiak@rhythmgame.eu"
 	},
 	"copyright": "© {{year}} Tomasz Kalisiak.",
 	"privacy_policy": "Polityka prywatności",

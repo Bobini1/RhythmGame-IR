@@ -11,7 +11,7 @@ export const getDirection = (locale: AvailableLocales): DirectionSetting => {
 	return directionSelection;
 };
 export const AppName: string = 'RhythmGame';
-export const SupportEmail: string = 'bobini@rhythmgame.eu';
+export const SupportEmail: string = 'tomasz.kalisiak@rhythmgame.eu';
 export const BaseUrl: string = 'https://rhythmgame.eu';
 export const BaseDemoUrl: string = 'https://ssv5.templates.guylahav.com/';
 export const Author: string = 'Tomasz Kalisiak';

@@ -138,8 +138,6 @@ We may update this Privacy Policy from time to time. We will:
 
 If you have questions about this Privacy Policy or your personal information, please contact us:
 
-- **Email**: privacy@example.com
-- **Address**: [Your Company Address]
-- **Phone**: [Your Phone Number]
+- **E-mail**: tomasz.kalisiak@rhythmgame.eu
 
 _Last updated: July 7, 2025_

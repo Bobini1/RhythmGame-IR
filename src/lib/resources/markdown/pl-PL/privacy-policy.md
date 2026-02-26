@@ -138,8 +138,6 @@ Możemy okresowo aktualizować tę Politykę prywatności. W przypadku zmian:
 
 Jeśli masz pytania dotyczące tej Polityki prywatności lub swoich danych osobowych, skontaktuj się z nami:
 
-- **E-mail**: privacy@example.com
-- **Adres**: [Adres Twojej firmy]
-- **Telefon**: [Twój numer telefonu]
+- **E-mail**: tomasz.kalisiak@rhythmgame.eu
 
 _Last updated: July 7, 2025_
