@@ -6,7 +6,7 @@ const locale: Handle = async ({ event, resolve }) => {
 	if (lang && !Object.values(AvailableLocales).includes(lang as AvailableLocales)) {
 		error(404, { message: 'No such locale' });
 	}
-	const response = await resolve(event);
-	return response;
+	
+	return resolve(event);
 };
 export default locale;
