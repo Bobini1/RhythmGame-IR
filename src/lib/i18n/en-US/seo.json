@@ -18,6 +18,9 @@
 		},
 		"terms_of_service": {
 			"description": "Terms and conditions for using our service"
+		},
+		"signin": {
+			"description": "Sign in to access your account and features"
 		}
 	}
 }

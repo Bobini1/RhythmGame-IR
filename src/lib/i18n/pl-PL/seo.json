@@ -18,6 +18,9 @@
 		},
 		"terms_of_service": {
 			"description": "Warunki korzystania z usługi"
+		},
+		"signin": {
+			"description": "Zaloguj się, aby uzyskać dostęp do swojego konta i funkcji"
 		}
 	}
 }
