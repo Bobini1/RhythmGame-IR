@@ -3,9 +3,9 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async (event) => {
 	const data = await event.request.formData();
-	const newLocal = data.get(localeCookieName)?.toString();
-	if (newLocal) {
-		event.cookies.set(localeCookieName, newLocal, { path: '/' });
+	const newLocale = data.get(localeCookieName)?.toString();
+	if (newLocale) {
+		event.cookies.set(localeCookieName, newLocale, { path: '/' });
 	}
 	return json({ success: true });
 };
