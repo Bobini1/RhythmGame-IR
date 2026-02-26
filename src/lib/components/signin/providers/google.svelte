@@ -25,7 +25,7 @@
 	{#if isLoading}
 		<LoaderCircle class="animate-spin" size={18} />
 	{:else}
-		<img src="images/google_icon.svg" alt="Google icon" width="24" height="24" />
+		<img src="/images/google_icon.svg" alt="Google icon" width="24" height="24" />
 	{/if}
 	{$t('common.continue_with_google')}
 </Button>
