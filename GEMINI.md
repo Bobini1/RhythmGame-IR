@@ -13,21 +13,25 @@ The project uses `bun` as the package manager. The following commands are essent
 ### Local Development
 
 1.  **Install Dependencies:**
+
     ```bash
     bun install
     ```
 
 2.  **Start the local database (requires Docker):**
+
     ```bash
     bun run local:db:up
     ```
 
 3.  **Run database migrations:**
+
     ```bash
     bun run db:migrate
     ```
 
 4.  **Start the development server:**
+
     ```bash
     bun run dev
     ```
@@ -39,31 +43,31 @@ The project uses `bun` as the package manager. The following commands are essent
 
 ### Building and Previewing
 
-*   **Build for production:**
-    ```bash
-    bun run build
-    ```
-*   **Preview the production build:**
-    ```bash
-    bun run preview
-    ```
+- **Build for production:**
+  ```bash
+  bun run build
+  ```
+- **Preview the production build:**
+  ```bash
+  bun run preview
+  ```
 
 ### Testing
 
 The project uses Vitest for unit testing and Playwright for end-to-end testing.
 
-*   **Run server-side tests:**
-    ```bash
-    bun run test:server
-    ```
-*   **Start the test database:**
-    ```bash
-    bun run test:db:up
-    ```
-*   **Stop the test database:**
-    ```bash
-    bun run test:db:down
-    ```
+- **Run server-side tests:**
+  ```bash
+  bun run test:server
+  ```
+- **Start the test database:**
+  ```bash
+  bun run test:db:up
+  ```
+- **Stop the test database:**
+  ```bash
+  bun run test:db:down
+  ```
 
 ## Development Conventions
 
@@ -71,52 +75,52 @@ The project uses Vitest for unit testing and Playwright for end-to-end testing.
 
 The project uses Prettier for code formatting and ESLint for linting.
 
-*   **Format code:**
-    ```bash
-    bun run format
-    ```
-*   **Check for linting errors:**
-    ```bash
-    bun run lint
-    ```
+- **Format code:**
+  ```bash
+  bun run format
+  ```
+- **Check for linting errors:**
+  ```bash
+  bun run lint
+  ```
 
 ### Database
 
 The project uses Drizzle ORM for database management.
 
-*   **Generate database migrations:**
-    ```bash
-    bun run db:generate
-    ```
-*   **Apply database migrations:**
-    ```bash
-    bun run db:migrate
-    ```
-*   **Push schema changes directly to the database (for development):**
-    ```bash
-    bun run db:push
-    ```
-*   **Open Drizzle Studio:**
-    ```bash
-    bun run db:studio
-    ```
+- **Generate database migrations:**
+  ```bash
+  bun run db:generate
+  ```
+- **Apply database migrations:**
+  ```bash
+  bun run db:migrate
+  ```
+- **Push schema changes directly to the database (for development):**
+  ```bash
+  bun run db:push
+  ```
+- **Open Drizzle Studio:**
+  ```bash
+  bun run db:studio
+  ```
 
 ### CLI Scaffolding Tools
 
 The project includes custom CLI scripts to automate common development tasks.
 
-*   **Create a new page:**
-    ```bash
-    bun run create:page <path>
-    ```
-*   **Create markdown files for all locales:**
-    ```bash
-    bun run create:md <filename>
-    ```
-*   **Create an API controller:**
-    ```bash
-    bun run create:api-controller <path>
-    ```
+- **Create a new page:**
+  ```bash
+  bun run create:page <path>
+  ```
+- **Create markdown files for all locales:**
+  ```bash
+  bun run create:md <filename>
+  ```
+- **Create an API controller:**
+  ```bash
+  bun run create:api-controller <path>
+  ```
 
 ## Authentication System
 
@@ -124,22 +128,22 @@ The template includes a complete authentication system built with [better-auth](
 
 ### Authentication Features
 
-*   **Multiple Authentication Methods**
-    *   Email and password authentication with secure password handling
-    *   OAuth integration (Google preconfigured, extensible for other providers)
-    *   Session-based authentication with database persistence
+- **Multiple Authentication Methods**
+  - Email and password authentication with secure password handling
+  - OAuth integration (Google preconfigured, extensible for other providers)
+  - Session-based authentication with database persistence
 
-*   **Security Features**
-    *   Automatic session management and token rotation
-    *   CSRF protection built-in
-    *   Email verification for new accounts
-    *   Secure password hashing and validation
+- **Security Features**
+  - Automatic session management and token rotation
+  - CSRF protection built-in
+  - Email verification for new accounts
+  - Secure password hashing and validation
 
-*   **Developer Experience**
-    *   Full TypeScript integration with type-safe auth state
-    *   Reactive session management in Svelte components
-    *   Automatic route protection middleware
-    *   Server-side session access in load functions
+- **Developer Experience**
+  - Full TypeScript integration with type-safe auth state
+  - Reactive session management in Svelte components
+  - Automatic route protection middleware
+  - Server-side session access in load functions
 
 ### Authentication Architecture
 
@@ -175,21 +179,21 @@ const session = authClient.useSession();
 
 // Email/password authentication
 await authClient.signIn.email({
-    email: 'user@example.com',
-    password: 'securePassword'
+	email: 'user@example.com',
+	password: 'securePassword'
 });
 
 // OAuth authentication
 await authClient.signIn.social({
-    provider: 'google',
-    callbackURL: '/dashboard'
+	provider: 'google',
+	callbackURL: '/dashboard'
 });
 
 // User registration
 await authClient.signUp.email({
-    email: 'newuser@example.com',
-    password: 'securePassword',
-    name: 'Full Name'
+	email: 'newuser@example.com',
+	password: 'securePassword',
+	name: 'Full Name'
 });
 ```
 
@@ -198,21 +202,21 @@ await authClient.signUp.email({
 ```typescript
 // In +layout.server.ts or +page.server.ts
 export async function load({ event }) {
-    // Session and user automatically available via middleware
-    const { session, user } = event.locals;
+	// Session and user automatically available via middleware
+	const { session, user } = event.locals;
 
-    if (!session) {
-        // Handle unauthenticated state
-        throw redirect(302, '/signin');
-    }
+	if (!session) {
+		// Handle unauthenticated state
+		throw redirect(302, '/signin');
+	}
 
-    return {
-        user: {
-            id: user.id,
-            name: user.name,
-            email: user.email
-        }
-    };
+	return {
+		user: {
+			id: user.id,
+			name: user.name,
+			email: user.email
+		}
+	};
 }
 ```
 
@@ -239,10 +243,10 @@ Routes are automatically protected based on configuration. The system checks rou
 
 The authentication system uses four core tables:
 
-*   **user** - User profiles and account information
-*   **session** - Active sessions with expiration tracking
-*   **account** - OAuth provider account links
-*   **verification** - Email verification and password reset tokens
+- **user** - User profiles and account information
+- **session** - Active sessions with expiration tracking
+- **account** - OAuth provider account links
+- **verification** - Email verification and password reset tokens
 
 ### Environment Configuration
 
@@ -273,7 +277,7 @@ GITHUB_CLIENT_SECRET=your_github_client_secret
 
 The authentication system integrates seamlessly with other template features:
 
-*   **Internationalization** - Auth UI supports Polish/English with RTL/LTR layouts
-*   **Theme System** - Authentication pages respect dark/light theme preferences
-*   **Database Layer** - Uses the same Drizzle ORM setup as other database operations
-*   **API Patterns** - Follows established request/response patterns for consistency
+- **Internationalization** - Auth UI supports Polish/English with RTL/LTR layouts
+- **Theme System** - Authentication pages respect dark/light theme preferences
+- **Database Layer** - Uses the same Drizzle ORM setup as other database operations
+- **API Patterns** - Follows established request/response patterns for consistency

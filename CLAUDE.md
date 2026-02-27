@@ -90,20 +90,20 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-    schema: { user, session, account, verification }
-  }),
-  emailAndPassword: {
-    enabled: true
-  },
-  socialProviders: {
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET
-    }
-  },
-  plugins: [sveltekitCookies(getRequestEvent)]
+	database: drizzleAdapter(db, {
+		provider: 'pg',
+		schema: { user, session, account, verification }
+	}),
+	emailAndPassword: {
+		enabled: true
+	},
+	socialProviders: {
+		google: {
+			clientId: env.GOOGLE_CLIENT_ID,
+			clientSecret: env.GOOGLE_CLIENT_SECRET
+		}
+	},
+	plugins: [sveltekitCookies(getRequestEvent)]
 });
 ```
 
@@ -137,21 +137,21 @@ const session = authClient.useSession();
 
 // Sign in with email/password
 await authClient.signIn.email({
-  email: 'user@example.com',
-  password: 'password'
+	email: 'user@example.com',
+	password: 'password'
 });
 
 // Sign in with Google OAuth
 await authClient.signIn.social({
-  provider: 'google',
-  callbackURL: '/dashboard'
+	provider: 'google',
+	callbackURL: '/dashboard'
 });
 
 // Sign up new user
 await authClient.signUp.email({
-  email: 'user@example.com',
-  password: 'password',
-  name: 'User Name'
+	email: 'user@example.com',
+	password: 'password',
+	name: 'User Name'
 });
 
 // Sign out
@@ -163,12 +163,12 @@ await authClient.signOut();
 ```typescript
 // In +layout.server.ts or +page.server.ts
 export async function load({ event }) {
-  const session = event.locals.session;
-  const user = event.locals.user;
+	const session = event.locals.session;
+	const user = event.locals.user;
 
-  return {
-    user: user ? { name: user.name, email: user.email } : null
-  };
+	return {
+		user: user ? { name: user.name, email: user.email } : null
+	};
 }
 ```
 
@@ -225,17 +225,17 @@ import { serviceFactory } from '$lib/server/database/services/provider';
 const userService = serviceFactory.getService(users);
 
 // CRUD operations
-const user = await userService.create({ name: "John", email: "john@example.com" });
+const user = await userService.create({ name: 'John', email: 'john@example.com' });
 const allUsers = await userService.findAll({ limit: 20 });
 const user = await userService.findById(1);
-await userService.updateById(1, { name: "Jane" });
+await userService.updateById(1, { name: 'Jane' });
 await userService.deleteById(1);
 
 // Advanced queries
-const activeUsers = await userService.find(
-  (table) => eq(table.status, 'active'),
-  { limit: 10, orderBy: desc(table.createdAt) }
-);
+const activeUsers = await userService.find((table) => eq(table.status, 'active'), {
+	limit: 10,
+	orderBy: desc(table.createdAt)
+});
 ```
 
 ### Query Utilities
@@ -243,17 +243,14 @@ const activeUsers = await userService.find(
 ```typescript
 // Parse URL params into query conditions
 const filters = getUrlFiltersUtil(url, {
-  searchColumns: [users.name, users.email]
+	searchColumns: [users.name, users.email]
 });
 
 // Parse pagination from URL: ?limit=20&offset=40&orderBy=name,-createdAt
 const options = getUrlOptionsUtil(url, users);
 
 // Parse body filters
-const bodyFilters = getBodyFiltersUtil(
-  { ids: [1, 2, 3] },
-  { ids: users.id }
-);
+const bodyFilters = getBodyFiltersUtil({ ids: [1, 2, 3] }, { ids: users.id });
 ```
 
 ### Request Helper
@@ -265,9 +262,9 @@ import { GET, POST, PUT, DELETE } from '$lib/api/helpers/request';
 
 // GET with query params
 const users = await GET<User[]>('/api/users', {
-  limit: 20,
-  searchTerm: 'john',
-  orderBy: 'name,-createdAt'
+	limit: 20,
+	searchTerm: 'john',
+	orderBy: 'name,-createdAt'
 });
 
 // POST to create
@@ -287,10 +284,10 @@ const serverData = await GET('/api/users', { fetch: event.fetch });
 
 ```typescript
 // In templates
-$t('common.navigation.home')
+$t('common.navigation.home');
 
 // In TypeScript
-t.get('common.navigation.home')
+t.get('common.navigation.home');
 
 // Translation files: src/lib/i18n/[locale]/[namespace].json
 // Supported: en-US, pl-PL (with RTL/LTR support)
