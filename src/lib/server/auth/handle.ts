@@ -3,8 +3,15 @@ import { auth } from './config';
 import { building } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
 import { AppRoutes } from '$lib/client/configurations/routes';
+import type { RequestEvent } from '@sveltejs/kit';
 
-export async function handle({ event, resolve }): Promise<Response> {
+export async function handle({
+	event,
+	resolve
+}: {
+	event: RequestEvent;
+	resolve: (event: RequestEvent) => Promise<Response>;
+}): Promise<Response> {
 	const session = await auth.api.getSession({
 		headers: event.request.headers
 	});
