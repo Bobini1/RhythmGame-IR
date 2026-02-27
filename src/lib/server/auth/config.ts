@@ -1,7 +1,7 @@
 import { db } from '$lib/server/database/client';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { betterAuth } from 'better-auth';
-import { bearer } from 'better-auth/plugins';
+import { bearer } from 'better-auth/plugins/bearer';
 import { account, session, user, verification } from '../database/schemas/auth';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
