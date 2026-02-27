@@ -4,7 +4,6 @@ import {
 	BookLock,
 	Cookie,
 	Handshake,
-	PersonStanding,
 	AlertTriangle,
 	Settings,
 	Server,
