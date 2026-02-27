@@ -10,6 +10,7 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { deepMerge } from 'svelte-meta-tags';
 	import { page } from '$app/state';
+	import { changeTheme, getTheme } from '$lib/theme/manager';
 
 	let { children, data } = $props();
 	let mergedMetaTags = $derived(
@@ -17,6 +18,7 @@
 	);
 
 	onMount(() => {
+		changeTheme(getTheme());
 		locale.subscribe((seletedLocale) => {
 			updateDirection(seletedLocale as AvailableLocales);
 		});
