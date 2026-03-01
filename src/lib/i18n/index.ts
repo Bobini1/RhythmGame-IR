@@ -9,6 +9,7 @@ interface Params {
 	number?: number;
 	user?: string;
 	author?: string;
+	name?: string;
 }
 
 /** @type {import('sveltekit-i18n').Config} */
@@ -30,6 +31,11 @@ const config: Config<Params> = {
 			loader: async () => (await import('$lib/i18n/pl-PL/homepage.json')).default
 		},
 		{
+			locale: AvailableLocales.Polish,
+			key: 'players',
+			loader: async () => (await import('$lib/i18n/pl-PL/players.json')).default
+		},
+		{
 			locale: AvailableLocales.English_US,
 			key: 'common',
 			loader: async () => (await import('./en-US/common.json')).default
@@ -43,6 +49,11 @@ const config: Config<Params> = {
 			locale: AvailableLocales.English_US,
 			key: 'homepage',
 			loader: async () => (await import('./en-US/homepage.json')).default
+		},
+		{
+			locale: AvailableLocales.English_US,
+			key: 'players',
+			loader: async () => (await import('./en-US/players.json')).default
 		}
 	]
 };

@@ -1,0 +1,16 @@
+{
+	"profile": {
+		"title": "Profil gracza {{name}}",
+		"description": "Wyniki gracza {{name}} w rankingu internetowym",
+		"scores_title": "Wyniki",
+		"score_table": {
+			"title": "Tytuł",
+			"score": "Wynik",
+			"grade": "Ocena",
+			"combo": "Combo",
+			"clear_type": "Clear",
+			"date": "Data"
+		}
+	}
+}
+

@@ -17,6 +17,9 @@
 	"status_code_error": {
 		"404": {
 			"description": "Strona nie została znaleziona"
+		},
+		"500": {
+			"description": "Wewnętrzny błąd serwera"
 		}
 	},
 	"manage_cookies_preferences": "Zarządzaj preferencjami plików cookie",
@@ -72,7 +75,7 @@
 	"database_unavailable": "Baza danych niedostępna",
 	"database_unavailable_demo_description": "Forkuj lub sklonuj repozytorium i postępuj zgodnie z instrukcjami, aby zobaczyć tę stronę w działaniu",
 	"add": "Dodaj",
-	"view": "Pokaż",
+	"view": "Widok",
 	"page": "Strona",
 	"delete": "Usuń",
 	"actions": "Akcje",

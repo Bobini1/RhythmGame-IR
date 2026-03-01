@@ -60,7 +60,7 @@
 				break;
 			}
 			case 'user': {
-				goto('/user');
+				if (user?.id) goto(`/players/${user.id}`);
 				break;
 			}
 		}

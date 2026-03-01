@@ -17,6 +17,9 @@
 	"status_code_error": {
 		"404": {
 			"description": "Page not found"
+		},
+		"500": {
+			"description": "Internal server error"
 		}
 	},
 	"manage_cookies_preferences": "Manage cookies preferences",
