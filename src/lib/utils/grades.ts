@@ -3,6 +3,14 @@ const GRADE_LABELS = ['MAX', 'MAX-', 'AAA', 'AAA-', 'AA', 'AA-', 'A', 'A-', 'B',
 
 export type Grade = (typeof GRADE_LABELS)[number];
 
+/** Priority index for sorting grades: 0 = best (MAX), 12 = worst (F). */
+export const GRADE_PRIORITY: Record<Grade, number> = Object.fromEntries(
+	GRADE_LABELS.map((g, i) => [g, i])
+) as Record<Grade, number>;
+
+/** Thresholds parallel to GRADE_LABELS, exported for use in SQL CASE expressions. */
+export { GRADE_THRESHOLDS, GRADE_LABELS };
+
 export function getGrade(points: number, maxPoints: number): Grade {
 	if (maxPoints <= 0) return 'F';
 	const ratio = points / maxPoints;
@@ -40,4 +48,3 @@ export function getGradeColor(grade: Grade): string {
 			return 'text-red-400';
 	}
 }
-

@@ -66,12 +66,27 @@
 	let sortingState = $state(configuration?.sortingState);
 	let sorting = $state<SortingState>(sortingState ?? []);
 
+	$effect(() => {
+		const newPageSize = configuration?.pageSize ?? pageSize;
+		const newPageIndex = configuration?.pageIndex ?? pagination.pageIndex;
+		pageSize = newPageSize;
+		pagination = { pageIndex: newPageIndex, pageSize: newPageSize };
+		if (configuration?.serverSide?.totalItems !== undefined) {
+			rowCount = configuration.serverSide.totalItems;
+		}
+		if (configuration?.sortingState !== undefined) {
+			sorting = configuration.sortingState;
+		}
+	});
+
 	const tableOptions: TableOptions<any> = {
 		get data() {
 			return data;
 		},
 		columns,
-		rowCount,
+		get rowCount() {
+			return rowCount;
+		},
 		getSortedRowModel: getSortedRowModel(),
 		onSortingChange: (updater) => {
 			if (typeof updater === 'function') {
@@ -123,7 +138,8 @@
 		},
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
-		manualPagination: !!configuration?.serverSide?.manualPagination
+		manualPagination: !!configuration?.serverSide?.manualPagination,
+		manualSorting: !!configuration?.serverSide?.manualPagination
 	};
 
 	const table = createSvelteTable(tableOptions);
@@ -160,26 +176,50 @@
 		if (pageSizeChanged) {
 			pageSizeChanged(newPageSize);
 		}
-		table.setPageSize(newPageSize);
+		if (!configuration?.serverSide?.manualPagination) {
+			table.setPageSize(newPageSize);
+		}
 	}
 </script>
 
 <div class="flex w-full max-w-[1200px] flex-col gap-2">
 	{@render header()}
 	<div class="rounded-md border">
-		<Table.Root>
+		<Table.Root class="table-fixed">
 			<Table.Header>
 				{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
 					<Table.Row>
 						{#each headerGroup.headers as header (header.id)}
-							<Table.Head class={$direction === 'lr' ? 'text-left' : 'text-right'}>
+							<Table.Head
+								class={$direction === 'lr' ? 'text-left' : 'text-right'}
+								style="width: {header.getSize()}px; min-width: {header.getSize()}px"
+							>
 								{#if !header.isPlaceholder}
-									<FlexRender
-										content={typeof header.column.columnDef.header === 'string'
-											? $t(header.column.columnDef.header)
-											: header.column.columnDef.header}
-										context={header.getContext()}
-									/>
+									{#if header.column.getCanSort()}
+										<button
+											class="flex items-center gap-1 hover:underline"
+											onclick={header.column.getToggleSortingHandler()}
+										>
+											<FlexRender
+												content={typeof header.column.columnDef.header === 'string'
+													? $t(header.column.columnDef.header)
+													: header.column.columnDef.header}
+												context={header.getContext()}
+											/>
+											{#if header.column.getIsSorted() === 'asc'}
+												<span>▲</span>
+											{:else if header.column.getIsSorted() === 'desc'}
+												<span>▼</span>
+											{/if}
+										</button>
+									{:else}
+										<FlexRender
+											content={typeof header.column.columnDef.header === 'string'
+												? $t(header.column.columnDef.header)
+												: header.column.columnDef.header}
+											context={header.getContext()}
+										/>
+									{/if}
 								{/if}
 							</Table.Head>
 						{/each}
@@ -190,7 +230,10 @@
 				{#each table.getRowModel().rows as row (row.id)}
 					<Table.Row data-state={row.getIsSelected() && 'selected'}>
 						{#each row.getVisibleCells() as cell (cell.id)}
-							<Table.Cell onclick={() => onRowClick(cell.column.id, $state.snapshot(row.original))}>
+							<Table.Cell
+								style="width: {cell.column.getSize()}px; min-width: {cell.column.getSize()}px"
+								onclick={() => onRowClick(cell.column.id, $state.snapshot(row.original))}
+							>
 								<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
 							</Table.Cell>
 						{/each}
@@ -274,10 +317,12 @@
 {#snippet footer()}
 	<div class="flex flex-row justify-between gap-2">
 		<div class="text-muted-foreground flex-1 text-sm">
-			{table.getFilteredSelectedRowModel().rows.length}
-			{$t('common.of')}
-			{table.getFilteredRowModel().rows.length}
-			{$t('common.row(s)_selected')}.<br />
+			{#if configuration?.bulkActions}
+				{table.getFilteredSelectedRowModel().rows.length}
+				{$t('common.of')}
+				{table.getFilteredRowModel().rows.length}
+				{$t('common.row(s)_selected')}.<br />
+			{/if}
 			<span>{$t('common.total')}: {table.getRowCount()}</span>
 		</div>
 		<div class="flex items-center justify-end gap-1">

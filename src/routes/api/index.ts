@@ -5,5 +5,8 @@ export const Health = `${CONTROLLER}/health`;
 export const DbHealth = `${CONTROLLER}/health/db`;
 export const Demo = `${CONTROLLER}/demo`;
 export const Scores = `${CONTROLLER}/scores`;
+export const ScoresMissing = `${CONTROLLER}/scores/missing`;
+export const ScoresBulk = `${CONTROLLER}/scores/bulk`;
+export const ScoresUnknown = `${CONTROLLER}/scores/unknown`;
 export const User = `${CONTROLLER}/user`;
 export const userScores = (userId: string) => `${CONTROLLER}/user/${userId}/scores`;

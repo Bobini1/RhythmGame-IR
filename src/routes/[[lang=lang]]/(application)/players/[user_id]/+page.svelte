@@ -1,41 +1,61 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import Avatar from '$lib/components/avatar/avatar.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { t } from '$lib/i18n';
-	import { GET } from '$lib/api/helpers/request';
-	import { userScores } from '../../../../api';
 	import type { ScoreRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
-	import { columns, tableConfiguration } from './configurations';
+	import type { SortingState } from '@tanstack/table-core';
+	import { columns } from './configurations';
 
 	let profile = $derived(page.data.profile);
-	let scores = $state<ScoreRow[]>(page.data.scores ?? []);
-	let total = $state<number>(page.data.total ?? 0);
-	let fetchInProgress = $state(false);
+	let scores = $derived<ScoreRow[]>(page.data.scores ?? []);
+	let total = $derived<number>(page.data.total ?? 0);
+	let currentPage = $derived<number>(page.data.page ?? 0);
+	let pageSize = $derived<number>(page.data.pageSize ?? 20);
+	let sortBy = $derived<string | null>(page.data.sortBy ?? null);
+	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
 
 	let configuration = $derived<TableConfiguration<ScoreRow>>({
-		...tableConfiguration,
 		serverSide: {
-			...tableConfiguration.serverSide,
+			enabled: true,
+			manualPagination: true,
 			totalItems: total
-		}
+		},
+		pageSize,
+		pageIndex: currentPage,
+		sortingState: sortBy ? [{ id: sortBy, desc: sortDir === 'desc' }] : []
 	});
 
-	async function onPageIndexChanged(newIndex: number) {
-		fetchInProgress = true;
-		try {
-			const limit = tableConfiguration.pageSize ?? 20;
-			const offset = newIndex * limit;
-			const result = await GET<{ scores: ScoreRow[]; total: number }>(
-				userScores(profile.id),
-				{ limit, offset }
-			);
-			scores = result.scores;
-		} finally {
-			fetchInProgress = false;
+	function updateUrl(params: { page?: number; limit?: number; sortBy?: string | null; sortDir?: string }) {
+		const url = new URL(page.url);
+		if (params.page !== undefined) url.searchParams.set('page', String(params.page));
+		if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+		if (params.sortBy !== undefined) {
+			if (params.sortBy) url.searchParams.set('sortBy', params.sortBy);
+			else url.searchParams.delete('sortBy');
 		}
+		if (params.sortDir !== undefined) url.searchParams.set('sortDir', params.sortDir);
+		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+	}
+
+	function onPageIndexChanged(newIndex: number) {
+		updateUrl({ page: newIndex, limit: pageSize });
+	}
+
+	function onPageSizeChanged(newPageSize: number) {
+		updateUrl({ page: 0, limit: newPageSize });
+	}
+
+	function onSortingChanged(state: SortingState) {
+		const first = state[0] ?? null;
+		updateUrl({
+			page: 0,
+			sortBy: first?.id ?? null,
+			sortDir: first ? (first.desc ? 'desc' : 'asc') : 'desc'
+		});
 	}
 </script>
 
@@ -55,9 +75,10 @@
 			<AppDataTable
 				{columns}
 				data={scores}
-				configuration={configuration}
-				isLoading={fetchInProgress}
+				{configuration}
 				pageIndexChanged={onPageIndexChanged}
+				pageSizeChanged={onPageSizeChanged}
+				sortingChanged={onSortingChanged}
 			/>
 		</section>
 	</div>

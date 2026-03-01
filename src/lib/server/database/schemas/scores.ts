@@ -44,7 +44,7 @@ export const charts = pgTable('charts', {
 	avgDensity: doublePrecision('avg_density').notNull().default(0),
 	endDensity: doublePrecision('end_density').notNull().default(0),
 	/**
-	 * Array of arrays of nanosecond offsets, one sub-array per HistogramNoteType:
+	 * Array of arrays of note counts, one sub-array per HistogramNoteType:
 	 * [Normal, Scratch, LongNote, BssNote, Landmine, Invisible]
 	 */
 	histogramData: jsonb('histogram_data').$type<number[][]>().notNull().default([]),

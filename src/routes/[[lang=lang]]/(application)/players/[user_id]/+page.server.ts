@@ -1,13 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { getUserProfile } from '$lib/server/scores/query';
-import { GET } from '$lib/api/helpers/request';
-import { userScores } from '../../../../api';
-import type { ScoreRow } from '$lib/server/scores/query';
+import { getUserProfile, getUserScores, getUserScoreCount } from '$lib/server/scores/query';
+import type { SortableColumn } from '$lib/server/scores/query';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
+const VALID_SORT_COLUMNS = new Set<SortableColumn>(['title', 'score_pct', 'grade', 'combo', 'clear_type', 'date']);
 
-export const load: PageServerLoad = async ({ params, fetch }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
 	const userId = params.user_id;
 
 	const profile = await getUserProfile(userId);
@@ -15,17 +14,28 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		error(404, 'Player not found');
 	}
 
-	const { scores, total } = await GET<{ scores: ScoreRow[]; total: number }>(
-		userScores(userId),
-		{ fetch, limit: PAGE_SIZE }
-	);
+	const page = Math.max(0, Number(url.searchParams.get('page') ?? 0));
+	const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? DEFAULT_PAGE_SIZE)));
+	const offset = page * pageSize;
+
+	const rawSortBy = url.searchParams.get('sortBy') ?? '';
+	const sortBy = VALID_SORT_COLUMNS.has(rawSortBy as SortableColumn)
+		? (rawSortBy as SortableColumn)
+		: null;
+	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+
+	const [scores, total] = await Promise.all([
+		getUserScores(userId, pageSize, offset, sortBy, sortDir),
+		getUserScoreCount(userId)
+	]);
 
 	return {
 		profile,
 		scores,
 		total,
-		pageSize: PAGE_SIZE
+		page,
+		pageSize,
+		sortBy,
+		sortDir
 	};
 };
-
-

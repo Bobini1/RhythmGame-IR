@@ -15,7 +15,7 @@ const md5Schema = z
 	.regex(/^[0-9A-Fa-f]{32}$/, 'Must be a 32-character hex string');
 
 // {8bb95133-d26f-4be2-99f2-642fde0fe215}
-const guidSchema = z
+export const guidSchema = z
 	.string()
 	.refine(
 		(val) =>
