@@ -1,0 +1,52 @@
+{
+	"page": {
+		"title": "Chart",
+		"description": "Chart details and scores",
+		"scores_title": "Scores"
+	},
+	"info": {
+		"artist": "Artist",
+		"subartist": "Sub-artist",
+		"genre": "Genre",
+		"play_level": "Play level",
+		"difficulty": "Difficulty",
+		"keymode": "Keymode",
+		"rank": "Rank",
+		"notes": "Notes",
+		"normal": "normal",
+		"scratch": "scratch",
+		"ln": "LN",
+		"bss": "BSS",
+		"mine_count": "Mines",
+		"bpm": "BPM",
+		"sha256": "SHA-256",
+		"md5": "MD5"
+	},
+	"score_table": {
+		"player": "Player",
+		"score": "Score",
+		"grade": "Grade",
+		"combo": "Combo",
+		"combo_breaks": "Breaks",
+		"clear_type": "Clear",
+		"poor": "Poor",
+		"empty_poor": "E.Poor",
+		"bad": "Bad",
+		"good": "Good",
+		"great": "Great",
+		"perfect": "Perfect",
+		"mine_hit": "Mine",
+		"mine_avoided": "M.Avoid",
+		"ln_end_skip": "LN Skip",
+		"ln_begin_hit": "LN Hit",
+		"date": "Date"
+	},
+	"user_scores": {
+		"title": "Scores",
+		"description": "All scores by a player on this chart",
+		"heading": "{{player}} on {{chart}}"
+	}
+}
+
+
+

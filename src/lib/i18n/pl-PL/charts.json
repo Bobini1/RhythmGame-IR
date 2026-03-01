@@ -1,0 +1,52 @@
+{
+	"page": {
+		"title": "Utwór",
+		"description": "Informacje o utworze i wyniki",
+		"scores_title": "Wyniki"
+	},
+	"info": {
+		"artist": "Artysta",
+		"subartist": "Pod-artysta",
+		"genre": "Gatunek",
+		"play_level": "Poziom gry",
+		"difficulty": "Trudność",
+		"keymode": "Tryb klawiszy",
+		"rank": "Rank",
+		"notes": "Notki",
+		"normal": "normalne",
+		"scratch": "scratch",
+		"ln": "LN",
+		"bss": "BSS",
+		"mine_count": "Miny",
+		"bpm": "BPM",
+		"sha256": "SHA-256",
+		"md5": "MD5"
+	},
+	"score_table": {
+		"player": "Gracz",
+		"score": "Wynik",
+		"grade": "Ocena",
+		"combo": "Combo",
+		"combo_breaks": "Utraty combo",
+		"clear_type": "Clear",
+		"poor": "Poor",
+		"empty_poor": "E.Poor",
+		"bad": "Bad",
+		"good": "Good",
+		"great": "Great",
+		"perfect": "Perfect",
+		"mine_hit": "Mina",
+		"mine_avoided": "Min.Unik.",
+		"ln_end_skip": "LN Pom.",
+		"ln_begin_hit": "LN Traf.",
+		"date": "Data"
+	},
+	"user_scores": {
+		"title": "Wyniki",
+		"description": "Wszystkie wyniki gracza na tym utworze",
+		"heading": "{{player}} na {{chart}}"
+	}
+}
+
+
+

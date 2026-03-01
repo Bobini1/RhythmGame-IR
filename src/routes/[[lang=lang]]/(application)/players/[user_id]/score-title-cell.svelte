@@ -1,11 +1,15 @@
 <script lang="ts">
-	let { title, subtitle }: { title: string; subtitle: string } = $props();
+	import { page } from '$app/state';
+
+	let { title, subtitle, sha256 }: { title: string; subtitle: string; sha256: string } = $props();
+
+	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
+	const href = $derived(`${lang}/charts/${sha256}`);
 </script>
 
-<div class="flex min-w-0 flex-col">
+<a {href} class="flex min-w-0 flex-col hover:underline">
 	<span class="truncate font-medium" title={title}>{title}</span>
 	{#if subtitle}
 		<span class="text-muted-foreground truncate text-xs" title={subtitle}>{subtitle}</span>
 	{/if}
-</div>
-
+</a>

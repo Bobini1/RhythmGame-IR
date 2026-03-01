@@ -15,7 +15,8 @@ export const columns: ColumnDef<ScoreRow>[] = [
 		cell: ({ row }) =>
 			renderComponent(ScoreTitleCell, {
 				title: row.original.chartTitle,
-				subtitle: row.original.chartSubtitle
+				subtitle: row.original.chartSubtitle,
+				sha256: row.original.chartSha256
 			}),
 		enableSorting: true,
 		sortDescFirst: false
