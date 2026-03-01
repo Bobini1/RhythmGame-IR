@@ -26,5 +26,6 @@ export const auth = betterAuth({
 			clientSecret: env.GOOGLE_CLIENT_SECRET as string
 		}
 	},
-	plugins: [sveltekitCookies(getRequestEvent), bearer()]
+	baseURL: env.BETTER_AUTH_URL,
+	plugins: [bearer(), sveltekitCookies(getRequestEvent)]
 });

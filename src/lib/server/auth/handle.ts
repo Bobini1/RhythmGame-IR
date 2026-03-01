@@ -19,14 +19,18 @@ export async function handle({
 	if (session) {
 		event.locals.session = session.session;
 		event.locals.user = session.user;
-	} else if (isRouteRequiresAuthentication(requestedPath)) {
-		redirect(302, `/signin?ref=${requestedPath}`);
+	} else {
+		if (isRouteRequiresAuthentication(requestedPath)) {
+			redirect(302, `/signin?ref=${requestedPath}`);
+		}
 	}
+
 	return svelteKitHandler({ event, resolve, auth, building });
 }
 
 function isRouteRequiresAuthentication(path: string): boolean {
 	if (pathIsHome(path)) return false;
+	if (path.startsWith('/api')) return false;
 	return !!AppRoutes.find((group) => {
 		return group.children.find((child) => {
 			return (
