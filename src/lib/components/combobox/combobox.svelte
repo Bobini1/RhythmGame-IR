@@ -25,7 +25,7 @@
 	} = $props();
 
 	let open = $state(false);
-	let value = $state(selectedOption);
+	let value = $derived.by(() => selectedOption) as string | undefined;
 	let triggerRef = $state<HTMLButtonElement>(null!);
 
 	const selectedValue = $derived(configuration.options.find((f) => f.value === value));

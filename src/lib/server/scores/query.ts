@@ -528,7 +528,8 @@ export async function getUserList(
 ): Promise<UserListRow[]> {
 	const dir = sortDir === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
-	const orderExpr = sortBy === 'name' ? dir(user.name) : dir(scoreCountExpr);
+	const orderExprs =
+		sortBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)];
 	const rows = await db
 		.select({
 			id: user.id,
@@ -539,7 +540,7 @@ export async function getUserList(
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
 		.groupBy(user.id, user.name, user.image)
-		.orderBy(orderExpr)
+		.orderBy(...orderExprs)
 		.limit(limit)
 		.offset(offset);
 	return rows.map((r) => ({ ...r, scoreCount: Number(r.scoreCount) }));
@@ -576,7 +577,8 @@ export async function getChartList(
 	const dir = sortDir === 'asc' ? asc : desc;
 	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
-	const orderExpr = sortBy === 'title' ? dir(mergedTitle) : dir(playCountExpr);
+	const orderExprs =
+		sortBy === 'title' ? [dir(mergedTitle)] : [dir(playCountExpr), asc(mergedTitle)];
 	const rows = await db
 		.select({
 			id: charts.id,
@@ -591,7 +593,7 @@ export async function getChartList(
 		.from(charts)
 		.leftJoin(scores, eq(scores.chartId, charts.id))
 		.groupBy(charts.id)
-		.orderBy(orderExpr)
+		.orderBy(...orderExprs)
 		.limit(limit)
 		.offset(offset);
 	return rows.map((r) => ({ ...r, playCount: Number(r.playCount) }));

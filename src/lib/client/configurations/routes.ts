@@ -36,12 +36,6 @@ export const AppRoutes: GroupedRoutes[] = [
 				path: '/settings',
 				icon: Settings,
 				authenticationRequired: false
-			},
-			{
-				label: 'common.manage_cookies',
-				path: '/manage-cookies',
-				icon: Cookie,
-				authenticationRequired: false
 			}
 		]
 	},
@@ -63,6 +57,12 @@ export const AppRoutes: GroupedRoutes[] = [
 				label: 'common.terms_of_service',
 				path: '/policies/terms',
 				icon: Handshake
+			},
+			{
+				label: 'common.manage_cookies',
+				path: '/manage-cookies',
+				icon: Cookie,
+				authenticationRequired: false
 			}
 		]
 	},

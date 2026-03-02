@@ -60,13 +60,12 @@
 		sortingChanged?: (state: SortingState) => void;
 	} = $props();
 
-	let pageSize = $state(configuration?.pageSize ?? 10);
-	let pagination = $state<PaginationState>({ pageIndex: configuration?.pageIndex ?? 0, pageSize });
-	let rowCount = $state(configuration?.serverSide?.totalItems);
+	let pageSize = $state(10);
+	let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 10 });
+	let rowCount = $state<number | undefined>(undefined);
 	let columnVisibility = $state<VisibilityState>({});
 	let rowSelection = $state<RowSelectionState>({});
-	let sortingState = $state(configuration?.sortingState);
-	let sorting = $state<SortingState>(sortingState ?? []);
+	let sorting = $state<SortingState>([]);
 
 	$effect(() => {
 		const newPageSize = configuration?.pageSize ?? pageSize;
@@ -85,7 +84,9 @@
 		get data() {
 			return data;
 		},
-		columns,
+		get columns() {
+			return columns;
+		},
 		get rowCount() {
 			return rowCount;
 		},
@@ -140,8 +141,12 @@
 		},
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
-		manualPagination: !!configuration?.serverSide?.manualPagination,
-		manualSorting: !!configuration?.serverSide?.manualPagination
+		get manualPagination() {
+			return !!configuration?.serverSide?.manualPagination;
+		},
+		get manualSorting() {
+			return !!configuration?.serverSide?.manualPagination;
+		}
 	};
 
 	const table = createSvelteTable(tableOptions);

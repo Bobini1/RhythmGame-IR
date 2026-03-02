@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
-	import { t } from '$lib/i18n';
 	import type { ChartListRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { ColumnDef, SortingState } from '@tanstack/table-core';
@@ -78,7 +77,7 @@
 	}
 </script>
 
-<BasePage title="charts.list.title" description="charts.list.description">
+<BasePage title="charts.list.list" description="charts.list.description">
 	<AppDataTable
 		{columns}
 		data={chartList}

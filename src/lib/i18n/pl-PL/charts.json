@@ -1,6 +1,7 @@
 {
 	"list": {
-		"title": "Utwory",
+		"list": "Piosenki",
+		"title": "Tytuł",
 		"description": "Wszystkie utwory w rankingu internetowym",
 		"level": "Poz.",
 		"title_col": "Tytuł",
