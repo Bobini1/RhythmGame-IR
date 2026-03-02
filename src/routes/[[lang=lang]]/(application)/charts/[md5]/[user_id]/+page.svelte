@@ -66,7 +66,6 @@
 					{profile.name}
 				</a>
 			</div>
-			<h1 class="text-2xl font-bold">{$t('charts.user_scores.heading', { chart: chartTitle, player: profile.name })}</h1>
 		</div>
 
 		<!-- Scores table -->
@@ -77,7 +76,11 @@
 			pageIndexChanged={(i) => updateUrl({ page: i, limit: pageSize })}
 			pageSizeChanged={(s) => updateUrl({ page: 0, limit: s })}
 			sortingChanged={onSortingChanged}
-		/>
+		>
+			{#snippet headerLeft()}
+				<h1 class="text-2xl font-bold">{$t('charts.user_scores.heading', { chart: chartTitle, player: profile.name })}</h1>
+			{/snippet}
+		</AppDataTable>
 	</div>
 </BasePage>
 

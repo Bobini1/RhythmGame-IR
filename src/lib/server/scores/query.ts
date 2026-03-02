@@ -155,8 +155,56 @@ export async function getUserScoreCount(userId: string, search: string = ''): Pr
 }
 
 // ---------------------------------------------------------------------------
-// Chart queries
+// Latest scores (homepage)
 // ---------------------------------------------------------------------------
+
+export interface LatestScoreRow {
+	id: string;
+	points: number;
+	maxPoints: number;
+	maxCombo: number;
+	maxHits: number;
+	clearType: string;
+	unixTimestamp: number;
+	userId: string;
+	userName: string;
+	userImage: string | null;
+	chartTitle: string;
+	chartSubtitle: string;
+	chartMd5: string;
+}
+
+export async function getLatestScores(limit: number, offset: number): Promise<LatestScoreRow[]> {
+	const rows = await db
+		.select({
+			id: scores.id,
+			points: scores.points,
+			maxPoints: scores.maxPoints,
+			maxCombo: scores.maxCombo,
+			maxHits: scores.maxHits,
+			clearType: scores.clearType,
+			unixTimestamp: scores.unixTimestamp,
+			userId: user.id,
+			userName: user.name,
+			userImage: user.image,
+			chartTitle: charts.title,
+			chartSubtitle: charts.subtitle,
+			chartMd5: charts.md5
+		})
+		.from(scores)
+		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(user, eq(scores.userId, user.id))
+		.orderBy(desc(scores.unixTimestamp))
+		.limit(limit)
+		.offset(offset);
+
+	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
+}
+
+export async function getLatestScoreCount(): Promise<number> {
+	const result = await db.select({ count: count() }).from(scores);
+	return result[0]?.count ?? 0;
+}
 
 export type ChartData = Omit<typeof charts.$inferSelect, 'length'> & { length: number };
 

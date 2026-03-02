@@ -6,13 +6,37 @@
 	import CardHeader from '$lib/components/ui/card/card-header.svelte';
 	import CardTitle from '$lib/components/ui/card/card-title.svelte';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { homepageConfig, type HomepageConfig } from './configurations/homepage.js';
+	import { latestScoresColumns } from './latest-scores-columns.js';
+	import type { LatestScoreRow } from '$lib/server/scores/query';
+	import type { TableConfiguration } from '$lib/models/table';
 
 	interface Props {
 		config?: HomepageConfig;
+		latestScores?: LatestScoreRow[];
+		total?: number;
+		currentPage?: number;
+		pageSize?: number;
+		pageIndexChanged?: (i: number) => void;
+		pageSizeChanged?: (s: number) => void;
 	}
 
-	let { config = homepageConfig }: Props = $props();
+	let {
+		config = homepageConfig,
+		latestScores = [],
+		total = 0,
+		currentPage = 0,
+		pageSize = 20,
+		pageIndexChanged,
+		pageSizeChanged
+	}: Props = $props();
+
+	const tableConfiguration = $derived<TableConfiguration<LatestScoreRow>>({
+		serverSide: { enabled: true, manualPagination: true, totalItems: total },
+		pageSize,
+		pageIndex: currentPage
+	});
 </script>
 
 <div class="container mx-auto max-w-6xl px-4 py-8">
@@ -26,6 +50,24 @@
 			{$t(config.hero.description)}
 		</p>
 	</div>
+
+	<!-- Latest scores -->
+	{#if latestScores.length > 0 || total > 0}
+		<div class="mb-16">
+			<AppDataTable
+				columns={latestScoresColumns}
+				data={latestScores}
+				configuration={tableConfiguration}
+				pageIndexChanged={pageIndexChanged}
+				pageSizeChanged={pageSizeChanged}
+			>
+				{#snippet headerLeft()}
+					<h2 class="mb-4 text-2xl font-bold">{$t('homepage.latest_scores.latest_scores')}</h2>
+				{/snippet}
+			</AppDataTable>
+		</div>
+		<Separator class="my-12" />
+	{/if}
 
 	<div class="mb-16">
 		<h2 class="mb-8 text-center text-3xl font-bold">

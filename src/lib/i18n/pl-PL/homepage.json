@@ -1,7 +1,7 @@
 {
 	"hero": {
-		"title": "SvelteKit + shadcn-svelte Template",
-		"description": "Modern full-stack web application starter template built for developer productivity and performance."
+		"title": "RhythmGame",
+		"description": "Konfigurowalny BMS player na Windowsa i Linuxa"
 	},
 	"techStack": {
 		"title": "Tech Stack",
@@ -107,5 +107,15 @@
 		"title": "Ready to build something amazing?",
 		"description": "Visit the SvelteKit documentation to learn more and start your journey.",
 		"button": "SvelteKit Documentation"
+	},
+	"latest_scores": {
+		"latest_scores": "Ostatnie wyniki",
+		"title": "Tytuł",
+		"player": "Gracz",
+		"score": "Wynik",
+		"grade": "Ocena",
+		"combo": "Combo",
+		"clear_type": "Clear",
+		"date": "Data"
 	}
 }
