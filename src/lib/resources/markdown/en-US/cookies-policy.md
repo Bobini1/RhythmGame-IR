@@ -60,4 +60,4 @@ We may update this Cookies Policy from time to time. Any changes will be posted 
 
 If you have questions about our use of cookies, please contact us through the contact information provided on our website.
 
-_Last updated: July 7, 2025_
+_Last updated: March 2, 2026_

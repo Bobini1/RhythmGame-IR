@@ -22,19 +22,9 @@ export const AppRoutes: GroupedRoutes[] = [
 		title: 'common.application',
 		children: [
 			{
-				label: 'common.example',
-				path: '/example',
-				icon: Banana
-			},
-			{
 				label: 'common.settings',
 				path: '/settings',
 				icon: Settings
-			},
-			{
-				label: 'common.error_boundary',
-				path: '/error-boundary',
-				icon: AlertTriangle
 			},
 			{
 				label: 'common.manage_cookies',

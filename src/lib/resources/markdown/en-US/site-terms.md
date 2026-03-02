@@ -166,12 +166,10 @@ We may update these Terms from time to time:
 
 If you have questions about these Terms, please contact us:
 
-- **Email**: legal@example.com
-- **Address**: [Your Company Address]
-- **Phone**: [Your Phone Number]
+- **Email**: tomasz.kalisiak@rhythmgame.eu
 
 ## Severability
 
 If any provision of these Terms is found to be invalid or unenforceable, the remaining provisions will continue in full force and effect.
 
-_Last updated: July 7, 2025_
+_Last updated: March 2, 2026_

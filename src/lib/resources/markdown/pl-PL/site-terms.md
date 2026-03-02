@@ -166,12 +166,10 @@ Możemy okresowo aktualizować ten Regulamin:
 
 Jeśli masz pytania dotyczące Regulaminu, skontaktuj się z nami:
 
-- **E-mail**: legal@example.com
-- **Adres**: [Adres Twojej firmy]
-- **Telefon**: [Twój numer telefonu]
+- **E-mail**: tomasz.kalisiak@rhythmgame.eu
 
 ## Rozdzielność postanowień
 
 Jeśli którekolwiek postanowienie Regulaminu zostanie uznane za nieważne lub niewykonalne, pozostałe postanowienia pozostaną w mocy.
 
-_Last updated: July 7, 2025_
+_Last updated: March 2, 2026_

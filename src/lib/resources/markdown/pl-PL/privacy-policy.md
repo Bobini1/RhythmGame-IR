@@ -140,4 +140,4 @@ Jeśli masz pytania dotyczące tej Polityki prywatności lub swoich danych osobo
 
 - **E-mail**: tomasz.kalisiak@rhythmgame.eu
 
-_Last updated: July 7, 2025_
+_Last updated: March 2, 2026_
