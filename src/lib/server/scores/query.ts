@@ -239,9 +239,11 @@ export interface ChartScoreRow {
 	bestComboBreaks: number;
 	/** Unix timestamp (seconds) of the most recent score by this player */
 	latestDate: number;
+	/** Total number of scores this player has on this chart */
+	scoreCount: number;
 }
 
-export type ChartSortableColumn = 'player' | 'score_pct' | 'grade' | 'combo' | 'combo_breaks' | 'clear_type' | 'date';
+export type ChartSortableColumn = 'player' | 'score_pct' | 'grade' | 'combo' | 'combo_breaks' | 'clear_type' | 'date' | 'play_count';
 
 // Poor = judgementCounts[0], Bad = judgementCounts[2]
 const poorPlusBad = sql<number>`(${scores.judgementCounts}->0)::int + (${scores.judgementCounts}->2)::int`;
@@ -271,6 +273,7 @@ function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'd
 		case 'grade':        return dir(bestPct);
 		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
 		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
+		case 'play_count':   return sql`${dir(sql`COUNT(${scores.id})`)}`;
 		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypePriorityCaseExpr()})`)}`;
 		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
 		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
@@ -302,7 +305,8 @@ export async function getChartScores(
 			maxHits: sql<number>`MAX(${scores.maxHits})`,
 			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
 			bestClearType: bestClearTypeExpr(),
-			latestDate: sql<number>`MAX(${scores.unixTimestamp})`
+			latestDate: sql<number>`MAX(${scores.unixTimestamp})`,
+			scoreCount: sql<number>`COUNT(${scores.id})`
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
@@ -313,7 +317,7 @@ export async function getChartScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, latestDate: Number(r.latestDate) }));
+	return rows.map((r) => ({ ...r, latestDate: Number(r.latestDate), scoreCount: Number(r.scoreCount) }));
 }
 
 export async function getChartScoreCount(chartMd5: string, search: string = ''): Promise<number> {

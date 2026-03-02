@@ -66,6 +66,15 @@ export const columns: ColumnDef<ChartScoreRow>[] = [
 		sortDescFirst: false
 	},
 	{
+		id: 'play_count',
+		header: 'charts.score_table.play_count',
+		size: 70,
+		accessorFn: (row) => row.scoreCount,
+		cell: ({ row }) => row.original.scoreCount,
+		enableSorting: true,
+		sortDescFirst: true
+	},
+	{
 		id: 'clear_type',
 		header: 'charts.score_table.clear_type',
 		size: 80,

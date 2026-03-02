@@ -14,6 +14,7 @@ const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
 	'grade',
 	'combo',
 	'combo_breaks',
+	'play_count',
 	'clear_type',
 	'date'
 ]);
