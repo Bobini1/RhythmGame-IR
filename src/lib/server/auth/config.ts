@@ -20,12 +20,6 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true
 	},
-	socialProviders: {
-		google: {
-			clientId: env.GOOGLE_CLIENT_ID as string,
-			clientSecret: env.GOOGLE_CLIENT_SECRET as string
-		}
-	},
 	baseURL: env.BETTER_AUTH_URL,
 	plugins: [bearer(), sveltekitCookies(getRequestEvent)]
 });
