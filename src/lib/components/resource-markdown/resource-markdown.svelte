@@ -17,7 +17,7 @@
 </script>
 
 <article
-	class="prose prose-strong:text-secondary-foreground prose-a:text-secondary-foreground prose-headings:text-secondary-foreground text-secondary-foreground text-justify"
+	class="prose prose-strong:text-foreground prose-a:text-foreground prose-headings:text-foreground text-foreground text-justify"
 >
 	{#if readyToRender}
 		<Content />
