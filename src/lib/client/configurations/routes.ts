@@ -36,6 +36,12 @@ export const AppRoutes: GroupedRoutes[] = [
 				path: '/settings',
 				icon: Settings,
 				authenticationRequired: false
+			},
+			{
+				label: 'common.manage_cookies',
+				path: '/manage-cookies',
+				icon: Cookie,
+				authenticationRequired: false
 			}
 		]
 	},
