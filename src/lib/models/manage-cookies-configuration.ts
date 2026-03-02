@@ -1,5 +1,5 @@
 export interface CookieCategory {
-	name: 'essential' | 'analytics' | 'advertising';
+	name: 'essential' | 'analytics';
 	optional: boolean;
 	description: string;
 	accepted: boolean;
