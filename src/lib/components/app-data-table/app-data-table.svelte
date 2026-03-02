@@ -300,12 +300,11 @@
 					{#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
 						<DropdownMenu.CheckboxItem
 							{disabled}
-							class="capitalize"
 							controlledChecked
 							checked={column.getIsVisible()}
 							onCheckedChange={(value) => column.toggleVisibility(!!value)}
 						>
-							{column.id}
+							{typeof column.columnDef.header === 'string' ? $t(column.columnDef.header) : column.id}
 						</DropdownMenu.CheckboxItem>
 					{/each}
 				</DropdownMenu.Content>
