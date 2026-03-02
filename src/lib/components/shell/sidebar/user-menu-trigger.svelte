@@ -11,21 +11,21 @@
 	const sidebar = useSidebar();
 </script>
 
-<div class="flex w-full items-center justify-start gap-2 p-1">
-	<Avatar styleClass="w-6 h-6" id={user?.id} src={image} />
+<div class="flex w-full min-w-0 items-center justify-start gap-2 p-1">
+	<Avatar styleClass="w-6 h-6 shrink-0" id={user?.id} src={image} />
 	{#if sidebar.open}
-		<section class="flex flex-col items-start">
+		<section class="flex min-w-0 flex-col items-start overflow-hidden">
 			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<span class="text-sm text-ellipsis">{name}</span>
+				<Tooltip.Trigger class="max-w-full">
+					<span class="block truncate text-sm">{name}</span>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
 					{name}
 				</Tooltip.Content>
 			</Tooltip.Root>
 			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<span class="text-xs font-light text-ellipsis">{user?.email}</span>
+				<Tooltip.Trigger class="max-w-full">
+					<span class="block truncate text-xs font-light">{user?.email}</span>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
 					{user?.email}
