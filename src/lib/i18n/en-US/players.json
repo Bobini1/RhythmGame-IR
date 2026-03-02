@@ -1,10 +1,17 @@
 {
+	"list": {
+		"title": "Players",
+		"description": "All players on the internet ranking",
+		"player": "Player",
+		"score_count": "Scores"
+	},
 	"profile": {
 		"title": "{{name}}'s profile",
 		"description": "View {{name}}'s scores on the internet ranking",
 		"scores_title": "Scores",
 		"search_placeholder": "Search by title…",
 		"score_table": {
+			"level": "Lv.",
 			"title": "Title",
 			"score": "Score",
 			"grade": "Grade",
@@ -14,4 +21,6 @@
 		}
 	}
 }
+
+
 

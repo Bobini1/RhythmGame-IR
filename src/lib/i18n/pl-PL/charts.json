@@ -1,4 +1,11 @@
 {
+	"list": {
+		"title": "Utwory",
+		"description": "Wszystkie utwory w rankingu internetowym",
+		"level": "Poz.",
+		"title_col": "Tytuł",
+		"play_count": "Wyniki"
+	},
 	"page": {
 		"title": "Utwór",
 		"description": "Informacje o utworze i wyniki",

@@ -5,6 +5,7 @@
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { t } from '$lib/i18n';
+	import PlayLevel from '$lib/components/scores/play-level.svelte';
 	import type { ChartScoreRow, ChartData } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
@@ -68,13 +69,6 @@
 
 	const RANK_NAMES: Record<number, string> = { 0: 'Very Hard', 1: 'Hard', 2: 'Normal', 3: 'Easy' };
 
-	const DIFFICULTY_COLORS: Record<number, string> = {
-		1: '#89CC89',
-		2: '#89CCCC',
-		3: '#CCA46C',
-		4: '#CC6868',
-		5: '#CC6699'
-	};
 
 	const totalNotes = $derived(
 		chart.normalNoteCount + chart.scratchCount + chart.lnCount + chart.bssCount
@@ -114,9 +108,7 @@
 				{/if}
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.play_level')}</dt>
-					<dd class="font-bold" style="color: {DIFFICULTY_COLORS[chart.difficulty] ?? '#808080'}">
-						{chart.playLevel}
-					</dd>
+					<dd><PlayLevel playLevel={chart.playLevel} difficulty={chart.difficulty} /></dd>
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.keymode')}</dt>

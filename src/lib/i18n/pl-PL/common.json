@@ -102,6 +102,8 @@
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Użytkownik z tym adresem e-mail już istnieje"
 	},
 	"scroll_to_top": "Przewiń na górę",
+	"players": "Gracze",
+	"charts": "Utwory",
 	"cancel": "Anuluj",
 	"delete_account": "Usuń konto",
 	"delete_account_description": "Trwale usuń swoje konto i wszystkie powiązane dane. Tej operacji nie można cofnąć.",

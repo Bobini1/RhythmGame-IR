@@ -102,6 +102,8 @@
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists"
 	},
 	"scroll_to_top": "Scroll to top",
+	"players": "Players",
+	"charts": "Charts",
 	"cancel": "Cancel",
 	"delete_account": "Delete account",
 	"delete_account_description": "Permanently delete your account and all associated data. This action cannot be undone.",

@@ -111,6 +111,7 @@
 	"latest_scores": {
 		"latest_scores": "Ostatnie wyniki",
 		"title": "Tytuł",
+		"level": "Poz.",
 		"player": "Gracz",
 		"score": "Wynik",
 		"grade": "Ocena",

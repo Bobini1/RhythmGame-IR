@@ -9,7 +9,9 @@ import {
 	Server,
 	DatabaseZap,
 	LogIn,
-	Signature
+	Signature,
+	Users,
+	Music
 } from '@lucide/svelte';
 
 export interface GroupedRoutes {
@@ -22,21 +24,19 @@ export const AppRoutes: GroupedRoutes[] = [
 		title: 'common.application',
 		children: [
 			{
+				label: 'common.players',
+				path: '/players',
+				icon: Users
+			},
+			{
+				label: 'common.charts',
+				path: '/charts',
+				icon: Music
+			},
+			{
 				label: 'common.settings',
 				path: '/settings',
 				icon: Settings
-			},
-			{
-				label: 'common.manage_cookies',
-				path: '/manage-cookies',
-				icon: Cookie,
-				authenticationRequired: false
-			},
-			{
-				label: 'common.server_health',
-				path: '/health',
-				icon: Server,
-				authenticationRequired: false
 			}
 		]
 	},

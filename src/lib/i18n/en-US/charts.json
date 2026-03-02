@@ -1,4 +1,11 @@
 {
+	"list": {
+		"title": "Charts",
+		"description": "All charts on the internet ranking",
+		"level": "Lv.",
+		"title_col": "Title",
+		"play_count": "Plays"
+	},
 	"page": {
 		"title": "Chart",
 		"description": "Chart details and scores",

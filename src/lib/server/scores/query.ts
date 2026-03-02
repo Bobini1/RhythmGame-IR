@@ -19,6 +19,8 @@ export interface ScoreRow {
 	chartTitle: string;
 	chartSubtitle: string;
 	chartMd5: string;
+	playLevel: number;
+	difficulty: number;
 }
 
 export interface UserProfileData {
@@ -126,7 +128,9 @@ export async function getUserScores(
 			unixTimestamp: scores.unixTimestamp,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
-			chartMd5: charts.md5
+			chartMd5: charts.md5,
+			playLevel: charts.playLevel,
+			difficulty: charts.difficulty
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
@@ -172,6 +176,8 @@ export interface LatestScoreRow {
 	chartTitle: string;
 	chartSubtitle: string;
 	chartMd5: string;
+	playLevel: number;
+	difficulty: number;
 }
 
 export async function getLatestScores(limit: number, offset: number): Promise<LatestScoreRow[]> {
@@ -189,7 +195,9 @@ export async function getLatestScores(limit: number, offset: number): Promise<La
 			userImage: user.image,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
-			chartMd5: charts.md5
+			chartMd5: charts.md5,
+			playLevel: charts.playLevel,
+			difficulty: charts.difficulty
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
@@ -494,3 +502,99 @@ export async function getScoresByIds(
 		gaugeHistory: r.gaugeHistory
 	}));
 }
+
+// ---------------------------------------------------------------------------
+// Users list
+// ---------------------------------------------------------------------------
+
+export interface UserListRow {
+	id: string;
+	name: string;
+	image: string | null;
+	scoreCount: number;
+}
+
+export type UserListSortColumn = 'name' | 'score_count';
+
+export async function getUserList(
+	limit: number,
+	offset: number,
+	sortBy: UserListSortColumn = 'score_count',
+	sortDir: 'asc' | 'desc' = 'desc'
+): Promise<UserListRow[]> {
+	const dir = sortDir === 'asc' ? asc : desc;
+	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
+	const orderExpr = sortBy === 'name' ? dir(user.name) : dir(scoreCountExpr);
+	const rows = await db
+		.select({
+			id: user.id,
+			name: user.name,
+			image: user.image,
+			scoreCount: scoreCountExpr
+		})
+		.from(user)
+		.leftJoin(scores, eq(scores.userId, user.id))
+		.groupBy(user.id, user.name, user.image)
+		.orderBy(orderExpr)
+		.limit(limit)
+		.offset(offset);
+	return rows.map((r) => ({ ...r, scoreCount: Number(r.scoreCount) }));
+}
+
+export async function getUserListCount(): Promise<number> {
+	const result = await db.select({ count: count() }).from(user);
+	return result[0]?.count ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Charts list
+// ---------------------------------------------------------------------------
+
+export type ChartListSortColumn = 'title' | 'play_count';
+
+export interface ChartListRow {
+	id: string;
+	md5: string;
+	title: string;
+	subtitle: string;
+	playLevel: number;
+	difficulty: number;
+	keymode: number;
+	playCount: number;
+}
+
+export async function getChartList(
+	limit: number,
+	offset: number,
+	sortBy: ChartListSortColumn = 'play_count',
+	sortDir: 'asc' | 'desc' = 'desc'
+): Promise<ChartListRow[]> {
+	const dir = sortDir === 'asc' ? asc : desc;
+	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
+	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
+	const orderExpr = sortBy === 'title' ? dir(mergedTitle) : dir(playCountExpr);
+	const rows = await db
+		.select({
+			id: charts.id,
+			md5: charts.md5,
+			title: charts.title,
+			subtitle: charts.subtitle,
+			playLevel: charts.playLevel,
+			difficulty: charts.difficulty,
+			keymode: charts.keymode,
+			playCount: playCountExpr
+		})
+		.from(charts)
+		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.groupBy(charts.id)
+		.orderBy(orderExpr)
+		.limit(limit)
+		.offset(offset);
+	return rows.map((r) => ({ ...r, playCount: Number(r.playCount) }));
+}
+
+export async function getChartListCount(): Promise<number> {
+	const result = await db.select({ count: count() }).from(charts);
+	return result[0]?.count ?? 0;
+}
+

@@ -5,8 +5,20 @@ import { locale } from '$lib/i18n';
 import ScoreGradeCell from './score-grade-cell.svelte';
 import ScoreTitleCell from './score-title-cell.svelte';
 import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
+import PlayLevel from '$lib/components/scores/play-level.svelte';
 
 export const columns: ColumnDef<ScoreRow>[] = [
+	{
+		id: 'level',
+		header: 'players.profile.score_table.level',
+		size: 60,
+		accessorFn: (row) => row.playLevel,
+		cell: ({ row }) => renderComponent(PlayLevel, {
+			playLevel: row.original.playLevel,
+			difficulty: row.original.difficulty
+		}),
+		enableSorting: false
+	},
 	{
 		id: 'title',
 		header: 'players.profile.score_table.title',
