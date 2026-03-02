@@ -101,6 +101,7 @@
 		"PASSWORD_TOO_SHORT": "Hasło jest za krótkie",
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Użytkownik z tym adresem e-mail już istnieje"
 	},
+	"captcha_required": "Proszę wypełnić captcha",
 	"scroll_to_top": "Przewiń na górę",
 	"players": "Gracze",
 	"charts": "Utwory",

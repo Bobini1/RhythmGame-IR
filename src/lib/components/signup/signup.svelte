@@ -8,23 +8,49 @@
 	import Input from '../ui/input/input.svelte';
 	import Label from '../ui/label/label.svelte';
 	import { toast } from 'svelte-sonner';
+	import { Turnstile } from 'svelte-turnstile';
+	import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+
 	const session = authClient.useSession();
 
 	let name = $state('');
 	let email = $state('');
 	let password = $state('');
 	let isLoading = $state(false);
+	let turnstileToken = $state('');
+	let resetTurnstile = $state<() => void>();
 
 	async function signup() {
+		if (!turnstileToken) {
+			toast.error(t.get('common.captcha_required'));
+			return;
+		}
+
 		isLoading = true;
-		const { error } = await authClient.signUp.email({
-			name,
-			email,
-			password,
-			callbackURL: '/'
-		});
-		if (error) {
-			toast.error(t.get(`common.auth_errors.${error.code}`));
+		try {
+			const res = await fetch('/api/signup', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, email, password, turnstileToken })
+			});
+
+			const data = await res.json();
+
+			if (!res.ok) {
+				toast.error(data.error ?? t.get('common.auth_errors.UNKNOWN_ERROR'));
+				resetTurnstile?.();
+				turnstileToken = '';
+			} else {
+				// Sign the user in after successful registration
+				const { error } = await authClient.signIn.email({ email, password, callbackURL: '/' });
+				if (error) {
+					toast.error(t.get(`common.auth_errors.${error.code}`));
+				}
+			}
+		} catch {
+			toast.error(t.get('common.auth_errors.UNKNOWN_ERROR'));
+			resetTurnstile?.();
+			turnstileToken = '';
 		}
 		isLoading = false;
 	}
@@ -84,7 +110,15 @@
 						/>
 					</div>
 
-					<Button type="submit" class="w-full" disabled={isLoading}>
+					<Turnstile
+						siteKey={PUBLIC_TURNSTILE_SITE_KEY}
+						on:turnstile-callback={(e) => (turnstileToken = e.detail.token)}
+						on:turnstile-expired={() => (turnstileToken = '')}
+						on:turnstile-error={() => (turnstileToken = '')}
+						bind:reset={resetTurnstile}
+					/>
+
+					<Button type="submit" class="w-full" disabled={isLoading || !turnstileToken}>
 						{#if isLoading}
 							<LoaderCircle class="animate-spin" size={18} />
 						{/if}

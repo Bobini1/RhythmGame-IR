@@ -101,6 +101,7 @@
 		"PASSWORD_TOO_SHORT": "Password is not long enough",
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists"
 	},
+	"captcha_required": "Please complete the captcha",
 	"scroll_to_top": "Scroll to top",
 	"players": "Players",
 	"charts": "Charts",
