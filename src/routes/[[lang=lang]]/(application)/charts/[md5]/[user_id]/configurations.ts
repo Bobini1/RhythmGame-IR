@@ -3,6 +3,7 @@ import type { ChartUserScoreRow } from '$lib/server/scores/query';
 import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
 import ScoreGradeCell from '../../../players/[user_id]/score-grade-cell.svelte';
+import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
 
 const J = {
 	Poor: 0, EmptyPoor: 1, Bad: 2, Good: 3, Great: 4,
@@ -54,6 +55,7 @@ export const columns: ColumnDef<ChartUserScoreRow>[] = [
 		header: 'charts.score_table.clear_type',
 		size: 80,
 		accessorKey: 'clearType',
+		cell: ({ row }) => renderComponent(ClearTypeCell, { value: row.original.clearType }),
 		enableSorting: true,
 		sortDescFirst: true
 	},

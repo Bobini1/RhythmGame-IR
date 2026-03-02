@@ -4,6 +4,7 @@ import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
 import ScoreGradeCell from './score-grade-cell.svelte';
 import ScoreTitleCell from './score-title-cell.svelte';
+import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
 
 export const columns: ColumnDef<ScoreRow>[] = [
 	{
@@ -16,7 +17,7 @@ export const columns: ColumnDef<ScoreRow>[] = [
 			renderComponent(ScoreTitleCell, {
 				title: row.original.chartTitle,
 				subtitle: row.original.chartSubtitle,
-				sha256: row.original.chartSha256
+				md5: row.original.chartMd5
 			}),
 		enableSorting: true,
 		sortDescFirst: false
@@ -62,6 +63,7 @@ export const columns: ColumnDef<ScoreRow>[] = [
 		header: 'players.profile.score_table.clear_type',
 		size: 90,
 		accessorKey: 'clearType',
+		cell: ({ row }) => renderComponent(ClearTypeCell, { value: row.original.clearType }),
 		enableSorting: true,
 		sortDescFirst: true
 	},

@@ -18,7 +18,7 @@ export interface ScoreRow {
 	unixTimestamp: number; // converted from bigint to a JS number for JSON serialization
 	chartTitle: string;
 	chartSubtitle: string;
-	chartSha256: string;
+	chartMd5: string;
 }
 
 export interface UserProfileData {
@@ -121,7 +121,7 @@ export async function getUserScores(
 			unixTimestamp: scores.unixTimestamp,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
-			chartSha256: charts.sha256
+			chartMd5: charts.md5
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
@@ -150,11 +150,11 @@ export async function getUserScoreCount(userId: string): Promise<number> {
 
 export type ChartData = Omit<typeof charts.$inferSelect, 'length'> & { length: number };
 
-export async function getChartBySha256(sha256: string): Promise<ChartData | null> {
+export async function getChartByMd5(md5: string): Promise<ChartData | null> {
 	const result = await db
 		.select()
 		.from(charts)
-		.where(eq(charts.sha256, sha256))
+		.where(eq(charts.md5, md5))
 		.limit(1);
 	if (!result[0]) return null;
 	return { ...result[0], length: Number(result[0].length) };
@@ -168,16 +168,33 @@ export interface ChartScoreRow {
 	maxPoints: number;
 	bestCombo: number;
 	maxHits: number;
+	bestClearType: string;
 	/** Poor (index 0) + Bad (index 2) combined, from the score with fewest combo breaks */
 	bestComboBreaks: number;
 	/** Unix timestamp (seconds) of the most recent score by this player */
 	latestDate: number;
 }
 
-export type ChartSortableColumn = 'player' | 'score_pct' | 'grade' | 'combo' | 'combo_breaks' | 'date';
+export type ChartSortableColumn = 'player' | 'score_pct' | 'grade' | 'combo' | 'combo_breaks' | 'clear_type' | 'date';
 
 // Poor = judgementCounts[0], Bad = judgementCounts[2]
 const poorPlusBad = sql<number>`(${scores.judgementCounts}->0)::int + (${scores.judgementCounts}->2)::int`;
+
+function clearTypePriorityCaseExpr() {
+	const branches = Object.entries(CLEAR_TYPE_PRIORITIES)
+		.map(([ct, p]) => sql`WHEN ${scores.clearType} = ${ct} THEN ${p}`)
+		.reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
+	return sql<number>`CASE ${branches} ELSE 0 END`;
+}
+
+// Returns the clear type string corresponding to the highest priority among grouped rows.
+function bestClearTypeExpr() {
+	const maxPriority = sql`MAX(${clearTypePriorityCaseExpr()})`;
+	const branches = Object.entries(CLEAR_TYPE_PRIORITIES)
+		.map(([ct, p]) => sql`WHEN ${maxPriority} = ${p} THEN ${ct}`)
+		.reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
+	return sql<string>`CASE ${branches} ELSE 'NOPLAY' END`;
+}
 
 function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'desc'): SQL {
 	const dir = sortDir === 'asc' ? asc : desc;
@@ -188,13 +205,14 @@ function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'd
 		case 'grade':        return dir(bestPct);
 		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
 		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
+		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypePriorityCaseExpr()})`)}`;
 		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
 		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
 	}
 }
 
 export async function getChartScores(
-	chartSha256: string,
+	chartMd5: string,
 	limit: number,
 	offset: number,
 	sortBy: ChartSortableColumn | null = null,
@@ -210,12 +228,13 @@ export async function getChartScores(
 			bestCombo: sql<number>`MAX(${scores.maxCombo})`,
 			maxHits: sql<number>`MAX(${scores.maxHits})`,
 			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
+			bestClearType: bestClearTypeExpr(),
 			latestDate: sql<number>`MAX(${scores.unixTimestamp})`
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
 		.innerJoin(user, eq(scores.userId, user.id))
-		.where(eq(charts.sha256, chartSha256))
+		.where(eq(charts.md5, chartMd5))
 		.groupBy(user.id, user.name, user.image)
 		.orderBy(getChartOrderBy(sortBy, sortDir))
 		.limit(limit)
@@ -224,13 +243,13 @@ export async function getChartScores(
 	return rows.map((r) => ({ ...r, latestDate: Number(r.latestDate) }));
 }
 
-export async function getChartScoreCount(chartSha256: string): Promise<number> {
+export async function getChartScoreCount(chartMd5: string): Promise<number> {
 	// Count distinct players, not total scores
 	const result = await db
 		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.where(eq(charts.sha256, chartSha256));
+		.where(eq(charts.md5, chartMd5));
 	return Number(result[0]?.count ?? 0);
 }
 
@@ -288,7 +307,7 @@ function getChartUserOrderBy(sortBy: ChartUserSortableColumn | null, sortDir: 'a
 }
 
 export async function getChartUserScores(
-	chartSha256: string,
+	chartMd5: string,
 	userId: string,
 	limit: number,
 	offset: number,
@@ -308,7 +327,7 @@ export async function getChartUserScores(
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.where(and(eq(charts.sha256, chartSha256), eq(scores.userId, userId)))
+		.where(and(eq(charts.md5, chartMd5), eq(scores.userId, userId)))
 		.orderBy(getChartUserOrderBy(sortBy, sortDir))
 		.limit(limit)
 		.offset(offset);
@@ -316,12 +335,12 @@ export async function getChartUserScores(
 	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
 }
 
-export async function getChartUserScoreCount(chartSha256: string, userId: string): Promise<number> {
+export async function getChartUserScoreCount(chartMd5: string, userId: string): Promise<number> {
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.where(and(eq(charts.sha256, chartSha256), eq(scores.userId, userId)));
+		.where(and(eq(charts.md5, chartMd5), eq(scores.userId, userId)));
 	return result[0]?.count ?? 0;
 }
 

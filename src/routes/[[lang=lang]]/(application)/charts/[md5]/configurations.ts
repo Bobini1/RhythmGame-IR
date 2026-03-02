@@ -4,6 +4,7 @@ import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
 import ScoreGradeCell from '../../players/[user_id]/score-grade-cell.svelte';
 import PlayerCell from './player-cell.svelte';
+import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
 
 export const columns: ColumnDef<ChartScoreRow>[] = [
 	{
@@ -63,6 +64,15 @@ export const columns: ColumnDef<ChartScoreRow>[] = [
 		cell: ({ row }) => row.original.bestComboBreaks,
 		enableSorting: true,
 		sortDescFirst: false
+	},
+	{
+		id: 'clear_type',
+		header: 'charts.score_table.clear_type',
+		size: 80,
+		accessorFn: (row) => row.bestClearType,
+		cell: ({ row }) => renderComponent(ClearTypeCell, { value: row.original.bestClearType }),
+		enableSorting: true,
+		sortDescFirst: true
 	},
 	{
 		id: 'date',

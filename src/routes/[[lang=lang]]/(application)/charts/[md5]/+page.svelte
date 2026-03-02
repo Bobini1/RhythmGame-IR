@@ -52,6 +52,14 @@
 
 	const RANK_NAMES: Record<number, string> = { 0: 'Very Hard', 1: 'Hard', 2: 'Normal', 3: 'Easy' };
 
+	const DIFFICULTY_COLORS: Record<number, string> = {
+		1: '#89CC89',
+		2: '#89CCCC',
+		3: '#CCA46C',
+		4: '#CC6868',
+		5: '#CC6699'
+	};
+
 	const totalNotes = $derived(
 		chart.normalNoteCount + chart.scratchCount + chart.lnCount + chart.bssCount
 	);
@@ -73,13 +81,13 @@
 				{#if chart.artist}
 					<div class="flex flex-col">
 						<dt class="text-muted-foreground">{$t('charts.info.artist')}</dt>
-						<dd class="font-medium">{chart.artist}</dd>
-					</div>
-				{/if}
-				{#if chart.subartist}
-					<div class="flex flex-col">
-						<dt class="text-muted-foreground">{$t('charts.info.subartist')}</dt>
-						<dd class="font-medium">{chart.subartist}</dd>
+						<dd class="font-medium">{chart.artist}
+							{#if chart.subartist}
+							<span class="text-muted-foreground font-normal">
+							{chart.subartist}
+							</span>
+							{/if}
+						</dd>
 					</div>
 				{/if}
 				{#if chart.genre}
@@ -90,11 +98,9 @@
 				{/if}
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.play_level')}</dt>
-					<dd class="font-medium">{chart.playLevel}</dd>
-				</div>
-				<div class="flex flex-col">
-					<dt class="text-muted-foreground">{$t('charts.info.difficulty')}</dt>
-					<dd class="font-medium">{chart.difficulty}</dd>
+					<dd class="font-bold" style="color: {DIFFICULTY_COLORS[chart.difficulty] ?? '#808080'}">
+						{chart.playLevel}
+					</dd>
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.keymode')}</dt>

@@ -5,9 +5,9 @@
 	let { userId, name, image }: { userId: string; name: string; image: string | null } = $props();
 
 	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
-	const sha256 = $derived(page.params.sha256);
+	const md5 = $derived(page.params.md5);
 	// Links to the per-user scores page for this chart
-	const href = $derived(`${lang}/charts/${sha256}/${userId}`);
+	const href = $derived(`${lang}/charts/${md5}/${userId}`);
 </script>
 
 <a {href} class="flex items-center gap-2 hover:underline">

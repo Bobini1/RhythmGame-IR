@@ -49,7 +49,7 @@
 
 	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
 	const chartTitle = $derived(chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title);
-	const chartHref = $derived(`${lang}/charts/${chart.sha256}`);
+	const chartHref = $derived(`${lang}/charts/${chart.md5}`);
 	const profileHref = $derived(`${lang}/players/${profile.id}`);
 </script>
 

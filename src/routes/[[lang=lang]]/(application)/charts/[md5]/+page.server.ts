@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import {
-	getChartBySha256,
+	getChartByMd5,
 	getChartScores,
 	getChartScoreCount
 } from '$lib/server/scores/query';
@@ -14,13 +14,14 @@ const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
 	'grade',
 	'combo',
 	'combo_breaks',
+	'clear_type',
 	'date'
 ]);
 
 export const load: PageServerLoad = async ({ params, url }) => {
-	const sha256 = params.sha256;
+	const md5 = params.md5;
 
-	const chart = await getChartBySha256(sha256);
+	const chart = await getChartByMd5(md5);
 	if (!chart) {
 		error(404, 'Chart not found');
 	}
@@ -39,8 +40,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
 	const [chartScores, total] = await Promise.all([
-		getChartScores(sha256, pageSize, offset, sortBy, sortDir),
-		getChartScoreCount(sha256)
+		getChartScores(md5, pageSize, offset, sortBy, sortDir),
+		getChartScoreCount(md5)
 	]);
 
 	return {

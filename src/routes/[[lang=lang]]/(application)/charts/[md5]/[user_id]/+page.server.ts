@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import {
-	getChartBySha256,
+	getChartByMd5,
 	getChartUserScores,
 	getChartUserScoreCount,
 	getUserProfile
@@ -15,12 +15,9 @@ const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
 ]);
 
 export const load: PageServerLoad = async ({ params, url }) => {
-	const { sha256, user_id } = params;
+	const { md5, user_id } = params;
 
-	const [chart, profile] = await Promise.all([
-		getChartBySha256(sha256),
-		getUserProfile(user_id)
-	]);
+	const [chart, profile] = await Promise.all([getChartByMd5(md5), getUserProfile(user_id)]);
 
 	if (!chart) error(404, 'Chart not found');
 	if (!profile) error(404, 'Player not found');
@@ -39,8 +36,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
 	const [scores, total] = await Promise.all([
-		getChartUserScores(sha256, user_id, pageSize, offset, sortBy, sortDir),
-		getChartUserScoreCount(sha256, user_id)
+		getChartUserScores(md5, user_id, pageSize, offset, sortBy, sortDir),
+		getChartUserScoreCount(md5, user_id)
 	]);
 
 	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir };
