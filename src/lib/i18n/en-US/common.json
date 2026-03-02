@@ -101,5 +101,13 @@
 		"PASSWORD_TOO_SHORT": "Password is not long enough",
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists"
 	},
-	"scroll_to_top": "Scroll to top"
+	"scroll_to_top": "Scroll to top",
+	"cancel": "Cancel",
+	"delete_account": "Delete account",
+	"delete_account_description": "Permanently delete your account and all associated data. This action cannot be undone.",
+	"delete_account_confirm_title": "Are you absolutely sure?",
+	"delete_account_confirm_description": "This will permanently delete your account, all your scores and replay data. This action cannot be undone.",
+	"delete_account_confirm": "Yes, delete my account",
+	"delete_account_success": "Your account has been deleted.",
+	"delete_account_error": "Failed to delete account. Please try again."
 }

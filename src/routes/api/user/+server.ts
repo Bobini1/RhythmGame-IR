@@ -1,9 +1,12 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
+import { db } from '$lib/server/database/client';
+import { user } from '$lib/server/database/schemas/auth';
+import { eq } from 'drizzle-orm';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
@@ -37,3 +40,20 @@ export const GET: RequestHandler = async (event) => {
 		return json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders });
 	}
 };
+
+export const DELETE: RequestHandler = async (event) => {
+	try {
+		const session = event.locals.session;
+		if (!session) {
+			return json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+		}
+
+		await db.delete(user).where(eq(user.id, session.userId));
+
+		return new Response(null, { status: 204, headers: corsHeaders });
+	} catch (error) {
+		console.error('Delete user error:', error);
+		return json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders });
+	}
+};
+
