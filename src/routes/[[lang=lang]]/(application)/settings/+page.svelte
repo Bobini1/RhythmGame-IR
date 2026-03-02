@@ -8,7 +8,7 @@
 </script>
 
 <BasePage title="common.settings" description="seo.pages.settings.description">
-	<div class="flex flex-col gap-8">
+	<div class="flex w-full max-w-lg flex-col gap-8">
 		<ThemeSettings />
 		{#if $session.data}
 			<DeleteAccount />
