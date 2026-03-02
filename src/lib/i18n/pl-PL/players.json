@@ -3,6 +3,7 @@
 		"title": "Profil gracza {{name}}",
 		"description": "Wyniki gracza {{name}} w rankingu internetowym",
 		"scores_title": "Wyniki",
+		"search_placeholder": "Szukaj po tytule…",
 		"score_table": {
 			"title": "Tytuł",
 			"score": "Wynik",

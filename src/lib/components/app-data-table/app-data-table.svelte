@@ -35,6 +35,7 @@
 		configuration?: TableConfiguration<TData>;
 		disabled?: boolean;
 		isLoading?: boolean;
+		headerLeft?: import('svelte').Snippet;
 	};
 
 	let {
@@ -43,6 +44,7 @@
 		disabled,
 		configuration,
 		isLoading,
+		headerLeft,
 		addData,
 		bulkActions,
 		rowClick,
@@ -264,6 +266,7 @@
 {#snippet header()}
 	<div class="flex flex-row justify-between gap-2">
 		<div class="flex flex-row items-center gap-2">
+			{#if headerLeft}{@render headerLeft()}{/if}
 			{#if addData}
 				<Button {disabled} variant="outline" onclick={() => addData()}>
 					<div class="flex flex-row items-center gap-2">

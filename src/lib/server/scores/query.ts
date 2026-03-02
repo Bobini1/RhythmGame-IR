@@ -108,8 +108,13 @@ export async function getUserScores(
 	limit: number,
 	offset: number,
 	sortBy: SortableColumn | null = null,
-	sortDir: 'asc' | 'desc' = 'desc'
+	sortDir: 'asc' | 'desc' = 'desc',
+	search: string = ''
 ): Promise<ScoreRow[]> {
+	const searchFilter = search
+		? sql`TRIM(${charts.title} || ' ' || ${charts.subtitle}) ILIKE ${'%' + search + '%'}`
+		: undefined;
+
 	const rows = await db
 		.select({
 			id: scores.id,
@@ -125,7 +130,7 @@ export async function getUserScores(
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.where(eq(scores.userId, userId))
+		.where(searchFilter ? and(eq(scores.userId, userId), searchFilter) : eq(scores.userId, userId))
 		.orderBy(getOrderBy(sortBy, sortDir))
 		.limit(limit)
 		.offset(offset);
@@ -136,11 +141,16 @@ export async function getUserScores(
 	}));
 }
 
-export async function getUserScoreCount(userId: string): Promise<number> {
+export async function getUserScoreCount(userId: string, search: string = ''): Promise<number> {
+	const searchFilter = search
+		? sql`TRIM(${charts.title} || ' ' || ${charts.subtitle}) ILIKE ${'%' + search + '%'}`
+		: undefined;
+
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
-		.where(eq(scores.userId, userId));
+		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.where(searchFilter ? and(eq(scores.userId, userId), searchFilter) : eq(scores.userId, userId));
 	return result[0]?.count ?? 0;
 }
 
@@ -216,8 +226,15 @@ export async function getChartScores(
 	limit: number,
 	offset: number,
 	sortBy: ChartSortableColumn | null = null,
-	sortDir: 'asc' | 'desc' = 'desc'
+	sortDir: 'asc' | 'desc' = 'desc',
+	search: string = ''
 ): Promise<ChartScoreRow[]> {
+	const searchFilter = search
+		? sql`${user.name} ILIKE ${'%' + search + '%'}`
+		: undefined;
+	const baseFilter = eq(charts.md5, chartMd5);
+	const whereClause = searchFilter ? and(baseFilter, searchFilter) : baseFilter;
+
 	const rows = await db
 		.select({
 			userId: user.id,
@@ -234,7 +251,7 @@ export async function getChartScores(
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
 		.innerJoin(user, eq(scores.userId, user.id))
-		.where(eq(charts.md5, chartMd5))
+		.where(whereClause)
 		.groupBy(user.id, user.name, user.image)
 		.orderBy(getChartOrderBy(sortBy, sortDir))
 		.limit(limit)
@@ -243,13 +260,19 @@ export async function getChartScores(
 	return rows.map((r) => ({ ...r, latestDate: Number(r.latestDate) }));
 }
 
-export async function getChartScoreCount(chartMd5: string): Promise<number> {
-	// Count distinct players, not total scores
+export async function getChartScoreCount(chartMd5: string, search: string = ''): Promise<number> {
+	const searchFilter = search
+		? sql`${user.name} ILIKE ${'%' + search + '%'}`
+		: undefined;
+	const baseFilter = eq(charts.md5, chartMd5);
+	const whereClause = searchFilter ? and(baseFilter, searchFilter) : baseFilter;
+
 	const result = await db
 		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.where(eq(charts.md5, chartMd5));
+		.innerJoin(user, eq(scores.userId, user.id))
+		.where(whereClause);
 	return Number(result[0]?.count ?? 0);
 }
 

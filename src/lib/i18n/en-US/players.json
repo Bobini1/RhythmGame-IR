@@ -3,6 +3,7 @@
 		"title": "{{name}}'s profile",
 		"description": "View {{name}}'s scores on the internet ranking",
 		"scores_title": "Scores",
+		"search_placeholder": "Search by title…",
 		"score_table": {
 			"title": "Title",
 			"score": "Score",

@@ -2,7 +2,8 @@
 	"page": {
 		"title": "Chart",
 		"description": "Chart details and scores",
-		"scores_title": "Scores"
+		"scores_title": "Scores",
+		"search_placeholder": "Search by player…"
 	},
 	"info": {
 		"artist": "Artist",

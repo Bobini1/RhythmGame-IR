@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import { t } from '$lib/i18n';
 	import type { ChartScoreRow, ChartData } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
@@ -16,6 +17,9 @@
 	let pageSize = $derived<number>(page.data.pageSize ?? 20);
 	let sortBy = $derived<string | null>(page.data.sortBy ?? null);
 	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
+	let search = $state<string>(page.data.search ?? '');
+
+	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	let configuration = $derived<TableConfiguration<ChartScoreRow>>({
 		serverSide: { enabled: true, manualPagination: true, totalItems: total },
@@ -29,6 +33,7 @@
 		limit?: number;
 		sortBy?: string | null;
 		sortDir?: string;
+		search?: string;
 	}) {
 		const url = new URL(page.url);
 		if (params.page !== undefined) url.searchParams.set('page', String(params.page));
@@ -38,7 +43,18 @@
 			else url.searchParams.delete('sortBy');
 		}
 		if (params.sortDir !== undefined) url.searchParams.set('sortDir', params.sortDir);
+		if (params.search !== undefined) {
+			if (params.search) url.searchParams.set('search', params.search);
+			else url.searchParams.delete('search');
+		}
 		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+	}
+
+	function onSearchInput() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			updateUrl({ page: 0, search });
+		}, 300);
 	}
 
 	function onSortingChanged(state: SortingState) {
@@ -159,7 +175,17 @@
 				pageIndexChanged={(i) => updateUrl({ page: i, limit: pageSize })}
 				pageSizeChanged={(s) => updateUrl({ page: 0, limit: s })}
 				sortingChanged={onSortingChanged}
-			/>
+			>
+				{#snippet headerLeft()}
+					<Input
+						type="search"
+						placeholder={$t('charts.page.search_placeholder')}
+						bind:value={search}
+						oninput={onSearchInput}
+						class="w-48"
+					/>
+				{/snippet}
+			</AppDataTable>
 		</section>
 	</div>
 </BasePage>

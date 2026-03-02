@@ -4,6 +4,7 @@
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import Avatar from '$lib/components/avatar/avatar.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import { t } from '$lib/i18n';
 	import type { ScoreRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
@@ -17,6 +18,9 @@
 	let pageSize = $derived<number>(page.data.pageSize ?? 20);
 	let sortBy = $derived<string | null>(page.data.sortBy ?? null);
 	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
+	let search = $state<string>(page.data.search ?? '');
+
+	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	let configuration = $derived<TableConfiguration<ScoreRow>>({
 		serverSide: {
@@ -29,7 +33,7 @@
 		sortingState: sortBy ? [{ id: sortBy, desc: sortDir === 'desc' }] : []
 	});
 
-	function updateUrl(params: { page?: number; limit?: number; sortBy?: string | null; sortDir?: string }) {
+	function updateUrl(params: { page?: number; limit?: number; sortBy?: string | null; sortDir?: string; search?: string }) {
 		const url = new URL(page.url);
 		if (params.page !== undefined) url.searchParams.set('page', String(params.page));
 		if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
@@ -38,7 +42,18 @@
 			else url.searchParams.delete('sortBy');
 		}
 		if (params.sortDir !== undefined) url.searchParams.set('sortDir', params.sortDir);
+		if (params.search !== undefined) {
+			if (params.search) url.searchParams.set('search', params.search);
+			else url.searchParams.delete('search');
+		}
 		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+	}
+
+	function onSearchInput() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			updateUrl({ page: 0, search });
+		}, 300);
 	}
 
 	function onPageIndexChanged(newIndex: number) {
@@ -79,7 +94,17 @@
 				pageIndexChanged={onPageIndexChanged}
 				pageSizeChanged={onPageSizeChanged}
 				sortingChanged={onSortingChanged}
-			/>
+			>
+				{#snippet headerLeft()}
+					<Input
+						type="search"
+						placeholder={$t('players.profile.search_placeholder')}
+						bind:value={search}
+						oninput={onSearchInput}
+						class="w-48"
+					/>
+				{/snippet}
+			</AppDataTable>
 		</section>
 	</div>
 </BasePage>

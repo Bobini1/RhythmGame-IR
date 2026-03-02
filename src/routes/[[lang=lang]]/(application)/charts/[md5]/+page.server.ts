@@ -38,10 +38,11 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		? (rawSortBy as ChartSortableColumn)
 		: 'score_pct';
 	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+	const search = url.searchParams.get('search') ?? '';
 
 	const [chartScores, total] = await Promise.all([
-		getChartScores(md5, pageSize, offset, sortBy, sortDir),
-		getChartScoreCount(md5)
+		getChartScores(md5, pageSize, offset, sortBy, sortDir, search),
+		getChartScoreCount(md5, search)
 	]);
 
 	return {
@@ -51,7 +52,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		page,
 		pageSize,
 		sortBy,
-		sortDir
+		sortDir,
+		search
 	};
 };
 

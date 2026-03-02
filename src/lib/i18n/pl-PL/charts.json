@@ -2,7 +2,8 @@
 	"page": {
 		"title": "Utwór",
 		"description": "Informacje o utworze i wyniki",
-		"scores_title": "Wyniki"
+		"scores_title": "Wyniki",
+		"search_placeholder": "Szukaj po graczu…"
 	},
 	"info": {
 		"artist": "Artysta",

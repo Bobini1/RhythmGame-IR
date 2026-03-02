@@ -23,10 +23,11 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		? (rawSortBy as SortableColumn)
 		: null;
 	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+	const search = url.searchParams.get('search') ?? '';
 
 	const [scores, total] = await Promise.all([
-		getUserScores(userId, pageSize, offset, sortBy, sortDir),
-		getUserScoreCount(userId)
+		getUserScores(userId, pageSize, offset, sortBy, sortDir, search),
+		getUserScoreCount(userId, search)
 	]);
 
 	return {
@@ -36,6 +37,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		page,
 		pageSize,
 		sortBy,
-		sortDir
+		sortDir,
+		search
 	};
 };
