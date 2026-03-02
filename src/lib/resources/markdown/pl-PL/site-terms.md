@@ -172,4 +172,4 @@ Jeśli masz pytania dotyczące Regulaminu, skontaktuj się z nami:
 
 Jeśli którekolwiek postanowienie Regulaminu zostanie uznane za nieważne lub niewykonalne, pozostałe postanowienia pozostaną w mocy.
 
-_Last updated: March 2, 2026_
+_Ostatnia aktualizacja: 2 marca 2026_

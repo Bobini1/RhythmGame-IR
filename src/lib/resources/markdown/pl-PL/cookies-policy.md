@@ -60,4 +60,4 @@ Możemy okresowo aktualizować niniejszą Politykę plików cookie. Wszelkie zmi
 
 Jeśli masz pytania dotyczące naszego wykorzystywania plików cookie, skontaktuj się z nami za pośrednictwem danych kontaktowych dostępnych na naszej stronie.
 
-_Last updated: March 2, 2026_
+_Ostatnia aktualizacja: 2 marca 2026_
