@@ -1,13 +1,9 @@
 import type { Link } from '$lib/models/link';
 import {
-	Banana,
 	BookLock,
 	Cookie,
 	Handshake,
-	AlertTriangle,
 	Settings,
-	Server,
-	DatabaseZap,
 	LogIn,
 	Signature,
 	Users,
@@ -26,17 +22,20 @@ export const AppRoutes: GroupedRoutes[] = [
 			{
 				label: 'common.players',
 				path: '/players',
-				icon: Users
+				icon: Users,
+				authenticationRequired: false
 			},
 			{
 				label: 'common.charts',
 				path: '/charts',
-				icon: Music
+				icon: Music,
+				authenticationRequired: false
 			},
 			{
 				label: 'common.settings',
 				path: '/settings',
-				icon: Settings
+				icon: Settings,
+				authenticationRequired: false
 			}
 		]
 	},
