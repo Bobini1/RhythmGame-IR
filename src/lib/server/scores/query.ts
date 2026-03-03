@@ -508,6 +508,108 @@ export async function getScoresByIds(
 }
 
 // ---------------------------------------------------------------------------
+// Scores for chart grouped by user (for game client download)
+// ---------------------------------------------------------------------------
+
+export interface UserScoreGroup {
+	profile: {
+		id: string;
+		username: string;
+		avatarUrl: string;
+		profileUrl: string;
+	};
+	scores: ScoreDownloadRow[];
+}
+
+export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[]> {
+	// Fetch all scores for this chart together with user info and extras
+	const rows = await db
+		.select({
+			userId: user.id,
+			userName: user.name,
+			userImage: user.image,
+			guid: scores.id,
+			points: scores.points,
+			maxPoints: scores.maxPoints,
+			maxCombo: scores.maxCombo,
+			maxHits: scores.maxHits,
+			judgementCounts: scores.judgementCounts,
+			mineHits: scores.mineHits,
+			normalNoteCount: scores.normalNoteCount,
+			scratchCount: scores.scratchCount,
+			lnCount: scores.lnCount,
+			bssCount: scores.bssCount,
+			mineCount: scores.mineCount,
+			clearType: scores.clearType,
+			randomSequence: scores.randomSequence,
+			randomSeed: scores.randomSeed,
+			noteOrderAlgorithm: scores.noteOrderAlgorithm,
+			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
+			dpOptions: scores.dpOptions,
+			gameVersion: scores.gameVersion,
+			length: scores.length,
+			unixTimestamp: scores.unixTimestamp,
+			sha256: charts.sha256,
+			chartMd5: charts.md5,
+			replayData: scoreExtras.replayData,
+			gaugeHistory: scoreExtras.gaugeHistory
+		})
+		.from(scores)
+		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(scoreExtras, eq(scoreExtras.scoreId, scores.id))
+		.innerJoin(user, eq(scores.userId, user.id))
+		.where(eq(charts.md5, md5))
+		.orderBy(asc(user.id), desc(scores.unixTimestamp));
+
+	// Group by user
+	const groupMap = new Map<string, UserScoreGroup>();
+	for (const r of rows) {
+		if (!groupMap.has(r.userId)) {
+			groupMap.set(r.userId, {
+				profile: {
+					id: r.userId,
+					username: r.userName,
+					avatarUrl: r.userImage ?? '',
+					profileUrl: `/players/${r.userId}`
+				},
+				scores: []
+			});
+		}
+		groupMap.get(r.userId)!.scores.push({
+			scoreData: {
+				guid: r.guid,
+				points: r.points,
+				maxPoints: r.maxPoints,
+				maxCombo: r.maxCombo,
+				maxHits: r.maxHits,
+				judgementCounts: r.judgementCounts,
+				mineHits: r.mineHits,
+				normalNoteCount: r.normalNoteCount,
+				scratchCount: r.scratchCount,
+				lnCount: r.lnCount,
+				bssCount: r.bssCount,
+				mineCount: r.mineCount,
+				clearType: r.clearType as ScoreSubmission['clearType'],
+				randomSequence: r.randomSequence,
+				randomSeed: r.randomSeed,
+				noteOrderAlgorithm: r.noteOrderAlgorithm,
+				noteOrderAlgorithmP2: r.noteOrderAlgorithmP2,
+				dpOptions: r.dpOptions,
+				gameVersion: r.gameVersion,
+				length: Number(r.length),
+				unixTimestamp: Number(r.unixTimestamp),
+				sha256: r.sha256,
+				md5: r.chartMd5
+			},
+			replayData: r.replayData,
+			gaugeHistory: r.gaugeHistory
+		});
+	}
+
+	return Array.from(groupMap.values());
+}
+
+// ---------------------------------------------------------------------------
 // Users list
 // ---------------------------------------------------------------------------
 
