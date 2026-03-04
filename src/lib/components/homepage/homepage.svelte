@@ -41,11 +41,13 @@
 
 <div class="container mx-auto max-w-6xl px-4 py-8">
 	<div class="mb-16 text-center">
-		<h1
-			class="from-primary to-primary/60 mb-6 bg-gradient-to-r bg-clip-text text-4xl font-bold text-transparent md:text-6xl"
-		>
-			{$t(config.hero.title)}
-		</h1>
+		<div class="mb-6">
+			<h1
+				class="from-primary to-primary/60 inline-block bg-linear-to-r bg-clip-text pb-3 -mb-3 text-4xl font-bold text-transparent md:text-6xl"
+			>
+				{$t(config.hero.title)}
+			</h1>
+		</div>
 		<p class="text-muted-foreground mx-auto mb-8 max-w-3xl text-xl md:text-2xl">
 			{$t(config.hero.description)}
 		</p>
