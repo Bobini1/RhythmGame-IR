@@ -17,8 +17,6 @@ type BulkResultItem =
  * Accepts an array of score submission payloads (max 500) and attempts to
  * persist each one. Results are returned per-item — failures do not abort the
  * rest of the batch.
- *
- * Response body: { results: BulkResultItem[] }
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const session = locals.session;
@@ -33,7 +31,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	// Validate the outer array shape first.
 	const parsed = bulkPayloadSchema.safeParse(body);
 	if (!parsed.success) {
 		return json(
@@ -47,8 +44,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	for (const payload of parsed.data) {
 		const guid = payload.scoreData.guid;
 
-		// Re-validate individual payload (already done above, but gives us a
-		// clean result per item in case we extend per-item validation later).
 		const itemResult = scoreSubmissionPayloadSchema.safeParse(payload);
 		if (!itemResult.success) {
 			results.push({ guid, status: 'invalid', details: itemResult.error.flatten() });

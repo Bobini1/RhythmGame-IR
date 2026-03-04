@@ -9,11 +9,8 @@ const bodySchema = z.array(guidSchema);
  * POST /api/scores/missing
  *
  * The client sends the list of score GUIDs it already has locally.
- * The server responds with full payloads (score + chart + replay +
- * gauge history) for every score that is not in that list.
- *
- * Request body:  { localGuids: string[] }
- * Response body: { scores: ScoreDownloadRow[], totalOnServer: number, returnedCount: number }
+ * The server responds with full payloads (score + replay + gauge history)
+ * for every score that is not in that list.
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const session = locals.session;
@@ -40,7 +37,4 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	return json(missingScores);
 };
-
-
-
 

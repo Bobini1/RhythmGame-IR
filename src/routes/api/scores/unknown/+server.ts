@@ -11,9 +11,6 @@ const bodySchema = z.array(guidSchema);
  * Preflight for bulk upload. The client sends the GUIDs of all scores it
  * wants to upload; the server returns the subset it does not already have.
  * The client then uploads only those via POST /api/scores/bulk.
- *
- * Request body:  { guids: string[] }
- * Response body: { unknownGuids: string[] }
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const session = locals.session;

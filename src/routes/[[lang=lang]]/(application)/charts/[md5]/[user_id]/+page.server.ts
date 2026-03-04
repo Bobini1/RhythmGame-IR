@@ -7,6 +7,7 @@ import {
 	getUserProfile
 } from '$lib/server/scores/query';
 import type { ChartUserSortableColumn } from '$lib/server/scores/query';
+import { pageCollectionHeaders } from '$lib/server/api/utils';
 
 const DEFAULT_PAGE_SIZE = 20;
 const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
@@ -14,7 +15,7 @@ const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
 	'poor', 'empty_poor', 'bad', 'good', 'great', 'perfect', 'mine_hit'
 ]);
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const { md5, user_id } = params;
 
 	const [chart, profile] = await Promise.all([getChartByMd5(md5), getUserProfile(user_id)]);
@@ -39,6 +40,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		getChartUserScores(md5, user_id, pageSize, offset, sortBy, sortDir),
 		getChartUserScoreCount(md5, user_id)
 	]);
+
+	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
 	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir };
 };

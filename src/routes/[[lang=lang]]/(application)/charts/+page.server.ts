@@ -1,11 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { getChartList, getChartListCount } from '$lib/server/scores/query';
 import type { ChartListSortColumn } from '$lib/server/scores/query';
+import { pageCollectionHeaders } from '$lib/server/api/utils';
 
 const DEFAULT_PAGE_SIZE = 20;
 const VALID_SORT_COLUMNS = new Set<ChartListSortColumn>(['title', 'play_count']);
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, setHeaders }) => {
 	const page = Math.max(0, Number(url.searchParams.get('page') ?? 0));
 	const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? DEFAULT_PAGE_SIZE)));
 	const offset = page * pageSize;
@@ -17,6 +18,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
 	const [chartList, total] = await Promise.all([getChartList(pageSize, offset, sortBy, sortDir), getChartListCount()]);
+
+	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
 	return { chartList, total, page, pageSize, sortBy, sortDir };
 };

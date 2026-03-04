@@ -1,6 +1,7 @@
 import { getUserCookiesPreferences } from '$lib/manage-cookies/manager';
 import type { PageServerLoad } from './$types';
 import { getLatestScores, getLatestScoreCount } from '$lib/server/scores/query';
+import { pageCollectionHeaders } from '$lib/server/api/utils';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -20,6 +21,8 @@ export const load: PageServerLoad = async (event) => {
 		getLatestScores(pageSize, offset),
 		getLatestScoreCount()
 	]);
+
+	event.setHeaders(pageCollectionHeaders(event.url, total, pageSize, page));
 
 	return {
 		cookieBannerOpen,

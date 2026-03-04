@@ -6,6 +6,7 @@ import {
 	getChartScoreCount
 } from '$lib/server/scores/query';
 import type { ChartSortableColumn } from '$lib/server/scores/query';
+import { pageCollectionHeaders } from '$lib/server/api/utils';
 
 const DEFAULT_PAGE_SIZE = 20;
 const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
@@ -19,7 +20,7 @@ const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
 	'date'
 ]);
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const md5 = params.md5;
 
 	const chart = await getChartByMd5(md5);
@@ -45,6 +46,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		getChartScores(md5, pageSize, offset, sortBy, sortDir, search),
 		getChartScoreCount(md5, search)
 	]);
+
+	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
 	return {
 		chart,
