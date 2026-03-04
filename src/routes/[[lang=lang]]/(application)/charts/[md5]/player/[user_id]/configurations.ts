@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/table-core';
 import type { ChartUserScoreRow } from '$lib/server/scores/query';
 import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
-import ScoreGradeCell from '../../../players/[user_id]/score-grade-cell.svelte';
+import ScoreGradeCell from '../../../../players/[user_id]/score-grade-cell.svelte';
 import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
 
 const J = {

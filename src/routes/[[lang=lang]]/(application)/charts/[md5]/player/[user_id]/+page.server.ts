@@ -1,4 +1,4 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from '../../../../../../../../.svelte-kit/types/src/routes';
 import { error } from '@sveltejs/kit';
 import {
 	getChartByMd5,

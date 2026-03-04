@@ -7,7 +7,7 @@
 	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
 	const md5 = $derived(page.params.md5);
 	// Links to the per-user scores page for this chart
-	const href = $derived(`${lang}/charts/${md5}/${userId}`);
+	const href = $derived(`${lang}/charts/${md5}/player/${userId}`);
 </script>
 
 <a {href} class="flex items-center gap-2 hover:underline">
