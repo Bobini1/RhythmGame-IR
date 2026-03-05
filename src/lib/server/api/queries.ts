@@ -106,7 +106,7 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 
 export interface ApiScore {
 	id: string;
-	userPublicId: number;
+	userId: number;
 	userName: string;
 	chartTitle: string;
 	chartSubtitle: string;
@@ -138,7 +138,7 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
 			id: scores.id,
-			userPublicId: user.id,
+			userId: user.id,
 			userName: user.name,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
@@ -202,7 +202,7 @@ function scoresCollectionOrder(orderBy: ScoresOrderBy, sort: 'asc' | 'desc'): SQ
 
 export interface ScoresCollectionRow {
 	id: string;
-	userPublicId: number;
+	userId: number;
 	userName: string;
 	chartMd5: string;
 	chartTitle: string;
@@ -254,7 +254,7 @@ export async function queryScores(
 	const rows = await db
 		.select({
 			id: scores.id,
-			userPublicId: user.id,
+			userId: user.id,
 			userName: user.name,
 			userImage: user.image,
 			chartMd5: charts.md5,
@@ -460,8 +460,7 @@ export async function queryUsers(
 	const dir = sort === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
 	const orderExprs =
-		orderBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)];
-
+		orderBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)]
 	const rows = await db
 		.select({
 			id: user.id,
@@ -500,7 +499,7 @@ export type ScoreSummariesOrderBy =
 	| 'play_count';
 
 export interface ScoreSummaryRow {
-	userPublicId: number;
+	userId: number;
 	userName: string;
 	userImage: string | null;
 	bestPoints: number;
@@ -551,7 +550,7 @@ export async function queryScoreSummaries(
 
 	const rows = await db
 		.select({
-			userPublicId: user.id,
+			userId: user.id,
 			userName: user.name,
 			userImage: user.image,
 			bestPoints: sql<number>`MAX(${scores.points})`,

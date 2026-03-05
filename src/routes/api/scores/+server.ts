@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const data = rows.map((r) => ({
 			...r,
-			_links: scoreLinks(r.id, r.chartMd5, r.userPublicId)
+			_links: scoreLinks(r.id, r.chartMd5, r.userId)
 		}));
 
 		return json(data, {
