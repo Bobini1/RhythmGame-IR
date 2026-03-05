@@ -2,11 +2,11 @@ import type { ColumnDef } from '@tanstack/table-core';
 import type { LatestScoreRow } from '$lib/server/scores/query';
 import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
-import ScoreGradeCell from '../../../routes/[[lang=lang]]/(application)/players/[user_id]/score-grade-cell.svelte';
-import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
-import PlayLevel from '$lib/components/scores/play-level.svelte';
-import LatestScoreTitleCell from './latest-score-title-cell.svelte';
-import LatestScorePlayerCell from './latest-score-player-cell.svelte';
+import ScoreGradeCell from '../table-cells/score-grade-cell.svelte';
+import ClearTypeCell from '$lib/components/table-cells/clear-type-cell.svelte';
+import PlayLevelCell from '$lib/components/table-cells/play-level-cell.svelte';
+import LatestScoreTitleCell from '../table-cells/latest-score-title-cell.svelte';
+import LatestScorePlayerCell from '../table-cells/latest-score-player-cell.svelte';
 
 export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
@@ -14,7 +14,7 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 		header: 'homepage.latest_scores.level',
 		size: 60,
 		accessorFn: (row) => row.playLevel,
-		cell: ({ row }) => renderComponent(PlayLevel, {
+		cell: ({ row }) => renderComponent(PlayLevelCell, {
 			playLevel: row.original.playLevel,
 			difficulty: row.original.difficulty
 		}),

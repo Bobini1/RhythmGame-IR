@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { t } from '$lib/i18n';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import type { UserListRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { ColumnDef, SortingState } from '@tanstack/table-core';
 	import { renderComponent } from '$lib/components/ui/data-table';
-	import PlayerLinkCell from './player-link-cell.svelte';
+	import PlayerLinkCell from '$lib/components/table-cells/player-link-cell.svelte';
 
 	let users = $derived<UserListRow[]>(page.data.users ?? []);
 	let total = $derived<number>(page.data.total ?? 0);
@@ -66,6 +67,7 @@
 </script>
 
 <BasePage title="players.list.title" description="players.list.description">
+	<h2 class="text-xl font-semibold">{$t('players.list.title')}</h2>
 	<AppDataTable
 		{columns}
 		data={users}

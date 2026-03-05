@@ -5,7 +5,7 @@
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { t } from '$lib/i18n';
-	import PlayLevel from '$lib/components/scores/play-level.svelte';
+	import PlayLevelCell from '$lib/components/table-cells/play-level-cell.svelte';
 	import type { ChartScoreRow, ChartData } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
@@ -76,7 +76,7 @@
 </script>
 
 <BasePage title="charts.page.title" description="charts.page.description">
-	<div class="flex flex-col gap-8">
+	<div class="flex w-full max-w-300 flex-col gap-8">
 
 		<!-- Chart info -->
 		<div class="flex flex-col gap-4">
@@ -108,7 +108,7 @@
 				{/if}
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.play_level')}</dt>
-					<dd><PlayLevel playLevel={chart.playLevel} difficulty={chart.difficulty} /></dd>
+					<dd><PlayLevelCell playLevel={chart.playLevel} difficulty={chart.difficulty} /></dd>
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.keymode')}</dt>

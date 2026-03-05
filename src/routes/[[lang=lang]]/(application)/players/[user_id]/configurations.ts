@@ -2,10 +2,10 @@ import type { ColumnDef } from '@tanstack/table-core';
 import type { ScoreRow } from '$lib/server/scores/query';
 import { renderComponent } from '$lib/components/ui/data-table';
 import { locale } from '$lib/i18n';
-import ScoreGradeCell from './score-grade-cell.svelte';
-import ScoreTitleCell from './score-title-cell.svelte';
-import ClearTypeCell from '$lib/components/scores/clear-type-cell.svelte';
-import PlayLevel from '$lib/components/scores/play-level.svelte';
+import ScoreGradeCell from '$lib/components/table-cells/score-grade-cell.svelte';
+import ScoreTitleCell from '$lib/components/table-cells/score-title-cell.svelte';
+import ClearTypeCell from '$lib/components/table-cells/clear-type-cell.svelte';
+import PlayLevelCell from '$lib/components/table-cells/play-level-cell.svelte';
 
 export const columns: ColumnDef<ScoreRow>[] = [
 	{
@@ -13,10 +13,11 @@ export const columns: ColumnDef<ScoreRow>[] = [
 		header: 'players.profile.score_table.level',
 		size: 60,
 		accessorFn: (row) => row.playLevel,
-		cell: ({ row }) => renderComponent(PlayLevel, {
-			playLevel: row.original.playLevel,
-			difficulty: row.original.difficulty
-		}),
+		cell: ({ row }) =>
+			renderComponent(PlayLevelCell, {
+				playLevel: row.original.playLevel,
+				difficulty: row.original.difficulty
+			}),
 		enableSorting: false
 	},
 	{
