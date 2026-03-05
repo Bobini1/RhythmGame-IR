@@ -650,13 +650,15 @@ export async function getUserListCount(): Promise<number> {
 // Charts list
 // ---------------------------------------------------------------------------
 
-export type ChartListSortColumn = 'title' | 'play_count';
+export type ChartListSortColumn = 'title' | 'play_count' | 'artist';
 
 export interface ChartListRow {
 	id: string;
 	md5: string;
 	title: string;
 	subtitle: string;
+	artist: string;
+	subartist: string;
 	playLevel: number;
 	difficulty: number;
 	keymode: number;
@@ -667,19 +669,30 @@ export async function getChartList(
 	limit: number,
 	offset: number,
 	sortBy: ChartListSortColumn = 'play_count',
-	sortDir: 'asc' | 'desc' = 'desc'
+	sortDir: 'asc' | 'desc' = 'desc',
+	search: string = ''
 ): Promise<ChartListRow[]> {
 	const dir = sortDir === 'asc' ? asc : desc;
 	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
+	const mergedArtist = sql`TRIM(${charts.artist} || ' ' || ${charts.subartist})`;
 	const orderExprs =
-		sortBy === 'title' ? [dir(mergedTitle)] : [dir(playCountExpr), asc(mergedTitle)];
+		sortBy === 'title'
+			? [dir(mergedTitle)]
+			: sortBy === 'artist'
+				? [dir(mergedArtist), asc(mergedTitle)]
+				: [dir(playCountExpr), asc(mergedTitle)];
+	const searchFilter = search
+		? sql`(${mergedTitle} ILIKE ${'%' + search + '%'} OR ${mergedArtist} ILIKE ${'%' + search + '%'})`
+		: undefined;
 	const rows = await db
 		.select({
 			id: charts.id,
 			md5: charts.md5,
 			title: charts.title,
 			subtitle: charts.subtitle,
+			artist: charts.artist,
+			subartist: charts.subartist,
 			playLevel: charts.playLevel,
 			difficulty: charts.difficulty,
 			keymode: charts.keymode,
@@ -687,6 +700,7 @@ export async function getChartList(
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.where(searchFilter)
 		.groupBy(charts.id)
 		.orderBy(...orderExprs)
 		.limit(limit)
@@ -694,8 +708,13 @@ export async function getChartList(
 	return rows.map((r) => ({ ...r, playCount: Number(r.playCount) }));
 }
 
-export async function getChartListCount(): Promise<number> {
-	const result = await db.select({ count: count() }).from(charts);
+export async function getChartListCount(search: string = ''): Promise<number> {
+	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
+	const mergedArtist = sql`TRIM(${charts.artist} || ' ' || ${charts.subartist})`;
+	const searchFilter = search
+		? sql`(${mergedTitle} ILIKE ${'%' + search + '%'} OR ${mergedArtist} ILIKE ${'%' + search + '%'})`
+		: undefined;
+	const result = await db.select({ count: count() }).from(charts).where(searchFilter);
 	return result[0]?.count ?? 0;
 }
 

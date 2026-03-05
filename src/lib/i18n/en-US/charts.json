@@ -4,7 +4,9 @@
 		"description": "All charts on the internet ranking",
 		"level": "Lv.",
 		"title_col": "Title",
-		"play_count": "Plays"
+		"artist": "Artist",
+		"play_count": "Plays",
+		"search_placeholder": "Search…"
 	},
 	"page": {
 		"title": "Chart",

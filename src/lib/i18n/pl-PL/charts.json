@@ -5,7 +5,9 @@
 		"description": "Wszystkie utwory w rankingu internetowym",
 		"level": "Poz.",
 		"title_col": "Tytuł",
-		"play_count": "Wyniki"
+		"artist": "Artysta",
+		"play_count": "Wyniki",
+		"search_placeholder": "Szukaj…"
 	},
 	"page": {
 		"title": "Utwór",
