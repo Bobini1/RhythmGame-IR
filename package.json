@@ -23,7 +23,8 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"db:reset": "drizzle-kit push --force --config scripts/reset-db.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
