@@ -41,7 +41,7 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 		accessorFn: (row) => row.userName,
 		cell: ({ row }) =>
 			renderComponent(LatestScorePlayerCell, {
-				userId: row.original.userId,
+				id: row.original.userId,
 				name: row.original.userName,
 				image: row.original.userImage
 			}),

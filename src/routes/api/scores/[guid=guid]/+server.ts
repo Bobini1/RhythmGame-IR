@@ -13,9 +13,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ error: 'Score not found' }, { status: 404 });
 	}
 
-	return json({
-		...score,
-		_links: scoreLinks(score.id, score.chartMd5, score.userId)
-	});
+	return json(
+		{ ...score, _links: scoreLinks(score.id, score.md5, score.userPublicId) }
+	);
 };
-

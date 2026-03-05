@@ -16,10 +16,11 @@ const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
 ]);
 
 export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
-	const { md5, user_id } = params;
-	const userId = Number(user_id);
+	const { md5 } = params;
+	const id = Number(params.user_id);
+	if (!Number.isInteger(id) || id < 1) error(404, 'Player not found');
 
-	const [chart, profile] = await Promise.all([getChartByMd5(md5), getUserProfile(userId)]);
+	const [chart, profile] = await Promise.all([getChartByMd5(md5), getUserProfile(id)]);
 
 	if (!chart) error(404, 'Chart not found');
 	if (!profile) error(404, 'Player not found');
@@ -38,13 +39,12 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
 	const [scores, total] = await Promise.all([
-		getChartUserScores(md5, userId, pageSize, offset, sortBy, sortDir),
-		getChartUserScoreCount(md5, userId)
+		getChartUserScores(md5, profile.id, pageSize, offset, sortBy, sortDir),
+		getChartUserScoreCount(md5, profile.id)
 	]);
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
 	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir };
 };
-
 

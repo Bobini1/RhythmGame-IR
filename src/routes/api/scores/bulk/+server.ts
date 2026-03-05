@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		try {
-			const { scoreId, chartId } = await submitScore(locals.user.id, itemResult.data);
+			const { scoreId, chartId } = await submitScore(Number(locals.user.id), itemResult.data);
 			results.push({ guid, status: 'created', scoreId, chartId });
 		} catch (err) {
 			if (err instanceof Error && (err as Error & { code?: string }).code === 'DUPLICATE_SCORE') {

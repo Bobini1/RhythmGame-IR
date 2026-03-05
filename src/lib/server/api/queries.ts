@@ -75,14 +75,14 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 // ---------------------------------------------------------------------------
 
 export interface ApiUser {
-	id: string;
+	id: number;
 	name: string;
 	image: string | null;
 	createdAt: Date;
 	scoreCount: number;
 }
 
-export async function getUserById(id: string): Promise<ApiUser | null> {
+export async function getUserById(id: number): Promise<ApiUser | null> {
 	const rows = await db
 		.select({
 			id: user.id,
@@ -106,9 +106,8 @@ export async function getUserById(id: string): Promise<ApiUser | null> {
 
 export interface ApiScore {
 	id: string;
-	userId: string;
+	userPublicId: number;
 	userName: string;
-	chartMd5: string;
 	chartTitle: string;
 	chartSubtitle: string;
 	points: number;
@@ -139,9 +138,8 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
 			id: scores.id,
-			userId: scores.userId,
+			userPublicId: user.id,
 			userName: user.name,
-			chartMd5: charts.md5,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
 			points: scores.points,
@@ -204,9 +202,8 @@ function scoresCollectionOrder(orderBy: ScoresOrderBy, sort: 'asc' | 'desc'): SQ
 
 export interface ScoresCollectionRow {
 	id: string;
-	userId: string;
+	userPublicId: number;
 	userName: string;
-	userImage: string | null;
 	chartMd5: string;
 	chartTitle: string;
 	chartSubtitle: string;
@@ -222,7 +219,7 @@ export interface ScoresCollectionRow {
 
 export interface ScoresCollectionFilters {
 	chart?: string;
-	user?: string;
+	user?: number;
 	dateGte?: number;
 	dateLte?: number;
 	scorePctGte?: number;
@@ -240,7 +237,7 @@ export async function queryScores(
 ): Promise<ScoresCollectionRow[]> {
 	const conditions: SQL[] = [];
 	if (filters.chart) conditions.push(eq(charts.md5, filters.chart));
-	if (filters.user) conditions.push(eq(scores.userId, filters.user));
+	if (filters.user !== undefined) conditions.push(eq(user.id, filters.user));
 	if (filters.dateGte !== undefined) conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
 	if (filters.dateLte !== undefined) conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
 	if (filters.scorePctGte !== undefined) {
@@ -257,7 +254,7 @@ export async function queryScores(
 	const rows = await db
 		.select({
 			id: scores.id,
-			userId: user.id,
+			userPublicId: user.id,
 			userName: user.name,
 			userImage: user.image,
 			chartMd5: charts.md5,
@@ -286,7 +283,7 @@ export async function queryScores(
 export async function queryScoresCount(filters: ScoresCollectionFilters): Promise<number> {
 	const conditions: SQL[] = [];
 	if (filters.chart) conditions.push(eq(charts.md5, filters.chart));
-	if (filters.user) conditions.push(eq(scores.userId, filters.user));
+	if (filters.user !== undefined) conditions.push(eq(user.id, filters.user));
 	if (filters.dateGte !== undefined) conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
 	if (filters.dateLte !== undefined) conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
 	if (filters.scorePctGte !== undefined) {
@@ -304,6 +301,7 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 		.select({ count: count() })
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where);
 	return result[0]?.count ?? 0;
 }
@@ -447,7 +445,7 @@ export async function queryChartsCount(filters: ChartsCollectionFilters): Promis
 export type UsersOrderBy = 'name' | 'score_count';
 
 export interface UsersCollectionRow {
-	id: string;
+	id: number;
 	name: string;
 	image: string | null;
 	scoreCount: number;
@@ -502,7 +500,7 @@ export type ScoreSummariesOrderBy =
 	| 'play_count';
 
 export interface ScoreSummaryRow {
-	userId: string;
+	userPublicId: number;
 	userName: string;
 	userImage: string | null;
 	bestPoints: number;
@@ -553,7 +551,7 @@ export async function queryScoreSummaries(
 
 	const rows = await db
 		.select({
-			userId: user.id,
+			userPublicId: user.id,
 			userName: user.name,
 			userImage: user.image,
 			bestPoints: sql<number>`MAX(${scores.points})`,

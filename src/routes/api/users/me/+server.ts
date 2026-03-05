@@ -48,7 +48,7 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 		}
 
-		await db.delete(user).where(eq(user.id, session.userId));
+		await db.delete(user).where(eq(user.id, Number(event.locals.user.id)));
 
 		return new Response(null, { status: 204, headers: corsHeaders });
 	} catch (error) {

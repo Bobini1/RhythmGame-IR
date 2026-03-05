@@ -24,12 +24,12 @@ export interface ScoreRow {
 }
 
 export interface UserProfileData {
-	id: string;
+	id: number;
 	name: string;
 	image: string | null;
 }
 
-export async function getUserScoreGuids(userId: string): Promise<string[]> {
+export async function getUserScoreGuids(userId: number): Promise<string[]> {
 	const rows = await db
 		.select({ id: scores.id })
 		.from(scores)
@@ -37,7 +37,7 @@ export async function getUserScoreGuids(userId: string): Promise<string[]> {
 	return rows.map((r) => r.id);
 }
 
-export async function getUserProfile(userId: string): Promise<UserProfileData | null> {
+export async function getUserProfile(userId: number): Promise<UserProfileData | null> {
 	const result = await db
 		.select({ id: user.id, name: user.name, image: user.image })
 		.from(user)
@@ -106,7 +106,7 @@ function getOrderBy(sortBy: SortableColumn | null, sortDir: 'asc' | 'desc'): SQL
 }
 
 export async function getUserScores(
-	userId: string,
+	userId: number,
 	limit: number,
 	offset: number,
 	sortBy: SortableColumn | null = null,
@@ -139,13 +139,10 @@ export async function getUserScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({
-		...r,
-		unixTimestamp: Number(r.unixTimestamp)
-	}));
+	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
 }
 
-export async function getUserScoreCount(userId: string, search: string = ''): Promise<number> {
+export async function getUserScoreCount(userId: number, search: string = ''): Promise<number> {
 	const searchFilter = search
 		? sql`TRIM(${charts.title} || ' ' || ${charts.subtitle}) ILIKE ${'%' + search + '%'}`
 		: undefined;
@@ -170,7 +167,7 @@ export interface LatestScoreRow {
 	maxHits: number;
 	clearType: string;
 	unixTimestamp: number;
-	userId: string;
+	userId: number;
 	userName: string;
 	userImage: string | null;
 	chartTitle: string;
@@ -227,7 +224,7 @@ export async function getChartByMd5(md5: string): Promise<ChartData | null> {
 }
 
 export interface ChartScoreRow {
-	userId: string;
+	userId: number;
 	userName: string;
 	userImage: string | null;
 	bestPoints: number;
@@ -235,11 +232,8 @@ export interface ChartScoreRow {
 	bestCombo: number;
 	maxHits: number;
 	bestClearType: string;
-	/** Poor (index 0) + Bad (index 2) combined, from the score with fewest combo breaks */
 	bestComboBreaks: number;
-	/** Unix timestamp (seconds) of the most recent score by this player */
 	latestDate: number;
-	/** Total number of scores this player has on this chart */
 	scoreCount: number;
 }
 
@@ -391,7 +385,7 @@ function getChartUserOrderBy(sortBy: ChartUserSortableColumn | null, sortDir: 'a
 
 export async function getChartUserScores(
 	chartMd5: string,
-	userId: string,
+	userId: number,
 	limit: number,
 	offset: number,
 	sortBy: ChartUserSortableColumn | null = null,
@@ -418,7 +412,7 @@ export async function getChartUserScores(
 	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
 }
 
-export async function getChartUserScoreCount(chartMd5: string, userId: string): Promise<number> {
+export async function getChartUserScoreCount(chartMd5: string, userId: number): Promise<number> {
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
@@ -438,7 +432,7 @@ export type ScoreDownloadRow = {
 };
 
 export async function getScoresByIds(
-	userId: string,
+	userId: number,
 	guids: string[]
 ): Promise<ScoreDownloadRow[]> {
 	if (guids.length === 0) return [];
@@ -513,7 +507,7 @@ export async function getScoresByIds(
 
 export interface UserScoreGroup {
 	profile: {
-		id: string;
+		id: number;
 		username: string;
 		avatarUrl: string;
 		profileUrl: string;
@@ -522,7 +516,6 @@ export interface UserScoreGroup {
 }
 
 export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[]> {
-	// Fetch all scores for this chart together with user info and extras
 	const rows = await db
 		.select({
 			userId: user.id,
@@ -561,8 +554,8 @@ export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[
 		.where(eq(charts.md5, md5))
 		.orderBy(asc(user.id), desc(scores.unixTimestamp));
 
-	// Group by user
-	const groupMap = new Map<string, UserScoreGroup>();
+	// Group by user id
+	const groupMap = new Map<number, UserScoreGroup>();
 	for (const r of rows) {
 		if (!groupMap.has(r.userId)) {
 			groupMap.set(r.userId, {
@@ -614,7 +607,7 @@ export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[
 // ---------------------------------------------------------------------------
 
 export interface UserListRow {
-	id: string;
+	id: number;
 	name: string;
 	image: string | null;
 	scoreCount: number;

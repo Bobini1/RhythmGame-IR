@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
-	const serverGuids = new Set(await getUserScoreGuids(locals.user.id));
+	const serverGuids = new Set(await getUserScoreGuids(Number(locals.user.id)));
 	const unknownGuids = parsed.data.filter((guid) => !serverGuids.has(guid));
 
 	return json(unknownGuids);

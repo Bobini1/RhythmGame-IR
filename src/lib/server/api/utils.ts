@@ -166,14 +166,14 @@ export function chartLinks(md5: string) {
 	};
 }
 
-export function userLinks(id: string) {
+export function userLinks(publicId: number) {
 	return {
-		self: `/api/users/${id}`,
-		scores: `/api/scores?user=${id}`
+		self: `/api/users/${publicId}`,
+		scores: `/api/scores?user=${publicId}`
 	};
 }
 
-export function scoreLinks(guid: string, chartMd5: string, userId: string) {
+export function scoreLinks(guid: string, chartMd5: string, userId: number) {
 	return {
 		self: `/api/scores/${encodeURIComponent(guid)}`,
 		chart: `/api/charts/${chartMd5}`,
@@ -181,7 +181,7 @@ export function scoreLinks(guid: string, chartMd5: string, userId: string) {
 	};
 }
 
-export function scoreSummaryLinks(chartMd5: string, userId: string) {
+export function scoreSummaryLinks(chartMd5: string, userId: number) {
 	return {
 		chart: `/api/charts/${chartMd5}`,
 		user: `/api/users/${userId}`,

@@ -32,9 +32,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const filters: ScoresCollectionFilters = {};
 	const chart = url.searchParams.get('chart');
-	const user = url.searchParams.get('user');
+	const userParam = url.searchParams.get('user');
 	if (chart) filters.chart = chart;
-	if (user) filters.user = user;
+	if (userParam !== null && !isNaN(Number(userParam))) filters.user = Number(userParam);
 
 	const dateGte = url.searchParams.get('date_gte');
 	const dateLte = url.searchParams.get('date_lte');
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const data = rows.map((r) => ({
 			...r,
-			_links: scoreLinks(r.id, r.chartMd5, r.userId)
+			_links: scoreLinks(r.id, r.chartMd5, r.userPublicId)
 		}));
 
 		return json(data, {
@@ -97,7 +97,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const { scoreId, chartId } = await submitScore(locals.user.id, parsed.data);
+		const { scoreId, chartId } = await submitScore(Number(locals.user.id), parsed.data);
 		return json({ id: scoreId, chartId }, { status: 201 });
 	} catch (err) {
 		if (err instanceof Error && (err as Error & { code?: string }).code === 'DUPLICATE_SCORE') {

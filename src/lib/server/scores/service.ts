@@ -11,7 +11,7 @@ import type { ScoreSubmissionPayloadOutput } from './validation';
  * @throws Error with `code === 'DUPLICATE_SCORE'` if the score guid already exists.
  */
 export async function submitScore(
-	userId: string,
+	userId: number,
 	payload: ScoreSubmissionPayloadOutput
 ): Promise<{ scoreId: string; chartId: string }> {
 	const { chartData, scoreData, replayData, gaugeHistory } = payload;
@@ -20,12 +20,9 @@ export async function submitScore(
 		// ------------------------------------------------------------------
 		// 1. Upsert chart by sha256
 		// ------------------------------------------------------------------
-		const chartId = randomUUID();
-
-		const inserted = await tx
+		const inserted = await (tx
 			.insert(charts)
 			.values({
-				id: chartId,
 				sha256: chartData.sha256,
 				md5: chartData.md5,
 				title: chartData.title,
@@ -54,9 +51,9 @@ export async function submitScore(
 				endDensity: chartData.endDensity,
 				histogramData: chartData.histogramData,
 				bpmChanges: chartData.bpmChanges
-			})
+			} as unknown as typeof charts.$inferInsert)
 			.onConflictDoNothing()
-			.returning({ id: charts.id });
+			.returning({ id: charts.id }));
 
 		const resolvedChartId =
 			inserted.length > 0

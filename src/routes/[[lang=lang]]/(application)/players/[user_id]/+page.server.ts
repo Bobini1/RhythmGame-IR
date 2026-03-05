@@ -8,12 +8,11 @@ const DEFAULT_PAGE_SIZE = 10;
 const VALID_SORT_COLUMNS = new Set<SortableColumn>(['title', 'score_pct', 'grade', 'combo', 'clear_type', 'date']);
 
 export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
-	const userId = params.user_id;
+	const id = Number(params.user_id);
+	if (!Number.isInteger(id) || id < 1) error(404, 'Player not found');
 
-	const profile = await getUserProfile(userId);
-	if (!profile) {
-		error(404, 'Player not found');
-	}
+	const profile = await getUserProfile(id);
+	if (!profile) error(404, 'Player not found');
 
 	const page = Math.max(0, Number(url.searchParams.get('page') ?? 0));
 	const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? DEFAULT_PAGE_SIZE)));
@@ -27,20 +26,11 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const search = url.searchParams.get('search') ?? '';
 
 	const [scores, total] = await Promise.all([
-		getUserScores(userId, pageSize, offset, sortBy, sortDir, search),
-		getUserScoreCount(userId, search)
+		getUserScores(profile.id, pageSize, offset, sortBy, sortDir, search),
+		getUserScoreCount(profile.id, search)
 	]);
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	return {
-		profile,
-		scores,
-		total,
-		page,
-		pageSize,
-		sortBy,
-		sortDir,
-		search
-	};
+	return { profile, scores, total, page, pageSize, sortBy, sortDir, search };
 };

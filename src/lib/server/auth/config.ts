@@ -21,5 +21,10 @@ export const auth = betterAuth({
 		enabled: true
 	},
 	baseURL: env.BETTER_AUTH_URL,
+	advanced: {
+		database: {
+			generateId: "serial", // "serial" for auto-incrementing numeric IDs
+		}
+	},
 	plugins: [bearer(), sveltekitCookies(getRequestEvent)]
 });

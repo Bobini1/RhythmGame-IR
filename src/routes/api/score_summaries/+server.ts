@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const data = rows.map((r) => ({
 			...r,
-			_links: scoreSummaryLinks(chart, r.userId)
+			_links: scoreSummaryLinks(chart, r.userPublicId)
 		}));
 
 		return json(data, {

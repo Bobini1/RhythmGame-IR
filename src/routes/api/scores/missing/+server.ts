@@ -31,9 +31,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const localSet = new Set(parsed.data);
-	const allGuids = await getUserScoreGuids(locals.user.id);
+	const allGuids = await getUserScoreGuids(Number(locals.user.id));
+
 	const missingGuids = allGuids.filter((guid) => !localSet.has(guid));
-	const missingScores = await getScoresByIds(locals.user.id, missingGuids);
+	const missingScores = await getScoresByIds(Number(locals.user.id), missingGuids);
 
 	return json(missingScores);
 };

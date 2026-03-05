@@ -7,6 +7,7 @@ import {
 	timestamp,
 	jsonb
 } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'crypto';
 import { user } from './auth';
 
 // ---------------------------------------------------------------------------
@@ -14,7 +15,7 @@ import { user } from './auth';
 // ---------------------------------------------------------------------------
 
 export const charts = pgTable('charts', {
-	id: text('id').primaryKey(),
+	id: text('id').primaryKey().$defaultFn(() => randomUUID()),
 	sha256: text('sha256').notNull().unique(),
 	md5: text('md5').notNull().unique(),
 	title: text('title').notNull(),
@@ -69,7 +70,7 @@ export const scores = pgTable(
 	{
 		/** Game-generated GUID – used as PK to deduplicate submissions */
 		id: text('id').primaryKey(),
-		userId: text('user_id')
+		userId: integer('user_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		chartId: text('chart_id')
