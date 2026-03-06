@@ -16,7 +16,7 @@
 	let total = $derived<number>(page.data.total ?? 0);
 	let currentPage = $derived<number>(page.data.page ?? 0);
 	let pageSize = $derived<number>(page.data.pageSize ?? 20);
-	let sortBy = $derived<string | null>(page.data.sortBy ?? null);
+	let sortBy = $derived<string>(page.data.sortBy ?? 'date');
 	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
 	let search = $state<string>(page.data.search ?? '');
 
@@ -30,7 +30,7 @@
 		},
 		pageSize,
 		pageIndex: currentPage,
-		sortingState: sortBy ? [{ id: sortBy, desc: sortDir === 'desc' }] : []
+		sortingState: [{ id: sortBy, desc: sortDir === 'desc' }]
 	});
 
 	function updateUrl(params: { page?: number; limit?: number; sortBy?: string | null; sortDir?: string; search?: string }) {

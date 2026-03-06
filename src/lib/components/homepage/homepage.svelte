@@ -35,7 +35,8 @@
 	const tableConfiguration = $derived<TableConfiguration<LatestScoreRow>>({
 		serverSide: { enabled: true, manualPagination: true, totalItems: total },
 		pageSize,
-		pageIndex: currentPage
+		pageIndex: currentPage,
+		sortingState: [{ id: 'date', desc: true }]
 	});
 </script>
 

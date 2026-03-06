@@ -32,10 +32,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const offset = page * pageSize;
 
 	const rawSortBy = url.searchParams.get('sortBy') ?? '';
-	const sortBy = VALID_SORT_COLUMNS.has(rawSortBy as ChartUserSortableColumn)
+	const sortBy: ChartUserSortableColumn = VALID_SORT_COLUMNS.has(rawSortBy as ChartUserSortableColumn)
 		? (rawSortBy as ChartUserSortableColumn)
-		: null;
-	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+		: 'date';
+	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
 	const [scores, total] = await Promise.all([
 		getChartUserScores(md5, userId, pageSize, offset, sortBy, sortDir),

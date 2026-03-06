@@ -19,10 +19,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const offset = page * pageSize;
 
 	const rawSortBy = url.searchParams.get('sortBy') ?? '';
-	const sortBy = VALID_SORT_COLUMNS.has(rawSortBy as SortableColumn)
+	const sortBy: SortableColumn = VALID_SORT_COLUMNS.has(rawSortBy as SortableColumn)
 		? (rawSortBy as SortableColumn)
-		: null;
-	const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+		: 'date';
+	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 	const search = url.searchParams.get('search') ?? '';
 
 	const [scores, total] = await Promise.all([
