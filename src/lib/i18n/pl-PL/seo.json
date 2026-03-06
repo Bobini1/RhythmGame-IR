@@ -13,6 +13,9 @@
 		"forgot_password": {
 			"description": "Resetuj hasło do swojego konta"
 		},
+		"reset_password": {
+			"description": "Ustaw nowe hasło do swojego konta"
+		},
 		"cookies_policy": {
 			"description": "Polityka dotycząca plików cookie i technologii śledzenia"
 		},

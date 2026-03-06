@@ -13,6 +13,9 @@
 		"forgot_password": {
 			"description": "Reset your account password"
 		},
+		"reset_password": {
+			"description": "Set a new password for your account"
+		},
 		"cookies_policy": {
 			"description": "Our policy on cookies and tracking technologies"
 		},
