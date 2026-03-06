@@ -3,12 +3,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
-	import { page } from '$app/state';
 	import { cookieSetRequest, hideBanner } from '$lib/manage-cookies/manager';
 	import { toast } from 'svelte-sonner';
 	import ResourceMarkdown from '$lib/components/resource-markdown/resource-markdown.svelte';
 	import { t } from '$lib/i18n';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
+
+	let { data } = $props();
+	const preferences = $derived(data.preferences);
 
 	function saveChanges() {
 		cookieSetRequest({
@@ -28,8 +30,6 @@
 		toast.success(t.get('common.optional_cookies_rejected'));
 		hideBanner();
 	}
-
-	const preferences = page.data.preferences;
 </script>
 
 <BasePage title="common.manage_cookies" description="seo.pages.manage_cookies.description">

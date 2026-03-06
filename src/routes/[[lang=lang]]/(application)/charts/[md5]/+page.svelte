@@ -11,14 +11,9 @@
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
 
-	let chart = $derived<ChartData>(page.data.chart);
-	let scores = $derived<ChartScoreRow[]>(page.data.scores ?? []);
-	let total = $derived<number>(page.data.total ?? 0);
-	let currentPage = $derived<number>(page.data.page ?? 0);
-	let pageSize = $derived<number>(page.data.pageSize ?? 20);
-	let sortBy = $derived<string>(page.data.sortBy ?? 'score_pct');
-	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
-	let search = $state<string>(page.data.search ?? '');
+	let { data } = $props();
+	let { chart, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
+	let search = $state<string>(data.search ?? '');
 
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
@@ -181,4 +176,3 @@
 		</section>
 	</div>
 </BasePage>
-

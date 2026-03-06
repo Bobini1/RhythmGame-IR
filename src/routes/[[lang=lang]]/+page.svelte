@@ -3,12 +3,9 @@
 	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import Homepage from '$lib/components/homepage/homepage.svelte';
-	import type { LatestScoreRow } from '$lib/server/scores/query';
 
-	let latestScores = $derived<LatestScoreRow[]>(page.data.latestScores ?? []);
-	let total = $derived<number>(page.data.total ?? 0);
-	let currentPage = $derived<number>(page.data.page ?? 0);
-	let pageSize = $derived<number>(page.data.pageSize ?? 20);
+	let { data } = $props();
+	let { latestScores, total, page: currentPage, pageSize } = $derived(data);
 
 	function updateUrl(params: { page?: number; limit?: number }) {
 		const url = new URL(page.url);

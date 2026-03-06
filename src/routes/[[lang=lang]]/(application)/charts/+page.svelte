@@ -10,12 +10,8 @@
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
 
-	let chartList = $derived<ChartListRow[]>(page.data.chartList ?? []);
-	let total = $derived<number>(page.data.total ?? 0);
-	let currentPage = $derived<number>(page.data.page ?? 0);
-	let pageSize = $derived<number>(page.data.pageSize ?? 20);
-	let sortBy = $derived<string>(page.data.sortBy ?? 'play_count');
-	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
+	let { data } = $props();
+	let { chartList, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch } = $derived(data);
 
 	const configuration = $derived<TableConfiguration<ChartListRow>>({
 		serverSide: { enabled: true, manualPagination: true, totalItems: total },
@@ -48,7 +44,7 @@
 		});
 	}
 
-	let searchInput = $state<string>(page.data.search ?? '');
+	let searchInput = $state<string>(initialSearch ?? '');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 	function onSearchInput() {
 		clearTimeout(debounceTimer);

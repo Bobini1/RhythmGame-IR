@@ -5,19 +5,13 @@
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import Avatar from '$lib/components/avatar/avatar.svelte';
 	import { t } from '$lib/i18n';
-	import type { ChartUserScoreRow, ChartData, UserProfileData } from '$lib/server/scores/query';
+	import type { ChartUserScoreRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
 
-	let chart = $derived<ChartData>(page.data.chart);
-	let profile = $derived<UserProfileData>(page.data.profile);
-	let scores = $derived<ChartUserScoreRow[]>(page.data.scores ?? []);
-	let total = $derived<number>(page.data.total ?? 0);
-	let currentPage = $derived<number>(page.data.page ?? 0);
-	let pageSize = $derived<number>(page.data.pageSize ?? 20);
-	let sortBy = $derived<string>(page.data.sortBy ?? 'date');
-	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
+	let { data } = $props();
+	let { chart, profile, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
 
 	let configuration = $derived<TableConfiguration<ChartUserScoreRow>>({
 		serverSide: { enabled: true, manualPagination: true, totalItems: total },

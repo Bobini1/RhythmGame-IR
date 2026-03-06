@@ -10,12 +10,8 @@
 	import { renderComponent } from '$lib/components/ui/data-table';
 	import PlayerLinkCell from '$lib/components/table-cells/player-link-cell.svelte';
 
-	let users = $derived<UserListRow[]>(page.data.users ?? []);
-	let total = $derived<number>(page.data.total ?? 0);
-	let currentPage = $derived<number>(page.data.page ?? 0);
-	let pageSize = $derived<number>(page.data.pageSize ?? 20);
-	let sortBy = $derived<string>(page.data.sortBy ?? 'score_count');
-	let sortDir = $derived<'asc' | 'desc'>(page.data.sortDir ?? 'desc');
+	let { data } = $props();
+	let { users, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
 
 	const columns: ColumnDef<UserListRow>[] = [
 		{
@@ -77,4 +73,3 @@
 		sortingChanged={onSortingChanged}
 	/>
 </BasePage>
-
