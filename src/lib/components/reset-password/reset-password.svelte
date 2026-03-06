@@ -11,9 +11,14 @@
 
 	let { token }: { token: string } = $props();
 
+	const session = authClient.useSession();
+	const isAuthenticated = $derived(!!$session.data);
+
+	let currentPassword = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
 	let isLoading = $state(false);
+	let tokenError = $state(false);
 
 	async function submit(event: Event) {
 		event.preventDefault();
@@ -22,12 +27,26 @@
 			return;
 		}
 		isLoading = true;
-		const { error } = await authClient.resetPassword({ newPassword: password, token });
-		if (error) {
-			toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
+		if (token) {
+			const { error } = await authClient.resetPassword({ newPassword: password, token });
+			if (error) {
+				tokenError = true;
+				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
+			} else {
+				toast.success(t.get('common.password_reset_success'));
+				goto('/signin');
+			}
 		} else {
-			toast.success(t.get('common.password_reset_success'));
-			goto('/signin');
+			const { error } = await authClient.changePassword({
+				currentPassword,
+				newPassword: password
+			});
+			if (error) {
+				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
+			} else {
+				toast.success(t.get('common.password_reset_success'));
+				goto('/');
+			}
 		}
 		isLoading = false;
 	}
@@ -40,10 +59,26 @@
 			<Card.Description>{$t('common.reset_password_description')}</Card.Description>
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-4">
-			{#if !token}
+			{#if !isAuthenticated && !token}
 				<p class="text-destructive text-sm">{$t('common.reset_password_invalid_link')}</p>
+				<p class="text-muted-foreground text-center text-sm">
+					<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
+				</p>
 			{:else}
 				<form onsubmit={submit} class="space-y-4">
+					{#if isAuthenticated && !token}
+						<div class="space-y-2">
+							<Label for="current-password">{$t('common.current_password')}</Label>
+							<Input
+								id="current-password"
+								type="password"
+								placeholder={t.get('common.enter_password')}
+								bind:value={currentPassword}
+								required
+								disabled={isLoading}
+							/>
+						</div>
+					{/if}
 					<div class="space-y-2">
 						<Label for="password">{$t('common.new_password')}</Label>
 						<Input
@@ -73,10 +108,21 @@
 						{$t('common.reset_password_submit')}
 					</Button>
 				</form>
+				{#if tokenError}
+					<p class="text-muted-foreground text-center text-sm">
+						<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
+					</p>
+				{:else if isAuthenticated && !token}
+					<p class="text-muted-foreground text-center text-sm">
+						<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
+					</p>
+				{/if}
 			{/if}
-			<p class="text-muted-foreground text-center text-sm">
-				<a href="/signin" class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
-			</p>
+			{#if !isAuthenticated}
+				<p class="text-muted-foreground text-center text-sm">
+					<a href="/signin" class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 </div>
