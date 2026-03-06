@@ -12,7 +12,7 @@
 		"title": "Chart",
 		"description": "Chart details and scores",
 		"scores_title": "Scores",
-		"search_placeholder": "Search by player…"
+		"search_placeholder": "Search for player…"
 	},
 	"info": {
 		"artist": "Artist",

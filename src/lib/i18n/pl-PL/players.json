@@ -9,7 +9,7 @@
 		"title": "Profil gracza {{name}}",
 		"description": "Wyniki gracza {{name}} w rankingu internetowym",
 		"scores_title": "Wyniki",
-		"search_placeholder": "Szukaj po tytule…",
+		"search_placeholder": "Szukaj gracza…",
 		"score_table": {
 			"level": "Poz.",
 			"title": "Tytuł",
