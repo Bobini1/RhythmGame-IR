@@ -28,24 +28,17 @@
 
 		isLoading = true;
 		try {
-			const res = await fetch('/api/signup', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, email, password, turnstileToken })
+			const { error } = await authClient.signUp.email({
+				name,
+				email,
+				password,
+				fetchOptions: { headers: { 'x-captcha-response': turnstileToken } },
+				callbackURL: '/'
 			});
-
-			const data = await res.json();
-
-			if (!res.ok) {
-				toast.error(data.error ?? t.get('common.auth_errors.UNKNOWN_ERROR'));
+			if (error) {
+				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
 				resetTurnstile?.();
 				turnstileToken = '';
-			} else {
-				// Sign the user in after successful registration
-				const { error } = await authClient.signIn.email({ email, password, callbackURL: '/' });
-				if (error) {
-					toast.error(t.get(`common.auth_errors.${error.code}`));
-				}
 			}
 		} catch {
 			toast.error(t.get('common.auth_errors.UNKNOWN_ERROR'));
