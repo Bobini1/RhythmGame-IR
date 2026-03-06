@@ -40,7 +40,10 @@
 	</div>
 
 	<div class="space-y-2">
-		<Label for="password">{$t('common.password')}</Label>
+		<div class="flex items-center justify-between">
+			<Label for="password">{$t('common.password')}</Label>
+			<a href="/forgot-password" class="text-muted-foreground text-sm underline underline-offset-4">{$t('common.forgot_password')}</a>
+		</div>
 		<Input
 			id="password"
 			type="password"

@@ -10,6 +10,9 @@
 		"manage_cookies": {
 			"description": "Manage your cookie preferences and settings"
 		},
+		"forgot_password": {
+			"description": "Reset your account password"
+		},
 		"cookies_policy": {
 			"description": "Our policy on cookies and tracking technologies"
 		},
