@@ -10,6 +10,7 @@
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
+	import { langGoto } from '$lib/utils';
 
 	let { data } = $props();
 	let { profile, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
@@ -42,7 +43,7 @@
 			if (params.search) url.searchParams.set('search', params.search);
 			else url.searchParams.delete('search');
 		}
-		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+		langGoto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
 	}
 
 	function onSearchInput() {

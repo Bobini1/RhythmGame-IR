@@ -1,12 +1,11 @@
 <script lang="ts">
 	import Avatar from '$lib/components/avatar/avatar.svelte';
 	import { page } from '$app/state';
+	import { langHref } from '$lib/utils';
 
 	let { userId, name, image }: { userId: number; name: string; image: string | null } = $props();
-
-	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
 	const md5 = $derived(page.params.md5);
-	const href = $derived(`${lang}/charts/${md5}/player/${userId}/scores`);
+	const href = $derived(langHref(`/charts/${md5}/player/${userId}/scores`));
 </script>
 
 <a {href} class="flex items-center gap-2 hover:underline">

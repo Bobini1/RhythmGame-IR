@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '../ui/button/button.svelte';
 	import { CookieManagerConfiguration } from '$lib/manage-cookies/configuration';
@@ -9,6 +8,7 @@
 	import { t } from '$lib/i18n';
 	import { page } from '$app/state';
 	import { direction } from '$lib/stores';
+	import { langGoto, langHref } from '$lib/utils';
 
 	const preferences = page.data.cookiePreferences;
 	let open = page.data.cookieBannerOpen;
@@ -45,7 +45,7 @@
 		<Card.Description>
 			By clicking “Accept all cookies”, you agree My Brand can store cookies on your device and
 			disclose information in accordance with our
-			<a href="/policies/cookies" class="inderline-offset-2 text-muted-foreground underline"
+			<a href={langHref('/policies/cookies')} class="inderline-offset-2 text-muted-foreground underline"
 				>Cookie Policy.</a
 			>
 		</Card.Description>
@@ -63,7 +63,7 @@
 			<Button
 				variant="secondary"
 				onclick={() => {
-					goto('/manage-cookies');
+					langGoto('/manage-cookies');
 					open = false;
 				}}>{$t('common.manage_preferences')}</Button
 			>

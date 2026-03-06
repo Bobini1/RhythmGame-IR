@@ -8,6 +8,7 @@
 	import ResourceMarkdown from '$lib/components/resource-markdown/resource-markdown.svelte';
 	import { t } from '$lib/i18n';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
+	import { langHref } from '$lib/utils';
 
 	let { data } = $props();
 	const preferences = $derived(data.preferences);
@@ -63,7 +64,7 @@
 			>
 			<Button variant="destructive" size="lg" onclick={rejectAll}>{$t('common.reject')}</Button>
 		</section>
-		<a href="/policies/cookies" class="text-center underline underline-offset-2">
+		<a href={langHref('/policies/cookies')} class="text-center underline underline-offset-2">
 			<span class="flex flex-row items-center gap-2">{$t('common.cookies_policy')}</span>
 		</a>
 	</div>

@@ -9,6 +9,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Turnstile } from 'svelte-turnstile';
 	import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+	import { langHref } from '$lib/utils';
 
 	let email = $state('');
 	let isLoading = $state(false);
@@ -25,7 +26,7 @@
 		isLoading = true;
 		const { error } = await authClient.requestPasswordReset({
 			email,
-			redirectTo: '/reset-password',
+			redirectTo: langHref('/reset-password'),
 			fetchOptions: { headers: { 'x-captcha-response': turnstileToken } }
 		});
 		if (error) {
@@ -77,7 +78,7 @@
 				</form>
 			{/if}
 			<p class="text-muted-foreground text-center text-sm">
-				<a href="/signin" class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
+				<a href={langHref('/signin')} class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
 			</p>
 		</Card.Content>
 	</Card.Root>

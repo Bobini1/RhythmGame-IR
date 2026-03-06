@@ -5,6 +5,7 @@
 	import Menu from '$lib/components/menu/menu.svelte';
 	import type { MenuActionItem, MenuConfiguration } from '$lib/models/menu';
 	import UserMenuTrigger from './user-menu-trigger.svelte';
+	import { langGoto } from '$lib/utils';
 	const session = authClient.useSession();
 	const user = $derived($session?.data?.user);
 	const showIfUser = (currentUser: typeof user) => {
@@ -52,15 +53,15 @@
 				break;
 			}
 			case 'signin': {
-				goto('/signin');
+				langGoto('/signin');
 				break;
 			}
 			case 'signup': {
-				goto('/signup');
+				langGoto('/signup');
 				break;
 			}
 			case 'user': {
-				if (user?.id) goto(`/players/${user.id}`);
+				if (user?.id) langGoto(`/players/${user.id}`);
 				break;
 			}
 		}

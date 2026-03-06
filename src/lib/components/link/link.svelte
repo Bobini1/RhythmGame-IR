@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { defaultLocale } from '$lib/api/configurations/common';
-	import { locale, t } from '$lib/i18n';
+	import { t } from '$lib/i18n';
 	import type { Link } from '$lib/models/link';
+	import { langHref } from '$lib/utils';
 
 	interface Props {
 		link: Link;
@@ -15,7 +15,7 @@
 	}: Props = $props();
 </script>
 
-<a href={`${$locale === defaultLocale ? '' : `/${$locale}`}${link.path}`} class={className}>
+<a href={langHref(link.path)} class={className}>
 	<div class="flex flex-row items-center gap-2">
 		{#if link.icon}
 			<link.icon />

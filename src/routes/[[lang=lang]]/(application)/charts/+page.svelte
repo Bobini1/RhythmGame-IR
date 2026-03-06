@@ -9,6 +9,7 @@
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
+	import { langGoto } from '$lib/utils';
 
 	let { data } = $props();
 	let { chartList, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch } = $derived(data);
@@ -20,7 +21,6 @@
 		sortingState: [{ id: sortBy, desc: sortDir === 'desc' }]
 	});
 
-	/* eslint-disable svelte/no-navigation-without-resolve */
 	function updateUrl(params: { page?: number; limit?: number; sortBy?: string; sortDir?: string; search?: string }) {
 		const url = new URL(page.url);
 		if (params.page !== undefined) url.searchParams.set('page', String(params.page));
@@ -31,9 +31,8 @@
 			if (params.search) url.searchParams.set('search', params.search);
 			else url.searchParams.delete('search');
 		}
-		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+		langGoto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
 	}
-	/* eslint-enable svelte/no-navigation-without-resolve */
 
 	function onSortingChanged(state: SortingState) {
 		const first = state[0] ?? null;

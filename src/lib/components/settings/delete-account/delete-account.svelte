@@ -2,9 +2,9 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { t } from '$lib/i18n';
-	import { goto } from '$app/navigation';
 	import authClient from '$lib/client/auth/client';
 	import { toast } from 'svelte-sonner';
+	import { langGoto } from '$lib/utils';
 
 	let open = $state(false);
 	let isLoading = $state(false);
@@ -19,7 +19,7 @@
 			}
 			await authClient.signOut();
 			toast.success($t('common.delete_account_success'));
-			goto('/');
+			langGoto('/');
 		} catch {
 			toast.error($t('common.delete_account_error'));
 		} finally {

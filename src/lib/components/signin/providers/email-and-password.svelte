@@ -6,6 +6,7 @@
 	import { t } from '$lib/i18n';
 	import { LoaderCircle } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { langHref } from '$lib/utils';
 	const session = authClient.useSession();
 	let { redirect }: { redirect: string } = $props();
 	let email = $state('');
@@ -42,7 +43,7 @@
 	<div class="space-y-2">
 		<div class="flex items-center justify-between">
 			<Label for="password">{$t('common.password')}</Label>
-			<a href="/forgot-password" class="text-muted-foreground text-sm underline underline-offset-4">{$t('common.forgot_password')}</a>
+			<a href={langHref('/forgot-password')} class="text-muted-foreground text-sm underline underline-offset-4">{$t('common.forgot_password')}</a>
 		</div>
 		<Input
 			id="password"

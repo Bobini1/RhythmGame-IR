@@ -1,10 +1,9 @@
 <script lang="ts">
 	import Avatar from '$lib/components/avatar/avatar.svelte';
-	import { page } from '$app/state';
+	import { langHref } from '$lib/utils';
 
 	let { userId, name, image }: { userId: number; name: string; image: string | null } = $props();
-	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
-	const href = $derived(`${lang}/players/${userId}`);
+	const href = $derived(langHref(`/players/${userId}`));
 </script>
 
 <a {href} class="flex min-w-0 items-center gap-2 hover:underline">

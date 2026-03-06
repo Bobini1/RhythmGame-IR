@@ -9,6 +9,7 @@
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
+	import { langGoto, langHref } from '$lib/utils';
 
 	let { data } = $props();
 	let { chart, profile, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
@@ -29,7 +30,7 @@
 			else url.searchParams.delete('sortBy');
 		}
 		if (params.sortDir !== undefined) url.searchParams.set('sortDir', params.sortDir);
-		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+		langGoto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
 	}
 
 	function onSortingChanged(state: SortingState) {
@@ -41,10 +42,9 @@
 		});
 	}
 
-	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
 	const chartTitle = $derived(chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title);
-	const chartHref = $derived(`${lang}/charts/${chart.md5}`);
-	const profileHref = $derived(`${lang}/players/${profile.id}`);
+	const chartHref = $derived(langHref(`/charts/${chart.md5}`));
+	const profileHref = $derived(langHref(`/players/${profile.id}`));
 </script>
 
 <BasePage title="charts.user_scores.title" description="charts.user_scores.description">

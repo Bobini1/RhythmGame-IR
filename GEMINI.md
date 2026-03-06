@@ -207,7 +207,7 @@ export async function load({ event }) {
 
 	if (!session) {
 		// Handle unauthenticated state
-		throw redirect(302, '/signin');
+		throw redirect(302, langHref('/signin'));
 	}
 
 	return {

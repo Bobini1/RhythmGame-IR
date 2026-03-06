@@ -19,3 +19,4 @@
 </script>
 
 <span class="font-bold {colorClass}">{value}</span>
+

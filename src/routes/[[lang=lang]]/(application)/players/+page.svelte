@@ -9,6 +9,7 @@
 	import type { ColumnDef, SortingState } from '@tanstack/table-core';
 	import { renderComponent } from '$lib/components/ui/data-table';
 	import PlayerLinkCell from '$lib/components/table-cells/player-link-cell.svelte';
+	import { langGoto } from '$lib/utils';
 
 	let { data } = $props();
 	let { users, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
@@ -49,7 +50,7 @@
 		if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
 		if (params.sortBy !== undefined) url.searchParams.set('sortBy', params.sortBy);
 		if (params.sortDir !== undefined) url.searchParams.set('sortDir', params.sortDir);
-		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+		langGoto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
 	}
 
 	function onSortingChanged(state: SortingState) {

@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { langHref } from '$lib/utils';
 
 	let { title, subtitle, md5 }: { title: string; subtitle: string; md5: string } = $props();
-
-	const lang = $derived(page.params.lang ? `/${page.params.lang}` : '');
-	const href = $derived(`${lang}/charts/${md5}`);
+	const href = $derived(langHref(`/charts/${md5}`));
 </script>
 
 <a {href} class="flex min-w-0 flex-col hover:underline">

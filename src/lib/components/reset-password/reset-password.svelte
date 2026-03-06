@@ -7,7 +7,7 @@
 	import Label from '../ui/label/label.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '$lib/components/ui/card';
-	import { goto } from '$app/navigation';
+	import { langGoto, langHref } from '$lib/utils';
 
 	let { token }: { token: string } = $props();
 
@@ -34,7 +34,7 @@
 				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
 			} else {
 				toast.success(t.get('common.password_reset_success'));
-				goto('/signin');
+				langGoto('/signin');
 			}
 		} else {
 			const { error } = await authClient.changePassword({
@@ -45,7 +45,7 @@
 				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
 			} else {
 				toast.success(t.get('common.password_reset_success'));
-				goto('/');
+				langGoto('/');
 			}
 		}
 		isLoading = false;
@@ -62,7 +62,7 @@
 			{#if !isAuthenticated && !token}
 				<p class="text-destructive text-sm">{$t('common.reset_password_invalid_link')}</p>
 				<p class="text-muted-foreground text-center text-sm">
-					<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
+					<a href={langHref('/forgot-password')} class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
 				</p>
 			{:else}
 				<form onsubmit={submit} class="space-y-4">
@@ -110,17 +110,17 @@
 				</form>
 				{#if tokenError}
 					<p class="text-muted-foreground text-center text-sm">
-						<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
+						<a href={langHref('/forgot-password')} class="underline underline-offset-4">{$t('common.request_new_reset_link')}</a>
 					</p>
 				{:else if isAuthenticated && !token}
 					<p class="text-muted-foreground text-center text-sm">
-						<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
+						<a href={langHref('/forgot-password')} class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
 					</p>
 				{/if}
 			{/if}
 			{#if !isAuthenticated}
 				<p class="text-muted-foreground text-center text-sm">
-					<a href="/signin" class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
+					<a href={langHref('/signin')} class="underline underline-offset-4">{$t('common.back_to_signin')}</a>
 				</p>
 			{/if}
 		</Card.Content>

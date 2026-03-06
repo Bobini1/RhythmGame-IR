@@ -6,6 +6,7 @@
 	import { t } from '$lib/i18n';
 	import { LoaderCircle } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { langHref } from '$lib/utils';
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -86,7 +87,7 @@
 				</Button>
 			</div>
 			<p class="text-muted-foreground text-sm">
-				<a href="/forgot-password" class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
+				<a href={langHref('/forgot-password')} class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
 			</p>
 		</form>
 	{:else}

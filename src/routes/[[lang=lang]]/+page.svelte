@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import Homepage from '$lib/components/homepage/homepage.svelte';
+	import { langGoto } from '$lib/utils';
 
 	let { data } = $props();
 	let { latestScores, total, page: currentPage, pageSize } = $derived(data);
@@ -11,7 +12,7 @@
 		const url = new URL(page.url);
 		if (params.page !== undefined) url.searchParams.set('page', String(params.page));
 		if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
-		goto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
+		langGoto(url.toString(), { invalidateAll: true, keepFocus: true, noScroll: true });
 	}
 </script>
 

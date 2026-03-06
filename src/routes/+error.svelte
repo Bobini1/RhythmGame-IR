@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { getTitleTemplate } from '$lib/client/configurations/meta-tags';
 	import * as Alert from '$lib/components/ui/alert';
@@ -9,6 +8,7 @@
 	import { CircleAlert } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import type { MetaTagsProps } from 'svelte-meta-tags';
+	import { langGoto } from '$lib/utils';
 
 	const errorNumberMessage = t.get('common.error_number', { number: page?.status ?? 500 });
 
@@ -30,7 +30,7 @@
 	}
 
 	function goHome() {
-		goto('/');
+		langGoto('/');
 	}
 </script>
 

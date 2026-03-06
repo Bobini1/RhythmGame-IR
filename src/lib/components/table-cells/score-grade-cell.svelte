@@ -8,3 +8,4 @@
 
 <span class="font-bold {color}">{grade}</span>
 
+

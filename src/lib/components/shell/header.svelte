@@ -5,6 +5,7 @@
 	import Button from '../ui/button/button.svelte';
 	import SidebarTrigger from '../ui/sidebar/sidebar-trigger.svelte';
 	import * as Tooltip from '../ui/tooltip';
+	import { langHref } from '$lib/utils';
 </script>
 
 <header class="grid w-full grid-cols-2 border-b p-2">
@@ -20,7 +21,7 @@
 			</Tooltip.Root>
 		</Tooltip.Provider>
 		<h1 class="flex flex-row items-center gap-3 text-xl">
-			<a href="/">{$t('common.brand.name')}</a>
+			<a href={langHref('/')}>{$t('common.brand.name')}</a>
 		</h1>
 	</div>
 	<div class="flex flex-row items-center justify-end gap-2">
