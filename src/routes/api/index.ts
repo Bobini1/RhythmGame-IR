@@ -26,7 +26,7 @@ export const score = (guid: string) => `${CONTROLLER}/scores/${encodeURIComponen
 export const Scores = `${CONTROLLER}/scores`;
 export const Charts = `${CONTROLLER}/charts`;
 export const Users = `${CONTROLLER}/users`;
-export const ScoreSummaries = `${CONTROLLER}/score_summaries`;
+export const ScoreSummaries = `${CONTROLLER}/score-summaries`;
 
 // Mutation endpoints (auth required)
 export const ScoresBulk = `${CONTROLLER}/scores/bulk`;

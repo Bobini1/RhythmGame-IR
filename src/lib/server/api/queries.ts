@@ -5,7 +5,7 @@
  * to avoid coupling API changes to the web UI.
  */
 import { db } from '$lib/server/database/client';
-import { scores, charts } from '$lib/server/database/schemas/scores';
+import { scores, charts, scoreExtras } from '$lib/server/database/schemas/scores';
 import { user } from '$lib/server/database/schemas/auth';
 import {
 	eq,
@@ -90,12 +90,18 @@ export interface ApiChart {
 	peakDensity: number;
 	avgDensity: number;
 	endDensity: number;
-	histogramData: number[][];
-	bpmChanges: { bpm: number; offsetFromStart: number }[];
 	createdAt: Date;
 	updatedAt: Date;
 	scoreCount: number;
 	playerCount: number;
+}
+
+export interface ApiChartHistogram {
+	histogramData: number[][];
+}
+
+export interface ApiChartBpmChanges {
+	bpmChanges: { bpm: number; offsetFromStart: number }[];
 }
 
 export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
@@ -128,8 +134,6 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 			peakDensity: charts.peakDensity,
 			avgDensity: charts.avgDensity,
 			endDensity: charts.endDensity,
-			histogramData: charts.histogramData,
-			bpmChanges: charts.bpmChanges,
 			createdAt: charts.createdAt,
 			updatedAt: charts.updatedAt,
 			scoreCount: sql<number>`COUNT(${scores.id})`,
@@ -146,6 +150,24 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 		scoreCount: Number(rows[0].scoreCount),
 		playerCount: Number(rows[0].playerCount)
 	};
+}
+
+export async function getChartHistogram(md5: string): Promise<ApiChartHistogram | null> {
+	const result = await db
+		.select({ histogramData: charts.histogramData })
+		.from(charts)
+		.where(eq(charts.md5, md5))
+		.limit(1);
+	return result[0] ?? null;
+}
+
+export async function getChartBpmChanges(md5: string): Promise<ApiChartBpmChanges | null> {
+	const result = await db
+		.select({ bpmChanges: charts.bpmChanges })
+		.from(charts)
+		.where(eq(charts.md5, md5))
+		.limit(1);
+	return result[0] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,9 +213,11 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 export interface ApiScore {
 	id: string;
 	userId: number;
-	userName: string;
+	chartMd5: string;
 	chartTitle: string;
 	chartSubtitle: string;
+	playLevel: number;
+	difficulty: number;
 	points: number;
 	maxPoints: number;
 	maxCombo: number;
@@ -215,17 +239,39 @@ export interface ApiScore {
 	length: number;
 	unixTimestamp: number;
 	sha256: string;
-	md5: string;
+}
+
+export interface ApiScoreReplay {
+	replayData: {
+		offsetFromStart: number;
+		points: { value: number; judgement: number; deviation: number } | null;
+		column: number;
+		noteIndex: number;
+		action: number;
+		noteRemoved: boolean;
+	}[];
+}
+
+export interface ApiScoreGauge {
+	gaugeHistory: {
+		name: string;
+		maxGauge: number;
+		threshold: number;
+		courseGauge: boolean;
+		gaugeHistory: { offsetFromStart: number; gauge: number }[];
+	}[];
 }
 
 export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
 			id: scores.id,
-			userId: user.id,
-			userName: user.name,
+			userId: scores.userId,
+			chartMd5: charts.md5,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
+			playLevel: charts.playLevel,
+			difficulty: charts.difficulty,
 			points: scores.points,
 			maxPoints: scores.maxPoints,
 			maxCombo: scores.maxCombo,
@@ -246,16 +292,32 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256,
-			md5: charts.md5
+			sha256: charts.sha256
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.innerJoin(user, eq(scores.userId, user.id))
 		.where(eq(scores.id, guid))
 		.limit(1);
 	if (!rows[0]) return null;
 	return rows[0];
+}
+
+export async function getScoreReplay(guid: string): Promise<ApiScoreReplay | null> {
+	const rows = await db
+		.select({ replayData: scoreExtras.replayData })
+		.from(scoreExtras)
+		.where(eq(scoreExtras.scoreId, guid))
+		.limit(1);
+	return rows[0] ?? null;
+}
+
+export async function getScoreGauge(guid: string): Promise<ApiScoreGauge | null> {
+	const rows = await db
+		.select({ gaugeHistory: scoreExtras.gaugeHistory })
+		.from(scoreExtras)
+		.where(eq(scoreExtras.scoreId, guid))
+		.limit(1);
+	return rows[0] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -287,7 +349,6 @@ function scoresCollectionOrder(orderBy: ScoresOrderBy, sort: 'asc' | 'desc'): SQ
 export interface ScoresCollectionRow {
 	id: string;
 	userId: number;
-	userName: string;
 	chartMd5: string;
 	chartTitle: string;
 	chartSubtitle: string;
@@ -297,8 +358,23 @@ export interface ScoresCollectionRow {
 	maxPoints: number;
 	maxCombo: number;
 	maxHits: number;
+	judgementCounts: number[];
+	mineHits: number;
+	normalNoteCount: number;
+	scratchCount: number;
+	lnCount: number;
+	bssCount: number;
+	mineCount: number;
 	clearType: string;
+	randomSequence: number[];
+	randomSeed: string;
+	noteOrderAlgorithm: number;
+	noteOrderAlgorithmP2: number;
+	dpOptions: number;
+	gameVersion: string;
+	length: number;
 	unixTimestamp: number;
+	sha256: string;
 }
 
 export interface ScoresCollectionFilters {
@@ -338,9 +414,7 @@ export async function queryScores(
 	const rows = await db
 		.select({
 			id: scores.id,
-			userId: user.id,
-			userName: user.name,
-			userImage: user.image,
+			userId: scores.userId,
 			chartMd5: charts.md5,
 			chartTitle: charts.title,
 			chartSubtitle: charts.subtitle,
@@ -350,12 +424,26 @@ export async function queryScores(
 			maxPoints: scores.maxPoints,
 			maxCombo: scores.maxCombo,
 			maxHits: scores.maxHits,
+			judgementCounts: scores.judgementCounts,
+			mineHits: scores.mineHits,
+			normalNoteCount: scores.normalNoteCount,
+			scratchCount: scores.scratchCount,
+			lnCount: scores.lnCount,
+			bssCount: scores.bssCount,
+			mineCount: scores.mineCount,
 			clearType: scores.clearType,
-			unixTimestamp: scores.unixTimestamp
+			randomSequence: scores.randomSequence,
+			randomSeed: scores.randomSeed,
+			noteOrderAlgorithm: scores.noteOrderAlgorithm,
+			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
+			dpOptions: scores.dpOptions,
+			gameVersion: scores.gameVersion,
+			length: scores.length,
+			unixTimestamp: scores.unixTimestamp,
+			sha256: charts.sha256
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where)
 		.orderBy(scoresCollectionOrder(orderBy, sort))
 		.limit(limit)
@@ -385,7 +473,6 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 		.select({ count: count() })
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartId, charts.id))
-		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where);
 	return result[0]?.count ?? 0;
 }
@@ -599,10 +686,14 @@ export type ScoreSummariesOrderBy =
 	| 'date'
 	| 'play_count';
 
+export interface ScoreSummaryUser {
+	id: number;
+	name: string;
+	image: string | null;
+}
+
 export interface ScoreSummaryRow {
-	userId: number;
-	userName: string;
-	userImage: string | null;
+	user: ScoreSummaryUser;
 	bestPoints: number;
 	maxPoints: number;
 	bestCombo: number;
@@ -672,9 +763,10 @@ export async function queryScoreSummaries(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({
-		...r,
-		scoreCount: Number(r.scoreCount)
+	return rows.map(({ userId, userName, userImage, ...rest }) => ({
+		...rest,
+		user: { id: userId, name: userName, image: userImage },
+		scoreCount: Number(rest.scoreCount)
 	}));
 }
 
@@ -694,6 +786,13 @@ export async function queryScoreSummariesCount(
 		.where(where);
 	return Number(result[0]?.count ?? 0);
 }
+
+
+
+
+
+
+
 
 
 

@@ -198,8 +198,10 @@ export function pickFields<T extends Record<string, unknown>>(
 export function chartLinks(md5: string) {
 	return {
 		self: `/api/charts/${md5}`,
+		histogram: `/api/charts/${md5}/histogram`,
+		bpm_changes: `/api/charts/${md5}/bpm-changes`,
 		scores: `/api/scores?chart=${md5}`,
-		score_summaries: `/api/score_summaries?chart=${md5}`
+		score_summaries: `/api/score-summaries?chart=${md5}`
 	};
 }
 
@@ -213,6 +215,8 @@ export function userLinks(publicId: number) {
 export function scoreLinks(guid: string, chartMd5: string, userId: number) {
 	return {
 		self: `/api/scores/${encodeURIComponent(guid)}`,
+		replay: `/api/scores/${encodeURIComponent(guid)}/replay-data`,
+		gauge: `/api/scores/${encodeURIComponent(guid)}/gauge-history`,
 		chart: `/api/charts/${chartMd5}`,
 		user: `/api/users/${userId}`
 	};
@@ -220,6 +224,7 @@ export function scoreLinks(guid: string, chartMd5: string, userId: number) {
 
 export function scoreSummaryLinks(chartMd5: string, userId: number) {
 	return {
+		self: `/api/score-summaries?chart=${chartMd5}&user=${userId}`,
 		chart: `/api/charts/${chartMd5}`,
 		user: `/api/users/${userId}`,
 		scores: `/api/scores?chart=${chartMd5}&user=${userId}`

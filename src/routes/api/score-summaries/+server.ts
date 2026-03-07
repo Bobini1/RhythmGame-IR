@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			headers: collectionHeaders(url, total, limit, offset)
 		});
 	} catch (err) {
-		console.error('[GET /api/score_summaries]', err);
+		console.error('[GET /api/score-summaries]', err);
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };
