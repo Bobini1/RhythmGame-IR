@@ -15,7 +15,7 @@ export interface ScoreRow {
 	maxCombo: number;
 	maxHits: number;
 	clearType: string;
-	unixTimestamp: number; // converted from bigint to a JS number for JSON serialization
+	unixTimestamp: number;
 	chartTitle: string;
 	chartSubtitle: string;
 	chartMd5: string;
@@ -139,7 +139,7 @@ export async function getUserScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
+	return rows;
 }
 
 export async function getUserScoreCount(userId: number, search: string = ''): Promise<number> {
@@ -203,7 +203,7 @@ export async function getLatestScores(limit: number, offset: number): Promise<La
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
+	return rows;
 }
 
 export async function getLatestScoreCount(): Promise<number> {
@@ -211,7 +211,7 @@ export async function getLatestScoreCount(): Promise<number> {
 	return result[0]?.count ?? 0;
 }
 
-export type ChartData = Omit<typeof charts.$inferSelect, 'length'> & { length: number };
+export type ChartData = typeof charts.$inferSelect;
 
 export async function getChartByMd5(md5: string): Promise<ChartData | null> {
 	const result = await db
@@ -220,7 +220,7 @@ export async function getChartByMd5(md5: string): Promise<ChartData | null> {
 		.where(eq(charts.md5, md5))
 		.limit(1);
 	if (!result[0]) return null;
-	return { ...result[0], length: Number(result[0].length) };
+	return result[0];
 }
 
 export interface ChartScoreRow {
@@ -311,7 +311,7 @@ export async function getChartScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, latestDate: Number(r.latestDate), scoreCount: Number(r.scoreCount) }));
+	return rows.map((r) => ({ ...r, scoreCount: Number(r.scoreCount) }));
 }
 
 export async function getChartScoreCount(chartMd5: string, search: string = ''): Promise<number> {
@@ -409,7 +409,7 @@ export async function getChartUserScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
+	return rows;
 }
 
 export async function getChartUserScoreCount(chartMd5: string, userId: number): Promise<number> {
@@ -491,8 +491,8 @@ export async function getScoresByIds(
 			noteOrderAlgorithmP2: r.noteOrderAlgorithmP2,
 			dpOptions: r.dpOptions,
 			gameVersion: r.gameVersion,
-			length: Number(r.length),
-			unixTimestamp: Number(r.unixTimestamp),
+			length: r.length,
+			unixTimestamp: r.unixTimestamp,
 			sha256: r.sha256,
 			md5: r.md5
 		},
@@ -589,14 +589,14 @@ export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[
 				noteOrderAlgorithmP2: r.noteOrderAlgorithmP2,
 				dpOptions: r.dpOptions,
 				gameVersion: r.gameVersion,
-				length: Number(r.length),
-				unixTimestamp: Number(r.unixTimestamp),
-				sha256: r.sha256,
-				md5: r.chartMd5
-			},
-			replayData: r.replayData,
-			gaugeHistory: r.gaugeHistory
-		});
+			length: r.length,
+			unixTimestamp: r.unixTimestamp,
+			sha256: r.sha256,
+			md5: r.chartMd5
+		},
+		replayData: r.replayData,
+		gaugeHistory: r.gaugeHistory
+	});
 	}
 
 	return Array.from(groupMap.values());

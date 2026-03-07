@@ -62,12 +62,90 @@ function bestClearTypeExpr() {
 // GET /api/charts/:md5 — single chart resource
 // ---------------------------------------------------------------------------
 
-export type ApiChart = Omit<typeof charts.$inferSelect, 'length'> & { length: number };
+export interface ApiChart {
+	id: string;
+	sha256: string;
+	md5: string;
+	title: string;
+	subtitle: string;
+	artist: string;
+	subartist: string;
+	genre: string;
+	rank: number;
+	total: number;
+	playLevel: number;
+	difficulty: number;
+	keymode: number;
+	normalNoteCount: number;
+	scratchCount: number;
+	lnCount: number;
+	bssCount: number;
+	mineCount: number;
+	length: number;
+	initialBpm: number;
+	maxBpm: number;
+	minBpm: number;
+	mainBpm: number;
+	avgBpm: number;
+	peakDensity: number;
+	avgDensity: number;
+	endDensity: number;
+	histogramData: number[][];
+	bpmChanges: { bpm: number; offsetFromStart: number }[];
+	createdAt: Date;
+	updatedAt: Date;
+	scoreCount: number;
+	playerCount: number;
+}
 
 export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
-	const result = await db.select().from(charts).where(eq(charts.md5, md5)).limit(1);
-	if (!result[0]) return null;
-	return { ...result[0], length: Number(result[0].length) };
+	const rows = await db
+		.select({
+			id: charts.id,
+			sha256: charts.sha256,
+			md5: charts.md5,
+			title: charts.title,
+			subtitle: charts.subtitle,
+			artist: charts.artist,
+			subartist: charts.subartist,
+			genre: charts.genre,
+			rank: charts.rank,
+			total: charts.total,
+			playLevel: charts.playLevel,
+			difficulty: charts.difficulty,
+			keymode: charts.keymode,
+			normalNoteCount: charts.normalNoteCount,
+			scratchCount: charts.scratchCount,
+			lnCount: charts.lnCount,
+			bssCount: charts.bssCount,
+			mineCount: charts.mineCount,
+			length: charts.length,
+			initialBpm: charts.initialBpm,
+			maxBpm: charts.maxBpm,
+			minBpm: charts.minBpm,
+			mainBpm: charts.mainBpm,
+			avgBpm: charts.avgBpm,
+			peakDensity: charts.peakDensity,
+			avgDensity: charts.avgDensity,
+			endDensity: charts.endDensity,
+			histogramData: charts.histogramData,
+			bpmChanges: charts.bpmChanges,
+			createdAt: charts.createdAt,
+			updatedAt: charts.updatedAt,
+			scoreCount: sql<number>`COUNT(${scores.id})`,
+			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})`
+		})
+		.from(charts)
+		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.where(eq(charts.md5, md5))
+		.groupBy(charts.id)
+		.limit(1);
+	if (!rows[0]) return null;
+	return {
+		...rows[0],
+		scoreCount: Number(rows[0].scoreCount),
+		playerCount: Number(rows[0].playerCount)
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +158,7 @@ export interface ApiUser {
 	image: string | null;
 	createdAt: Date;
 	scoreCount: number;
+	chartCount: number;
 }
 
 export async function getUserById(id: number): Promise<ApiUser | null> {
@@ -89,7 +168,8 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 			name: user.name,
 			image: user.image,
 			createdAt: user.createdAt,
-			scoreCount: sql<number>`COUNT(${scores.id})`
+			scoreCount: sql<number>`COUNT(${scores.id})`,
+			chartCount: sql<number>`COUNT(DISTINCT ${scores.chartId})`
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
@@ -97,7 +177,11 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.limit(1);
 	if (!rows[0]) return null;
-	return { ...rows[0], scoreCount: Number(rows[0].scoreCount) };
+	return {
+		...rows[0],
+		scoreCount: Number(rows[0].scoreCount),
+		chartCount: Number(rows[0].chartCount)
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +255,7 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 		.where(eq(scores.id, guid))
 		.limit(1);
 	if (!rows[0]) return null;
-	return { ...rows[0], length: Number(rows[0].length), unixTimestamp: Number(rows[0].unixTimestamp) };
+	return rows[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +361,7 @@ export async function queryScores(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, unixTimestamp: Number(r.unixTimestamp) }));
+	return rows;
 }
 
 export async function queryScoresCount(filters: ScoresCollectionFilters): Promise<number> {
@@ -310,7 +394,7 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 // GET /api/charts — charts collection (with full-text search)
 // ---------------------------------------------------------------------------
 
-export type ChartsOrderBy = 'title' | 'play_count' | 'play_level';
+export type ChartsOrderBy = 'title' | 'play_count' | 'play_level' | 'score_count' | 'player_count';
 
 export interface ChartsCollectionFilters {
 	query?: string;
@@ -332,24 +416,24 @@ export interface ChartsCollectionRow {
 	playLevel: number;
 	difficulty: number;
 	keymode: number;
-	playCount: number;
+	scoreCount: number;
+	playerCount: number;
 }
 
 export async function queryCharts(
 	filters: ChartsCollectionFilters,
 	limit: number,
 	offset: number,
-	orderBy: ChartsOrderBy = 'play_count',
+	orderBy: ChartsOrderBy = 'player_count',
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<ChartsCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
-	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
+	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
+	const playerCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
 
 	const conditions: SQL[] = [];
 	if (filters.query) {
-		// Use PostgreSQL full-text search with simple config (works with non-English titles)
-		// Convert the user query into a tsquery: split words, add :* for prefix matching
 		const tsQuery = filters.query
 			.trim()
 			.split(/\s+/)
@@ -377,9 +461,13 @@ export async function queryCharts(
 		case 'play_level':
 			orderExprs = [dir(charts.playLevel), asc(mergedTitle)];
 			break;
+		case 'score_count':
+			orderExprs = [dir(scoreCountExpr), asc(mergedTitle)];
+			break;
+		case 'player_count':
 		case 'play_count':
 		default:
-			orderExprs = [dir(playCountExpr), asc(mergedTitle)];
+			orderExprs = [dir(playerCountExpr), asc(mergedTitle)];
 			break;
 	}
 
@@ -396,7 +484,8 @@ export async function queryCharts(
 			playLevel: charts.playLevel,
 			difficulty: charts.difficulty,
 			keymode: charts.keymode,
-			playCount: playCountExpr
+			scoreCount: scoreCountExpr,
+			playerCount: playerCountExpr
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.chartId, charts.id))
@@ -406,7 +495,11 @@ export async function queryCharts(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, playCount: Number(r.playCount) }));
+	return rows.map((r) => ({
+		...r,
+		scoreCount: Number(r.scoreCount),
+		playerCount: Number(r.playerCount)
+	}));
 }
 
 export async function queryChartsCount(filters: ChartsCollectionFilters): Promise<number> {
@@ -431,10 +524,7 @@ export async function queryChartsCount(filters: ChartsCollectionFilters): Promis
 
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-	const result = await db
-		.select({ count: count() })
-		.from(charts)
-		.where(where);
+	const result = await db.select({ count: count() }).from(charts).where(where);
 	return result[0]?.count ?? 0;
 }
 
@@ -442,13 +532,14 @@ export async function queryChartsCount(filters: ChartsCollectionFilters): Promis
 // GET /api/users — users collection
 // ---------------------------------------------------------------------------
 
-export type UsersOrderBy = 'name' | 'score_count';
+export type UsersOrderBy = 'name' | 'score_count' | 'chart_count';
 
 export interface UsersCollectionRow {
 	id: number;
 	name: string;
 	image: string | null;
 	scoreCount: number;
+	chartCount: number;
 }
 
 export async function queryUsers(
@@ -459,14 +550,20 @@ export async function queryUsers(
 ): Promise<UsersCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
+	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.chartId})`;
 	const orderExprs =
-		orderBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)]
+		orderBy === 'name'
+			? [dir(user.name)]
+			: orderBy === 'chart_count'
+				? [dir(chartCountExpr), asc(user.name)]
+				: [dir(scoreCountExpr), asc(user.name)];
 	const rows = await db
 		.select({
 			id: user.id,
 			name: user.name,
 			image: user.image,
-			scoreCount: scoreCountExpr
+			scoreCount: scoreCountExpr,
+			chartCount: chartCountExpr
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
@@ -475,7 +572,11 @@ export async function queryUsers(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map((r) => ({ ...r, scoreCount: Number(r.scoreCount) }));
+	return rows.map((r) => ({
+		...r,
+		scoreCount: Number(r.scoreCount),
+		chartCount: Number(r.chartCount)
+	}));
 }
 
 export async function queryUsersCount(): Promise<number> {
@@ -573,7 +674,6 @@ export async function queryScoreSummaries(
 
 	return rows.map((r) => ({
 		...r,
-		latestDate: Number(r.latestDate),
 		scoreCount: Number(r.scoreCount)
 	}));
 }

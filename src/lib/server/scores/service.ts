@@ -108,8 +108,8 @@ export async function submitScore(
 			noteOrderAlgorithmP2: scoreData.noteOrderAlgorithmP2,
 			dpOptions: scoreData.dpOptions,
 			gameVersion: scoreData.gameVersion,
-			length: BigInt(scoreData.length),
-			unixTimestamp: BigInt(scoreData.unixTimestamp)
+			length: scoreData.length,
+			unixTimestamp: scoreData.unixTimestamp
 		});
 
 		// ------------------------------------------------------------------

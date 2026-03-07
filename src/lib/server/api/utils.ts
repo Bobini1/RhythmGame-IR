@@ -155,6 +155,43 @@ export function pageCollectionHeaders(
 }
 
 // ---------------------------------------------------------------------------
+// Field selection (?fields=a,b,c)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the `fields` query parameter into a Set of requested field names.
+ * Returns `null` when the parameter is absent, meaning "return all fields".
+ *
+ * @example  ?fields=id,name,scoreCount  →  Set { 'id', 'name', 'scoreCount' }
+ */
+export function parseFields(url: URL): Set<string> | null {
+	const raw = url.searchParams.get('fields');
+	if (!raw) return null;
+	const fields = raw
+		.split(',')
+		.map((f) => f.trim())
+		.filter((f) => f.length > 0);
+	return fields.length > 0 ? new Set(fields) : null;
+}
+
+/**
+ * Filter an object to only the requested fields.
+ * `_links` is always preserved so that HATEOAS navigation stays intact.
+ *
+ * When `fields` is `null` (param not supplied) the original object is
+ * returned unchanged.
+ */
+export function pickFields<T extends Record<string, unknown>>(
+	obj: T,
+	fields: Set<string> | null
+): Partial<T> {
+	if (!fields) return obj;
+	return Object.fromEntries(
+		Object.entries(obj).filter(([key]) => fields.has(key) || key === '_links')
+	) as Partial<T>;
+}
+
+// ---------------------------------------------------------------------------
 // HATEOAS links
 // ---------------------------------------------------------------------------
 

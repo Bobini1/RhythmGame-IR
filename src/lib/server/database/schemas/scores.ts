@@ -2,7 +2,6 @@ import {
 	pgTable,
 	text,
 	integer,
-	bigint,
 	doublePrecision,
 	timestamp,
 	jsonb
@@ -35,7 +34,7 @@ export const charts = pgTable('charts', {
 	bssCount: integer('bss_count').notNull().default(0),
 	mineCount: integer('mine_count').notNull().default(0),
 	/** Duration in nanoseconds */
-	length: bigint('length', { mode: 'bigint' }).notNull(),
+	length: integer('length').notNull(),
 	initialBpm: doublePrecision('initial_bpm').notNull().default(0),
 	maxBpm: doublePrecision('max_bpm').notNull().default(0),
 	minBpm: doublePrecision('min_bpm').notNull().default(0),
@@ -55,7 +54,7 @@ export const charts = pgTable('charts', {
 	updatedAt: timestamp('updated_at')
 		.defaultNow()
 		.$onUpdate(() => new Date())
-		.notNull()
+		.notNull(),
 });
 
 export type Chart = typeof charts.$inferSelect;
@@ -97,9 +96,9 @@ export const scores = pgTable(
 		/** Stored as string to preserve uint64 precision */
 		gameVersion: text('game_version').notNull().default('0'),
 		/** Duration in nanoseconds */
-		length: bigint('length', { mode: 'bigint' }).notNull(),
+		length: integer('length').notNull(),
 		/** Unix timestamp (seconds) when the score was set */
-		unixTimestamp: bigint('unix_timestamp', { mode: 'bigint' }).notNull(),
+		unixTimestamp: integer('unix_timestamp').notNull(),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	}
 );

@@ -8,7 +8,9 @@ import {
 	parsePagination,
 	parseSorting,
 	collectionHeaders,
-	scoreSummaryLinks
+	scoreSummaryLinks,
+	parseFields,
+	pickFields
 } from '$lib/server/api/utils';
 
 const VALID_ORDER_BY = new Set<ScoreSummariesOrderBy>([
@@ -31,6 +33,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const { limit, offset } = parsePagination(url);
 	const { orderBy, sort } = parseSorting(url, VALID_ORDER_BY, 'score_pct');
 	const search = url.searchParams.get('search') ?? '';
+	const fields = parseFields(url);
 
 	try {
 		const [rows, total] = await Promise.all([
@@ -38,10 +41,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryScoreSummariesCount(chart, search)
 		]);
 
-		const data = rows.map((r) => ({
-			...r,
-			_links: scoreSummaryLinks(chart, r.userId)
-		}));
+		const data = rows.map((r) =>
+			pickFields({ ...r, _links: scoreSummaryLinks(chart, r.userId) }, fields)
+		);
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)

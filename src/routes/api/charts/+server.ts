@@ -5,13 +5,21 @@ import {
 	type ChartsOrderBy,
 	type ChartsCollectionFilters
 } from '$lib/server/api/queries';
-import { parsePagination, parseSorting, collectionHeaders, chartLinks } from '$lib/server/api/utils';
+import {
+	parsePagination,
+	parseSorting,
+	collectionHeaders,
+	chartLinks,
+	parseFields,
+	pickFields
+} from '$lib/server/api/utils';
 
-const VALID_ORDER_BY = new Set<ChartsOrderBy>(['title', 'play_count', 'play_level']);
+const VALID_ORDER_BY = new Set<ChartsOrderBy>(['title', 'play_count', 'play_level', 'score_count', 'player_count']);
 
 export const GET: RequestHandler = async ({ url }) => {
 	const { limit, offset } = parsePagination(url);
 	const { orderBy, sort } = parseSorting(url, VALID_ORDER_BY, 'play_count');
+	const fields = parseFields(url);
 
 	const filters: ChartsCollectionFilters = {};
 
@@ -34,10 +42,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryChartsCount(filters)
 		]);
 
-		const data = rows.map((r) => ({
-			...r,
-			_links: chartLinks(r.md5)
-		}));
+		const data = rows.map((r) =>
+			pickFields({ ...r, _links: chartLinks(r.md5) }, fields)
+		);
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)

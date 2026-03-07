@@ -9,7 +9,9 @@ import {
 	parsePagination,
 	parseSorting,
 	collectionHeaders,
-	scoreLinks
+	scoreLinks,
+	parseFields,
+	pickFields
 } from '$lib/server/api/utils';
 import { scoreSubmissionPayloadSchema } from '$lib/server/scores/validation';
 import { submitScore } from '$lib/server/scores/service';
@@ -29,6 +31,7 @@ const VALID_ORDER_BY = new Set<ScoresOrderBy>([
 export const GET: RequestHandler = async ({ url }) => {
 	const { limit, offset } = parsePagination(url);
 	const { orderBy, sort } = parseSorting(url, VALID_ORDER_BY, 'date');
+	const fields = parseFields(url);
 
 	const filters: ScoresCollectionFilters = {};
 	const chart = url.searchParams.get('chart');
@@ -57,10 +60,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryScoresCount(filters)
 		]);
 
-		const data = rows.map((r) => ({
-			...r,
-			_links: scoreLinks(r.id, r.chartMd5, r.userId)
-		}));
+		const data = rows.map((r) =>
+			pickFields({ ...r, _links: scoreLinks(r.id, r.chartMd5, r.userId) }, fields)
+		);
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)
