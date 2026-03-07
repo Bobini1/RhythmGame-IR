@@ -686,14 +686,10 @@ export type ScoreSummariesOrderBy =
 	| 'date'
 	| 'play_count';
 
-export interface ScoreSummaryUser {
-	id: number;
-	name: string;
-	image: string | null;
-}
-
 export interface ScoreSummaryRow {
-	user: ScoreSummaryUser;
+	userId: number;
+	userName: string;
+	userImage: string | null;
 	bestPoints: number;
 	maxPoints: number;
 	bestCombo: number;
