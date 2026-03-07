@@ -1,5 +1,6 @@
 import { db } from '$lib/server/database/client';
-import { charts, scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { charts } from '$lib/server/database/schemas/charts';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import type { ScoreSubmissionPayloadOutput } from './validation';
