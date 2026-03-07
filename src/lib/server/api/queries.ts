@@ -411,7 +411,7 @@ export async function queryScores(
 
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-	const rows = await db
+	return db
 		.select({
 			id: scores.id,
 			userId: scores.userId,
@@ -448,8 +448,6 @@ export async function queryScores(
 		.orderBy(scoresCollectionOrder(orderBy, sort))
 		.limit(limit)
 		.offset(offset);
-
-	return rows;
 }
 
 export async function queryScoresCount(filters: ScoresCollectionFilters): Promise<number> {
@@ -736,7 +734,7 @@ export async function queryScoreSummaries(
 	if (search) conditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 	const where = and(...conditions);
 
-	const rows = await db
+	return db
 		.select({
 			userId: user.id,
 			userName: user.name,
@@ -758,11 +756,6 @@ export async function queryScoreSummaries(
 		.orderBy(scoreSummaryOrder(orderBy, sort))
 		.limit(limit)
 		.offset(offset);
-
-	return rows.map((r) => ({
-		...r,
-		scoreCount: Number(r.scoreCount)
-	}));
 }
 
 export async function queryScoreSummariesCount(
