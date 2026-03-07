@@ -1,0 +1,98 @@
+import { db } from '$lib/server/database/client';
+import { scores } from '$lib/server/database/schemas/scores';
+import { user } from '$lib/server/database/schemas/auth';
+import { eq, asc, desc, count, sql } from 'drizzle-orm';
+
+// ---------------------------------------------------------------------------
+// GET /api/users/:id — single user resource
+// ---------------------------------------------------------------------------
+
+export interface ApiUser {
+	id: number;
+	name: string;
+	image: string | null;
+	createdAt: Date;
+	scoreCount: number;
+	chartCount: number;
+}
+
+export async function getUserById(id: number): Promise<ApiUser | null> {
+	const rows = await db
+		.select({
+			id: user.id,
+			name: user.name,
+			image: user.image,
+			createdAt: user.createdAt,
+			scoreCount: sql<number>`COUNT(${scores.id})`,
+			chartCount: sql<number>`COUNT(DISTINCT ${scores.chartId})`
+		})
+		.from(user)
+		.leftJoin(scores, eq(scores.userId, user.id))
+		.where(eq(user.id, id))
+		.groupBy(user.id, user.name, user.image, user.createdAt)
+		.limit(1);
+	if (!rows[0]) return null;
+	return {
+		...rows[0],
+		scoreCount: Number(rows[0].scoreCount),
+		chartCount: Number(rows[0].chartCount)
+	};
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/users — users collection
+// ---------------------------------------------------------------------------
+
+export type UsersOrderBy = 'name' | 'score_count' | 'chart_count';
+
+export interface UsersCollectionRow {
+	id: number;
+	name: string;
+	image: string | null;
+	scoreCount: number;
+	chartCount: number;
+}
+
+export async function queryUsers(
+	limit: number,
+	offset: number,
+	orderBy: UsersOrderBy = 'score_count',
+	sort: 'asc' | 'desc' = 'desc'
+): Promise<UsersCollectionRow[]> {
+	const dir = sort === 'asc' ? asc : desc;
+	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
+	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.chartId})`;
+	const orderExprs =
+		orderBy === 'name'
+			? [dir(user.name)]
+			: orderBy === 'chart_count'
+				? [dir(chartCountExpr), asc(user.name)]
+				: [dir(scoreCountExpr), asc(user.name)];
+
+	const rows = await db
+		.select({
+			id: user.id,
+			name: user.name,
+			image: user.image,
+			scoreCount: scoreCountExpr,
+			chartCount: chartCountExpr
+		})
+		.from(user)
+		.leftJoin(scores, eq(scores.userId, user.id))
+		.groupBy(user.id, user.name, user.image)
+		.orderBy(...orderExprs)
+		.limit(limit)
+		.offset(offset);
+
+	return rows.map((r) => ({
+		...r,
+		scoreCount: Number(r.scoreCount),
+		chartCount: Number(r.chartCount)
+	}));
+}
+
+export async function queryUsersCount(): Promise<number> {
+	const result = await db.select({ count: count() }).from(user);
+	return result[0]?.count ?? 0;
+}
+

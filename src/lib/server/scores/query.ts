@@ -46,40 +46,14 @@ export async function getUserProfile(userId: number): Promise<UserProfileData | 
 	return result[0] ?? null;
 }
 
-import { GRADE_THRESHOLDS, GRADE_LABELS } from '$lib/utils/grades';
+import {
+	clearTypeCaseExpr,
+	gradeCaseExpr,
+	poorPlusBad,
+	bestClearTypeExpr
+} from '$lib/server/api/sql-helpers';
 
 export type SortableColumn = 'title' | 'score_pct' | 'grade' | 'combo' | 'clear_type' | 'date';
-
-// Ordered from worst to best so ASC = worst first, DESC = best first.
-const CLEAR_TYPE_PRIORITIES: Record<string, number> = {
-	NOPLAY:      0,
-	FAILED:      1,
-	ASSIST_CLEAR: 2,
-	EASY:        3,
-	NORMAL:      4,
-	HARD:        5,
-	EXHARD:      6,
-	FC:          7
-};
-
-function clearTypeCaseExpr() {
-	// Builds: CASE clear_type WHEN 'NOPLAY' THEN 0 WHEN 'FAILED' THEN 1 ... ELSE 0 END
-	const branches = Object.entries(CLEAR_TYPE_PRIORITIES)
-		.map(([ct, p]) => sql`WHEN ${scores.clearType} = ${ct} THEN ${p}`)
-		.reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
-	return sql<number>`CASE ${branches} ELSE 0 END`;
-}
-
-function gradeCaseExpr() {
-	// Maps points/maxPoints ratio to a grade priority (0=MAX best, 12=F worst).
-	// Mirrors the GRADE_THRESHOLDS logic in grades.ts.
-	const pct = sql`${scores.points} / NULLIF(${scores.maxPoints}, 0)`;
-	// Build WHEN ratio >= threshold THEN priority, from highest threshold down.
-	const branches = GRADE_THRESHOLDS.map(
-		(threshold, i) => sql`WHEN ${pct} >= ${threshold} THEN ${i}`
-	).reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
-	return sql<number>`CASE ${branches} ELSE ${GRADE_LABELS.length - 1} END`;
-}
 
 function getOrderBy(sortBy: SortableColumn | null, sortDir: 'asc' | 'desc'): SQL {
 	const dir = sortDir === 'asc' ? asc : desc;
@@ -239,24 +213,6 @@ export interface ChartScoreRow {
 
 export type ChartSortableColumn = 'player' | 'score_pct' | 'grade' | 'combo' | 'combo_breaks' | 'clear_type' | 'date' | 'play_count';
 
-// Poor = judgementCounts[0], Bad = judgementCounts[2]
-const poorPlusBad = sql<number>`(${scores.judgementCounts}->0)::int + (${scores.judgementCounts}->2)::int`;
-
-function clearTypePriorityCaseExpr() {
-	const branches = Object.entries(CLEAR_TYPE_PRIORITIES)
-		.map(([ct, p]) => sql`WHEN ${scores.clearType} = ${ct} THEN ${p}`)
-		.reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
-	return sql<number>`CASE ${branches} ELSE 0 END`;
-}
-
-// Returns the clear type string corresponding to the highest priority among grouped rows.
-function bestClearTypeExpr() {
-	const maxPriority = sql`MAX(${clearTypePriorityCaseExpr()})`;
-	const branches = Object.entries(CLEAR_TYPE_PRIORITIES)
-		.map(([ct, p]) => sql`WHEN ${maxPriority} = ${p} THEN ${ct}`)
-		.reduce<SQL>((acc, part) => sql`${acc} ${part}`, sql``);
-	return sql<string>`CASE ${branches} ELSE 'NOPLAY' END`;
-}
 
 function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'desc'): SQL {
 	const dir = sortDir === 'asc' ? asc : desc;
@@ -268,7 +224,7 @@ function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'd
 		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
 		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
 		case 'play_count':   return sql`${dir(sql`COUNT(${scores.id})`)}`;
-		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypePriorityCaseExpr()})`)}`;
+		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypeCaseExpr()})`)}`;
 		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
 		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
 	}
