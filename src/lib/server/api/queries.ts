@@ -759,10 +759,9 @@ export async function queryScoreSummaries(
 		.limit(limit)
 		.offset(offset);
 
-	return rows.map(({ userId, userName, userImage, ...rest }) => ({
-		...rest,
-		user: { id: userId, name: userName, image: userImage },
-		scoreCount: Number(rest.scoreCount)
+	return rows.map((r) => ({
+		...r,
+		scoreCount: Number(r.scoreCount)
 	}));
 }
 
