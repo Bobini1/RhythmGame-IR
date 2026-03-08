@@ -4,7 +4,7 @@ import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
-// GET /api/charts/:md5 — single chart resource
+// GET /api/charts/:md5  Esingle chart resource
 // ---------------------------------------------------------------------------
 
 export interface ApiChart {
@@ -87,7 +87,7 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 			gameVersion: charts.gameVersion
 		})
 		.from(charts)
-		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.leftJoin(scores, eq(scores.chartMd5, charts.md5))
 		.where(eq(charts.md5, md5))
 		.groupBy(charts.id)
 		.limit(1);
@@ -114,7 +114,7 @@ export async function getChartBpmChanges(md5: string): Promise<ApiChartBpmChange
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/charts — charts collection
+// GET /api/charts  Echarts collection
 // ---------------------------------------------------------------------------
 
 export type ChartsOrderBy = 'title' | 'play_count' | 'play_level' | 'score_count' | 'player_count';
@@ -207,7 +207,7 @@ export async function queryCharts(
 			playerCount: playerCountExpr
 		})
 		.from(charts)
-		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.leftJoin(scores, eq(scores.chartMd5, charts.md5))
 		.where(where)
 		.groupBy(charts.id)
 		.orderBy(...orderExprs)

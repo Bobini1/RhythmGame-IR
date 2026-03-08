@@ -15,9 +15,9 @@ export const scores = pgTable('scores', {
 	userId: bigint('user_id', { mode: 'number' })
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	chartId: bigint('chart_id', { mode: 'number' })
+	chartMd5: text('chart_md5')
 		.notNull()
-		.references(() => charts.id, { onDelete: 'cascade' }),
+		.references(() => charts.md5, { onDelete: 'cascade' }),
 	points: doublePrecision('points').notNull(),
 	maxPoints: doublePrecision('max_points').notNull(),
 	maxCombo: integer('max_combo').notNull(),

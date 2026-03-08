@@ -108,7 +108,7 @@ export async function getUserScores(
 			difficulty: charts.difficulty
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(searchFilter ? and(eq(scores.userId, userId), searchFilter) : eq(scores.userId, userId))
 		.orderBy(getOrderBy(sortBy, sortDir))
 		.limit(limit)
@@ -125,7 +125,7 @@ export async function getUserScoreCount(userId: number, search: string = ''): Pr
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(searchFilter ? and(eq(scores.userId, userId), searchFilter) : eq(scores.userId, userId));
 	return result[0]?.count ?? 0;
 }
@@ -172,7 +172,7 @@ export async function getLatestScores(limit: number, offset: number): Promise<La
 			difficulty: charts.difficulty
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.orderBy(desc(scores.unixTimestamp))
 		.limit(limit)
@@ -260,7 +260,7 @@ export async function getChartScores(
 			scoreCount: sql<number>`COUNT(${scores.id})`
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(whereClause)
 		.groupBy(user.id, user.name, user.image)
@@ -281,7 +281,7 @@ export async function getChartScoreCount(chartMd5: string, search: string = ''):
 	const result = await db
 		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(whereClause);
 	return Number(result[0]?.count ?? 0);
@@ -360,7 +360,7 @@ export async function getChartUserScores(
 			unixTimestamp: scores.unixTimestamp
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(and(eq(charts.md5, chartMd5), eq(scores.userId, userId)))
 		.orderBy(getChartUserOrderBy(sortBy, sortDir))
 		.limit(limit)
@@ -373,7 +373,7 @@ export async function getChartUserScoreCount(chartMd5: string, userId: number): 
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(and(eq(charts.md5, chartMd5), eq(scores.userId, userId)));
 	return result[0]?.count ?? 0;
 }
@@ -423,7 +423,7 @@ export async function getScoresByIds(
 			gaugeHistory: scoreExtras.gaugeHistory
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(scoreExtras, eq(scoreExtras.scoreId, scores.id))
 		.where(and(inArray(scores.id, guids), eq(scores.userId, userId)));
 
@@ -505,7 +505,7 @@ export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[
 			gaugeHistory: scoreExtras.gaugeHistory
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(scoreExtras, eq(scoreExtras.scoreId, scores.id))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(eq(charts.md5, md5))
@@ -656,7 +656,7 @@ export async function getChartList(
 			playCount: playCountExpr
 		})
 		.from(charts)
-		.leftJoin(scores, eq(scores.chartId, charts.id))
+		.leftJoin(scores, eq(scores.chartMd5, charts.md5))
 		.where(searchFilter)
 		.groupBy(charts.id)
 		.orderBy(...orderExprs)

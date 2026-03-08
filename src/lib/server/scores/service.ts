@@ -13,14 +13,14 @@ import type { ScoreSubmissionPayloadOutput } from './validation';
 export async function submitScore(
 	userId: number,
 	payload: ScoreSubmissionPayloadOutput
-): Promise<{ scoreId: string; chartId: number }> {
+): Promise<{ scoreId: string; chartMd5: string }> {
 	const { chartData, scoreData, replayData, gaugeHistory } = payload;
 
 	return await db.transaction(async (tx) => {
 		// ------------------------------------------------------------------
 		// 1. Upsert chart by sha256
 		// ------------------------------------------------------------------
-		const inserted = await (tx
+		await tx
 			.insert(charts)
 			.values({
 				sha256: chartData.sha256,
@@ -53,19 +53,7 @@ export async function submitScore(
 				bpmChanges: chartData.bpmChanges,
 				gameVersion: chartData.gameVersion
 			})
-			.onConflictDoNothing()
-			.returning({ id: charts.id }));
-
-		const resolvedChartId =
-			inserted.length > 0
-				? inserted[0].id
-				: (
-						await tx
-							.select({ id: charts.id })
-							.from(charts)
-							.where(eq(charts.sha256, chartData.sha256))
-							.limit(1)
-					)[0].id;
+			.onConflictDoNothing();
 
 		// ------------------------------------------------------------------
 		// 2. Check for duplicate score
@@ -90,7 +78,7 @@ export async function submitScore(
 		await tx.insert(scores).values({
 			id: scoreData.guid,
 			userId,
-			chartId: resolvedChartId,
+			chartMd5: chartData.md5,
 			points: scoreData.points,
 			maxPoints: scoreData.maxPoints,
 			maxCombo: scoreData.maxCombo,
@@ -122,7 +110,7 @@ export async function submitScore(
 			gaugeHistory
 		});
 
-		return { scoreId: scoreData.guid, chartId: resolvedChartId };
+		return { scoreId: scoreData.guid, chartMd5: chartData.md5 };
 	});
 }
 

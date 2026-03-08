@@ -5,7 +5,7 @@ import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 import { clearTypeCaseExpr, gradeCaseExpr } from './sql-helpers';
 
 // ---------------------------------------------------------------------------
-// GET /api/scores/:guid — single score resource
+// GET /api/scores/:guid  Esingle score resource
 // ---------------------------------------------------------------------------
 
 export interface ApiScore {
@@ -93,7 +93,7 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 			sha256: charts.sha256
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(eq(scores.id, guid))
 		.limit(1);
 	return rows[0] ?? null;
@@ -118,7 +118,7 @@ export async function getScoreGauge(guid: string): Promise<ApiScoreGauge | null>
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/scores — scores collection
+// GET /api/scores  Escores collection
 // ---------------------------------------------------------------------------
 
 export type ScoresOrderBy = 'date' | 'score_pct' | 'grade' | 'combo' | 'clear_type';
@@ -205,7 +205,7 @@ export async function queryScores(
 			sha256: charts.sha256
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(where)
 		.orderBy(scoresCollectionOrder(orderBy, sort))
 		.limit(limit)
@@ -218,7 +218,7 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(where);
 	return result[0]?.count ?? 0;
 }

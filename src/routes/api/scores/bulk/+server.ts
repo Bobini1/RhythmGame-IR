@@ -6,7 +6,7 @@ import { submitScore } from '$lib/server/scores/service';
 const bulkPayloadSchema = z.array(scoreSubmissionPayloadSchema);
 
 type BulkResultItem =
-	| { guid: string; status: 'created'; scoreId: string; chartId: number }
+	| { guid: string; status: 'created'; scoreId: string; chartMd5: string }
 	| { guid: string; status: 'duplicate' }
 	| { guid: string; status: 'invalid'; details: unknown }
 	| { guid: string; status: 'error'; message: string };
@@ -51,8 +51,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		try {
-			const { scoreId, chartId } = await submitScore(Number(locals.user.id), itemResult.data);
-			results.push({ guid, status: 'created', scoreId, chartId });
+			const { scoreId, chartMd5 } = await submitScore(Number(locals.user.id), itemResult.data);
+			results.push({ guid, status: 'created', scoreId, chartMd5 });
 		} catch (err) {
 			if (err instanceof Error && (err as Error & { code?: string }).code === 'DUPLICATE_SCORE') {
 				results.push({ guid, status: 'duplicate' });

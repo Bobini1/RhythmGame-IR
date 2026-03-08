@@ -4,7 +4,7 @@ import { user } from '$lib/server/database/schemas/auth';
 import { eq, asc, desc, count, sql } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
-// GET /api/users/:id — single user resource
+// GET /api/users/:id  Esingle user resource
 // ---------------------------------------------------------------------------
 
 export interface ApiUser {
@@ -24,7 +24,7 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 			image: user.image,
 			createdAt: user.createdAt,
 			scoreCount: sql<number>`COUNT(${scores.id})`,
-			chartCount: sql<number>`COUNT(DISTINCT ${scores.chartId})`
+			chartCount: sql<number>`COUNT(DISTINCT ${scores.chartMd5})`
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
@@ -40,7 +40,7 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/users — users collection
+// GET /api/users  Eusers collection
 // ---------------------------------------------------------------------------
 
 export type UsersOrderBy = 'name' | 'score_count' | 'chart_count';
@@ -61,7 +61,7 @@ export async function queryUsers(
 ): Promise<UsersCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
-	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.chartId})`;
+	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.chartMd5})`;
 	const orderExprs =
 		orderBy === 'name'
 			? [dir(user.name)]

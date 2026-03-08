@@ -6,7 +6,7 @@ import { eq, asc, desc, and, sql, type SQL } from 'drizzle-orm';
 import { poorPlusBad, clearTypeCaseExpr, bestClearTypeExpr } from './sql-helpers';
 
 // ---------------------------------------------------------------------------
-// GET /api/score_summaries — score summaries collection
+// GET /api/score_summaries  Escore summaries collection
 // ---------------------------------------------------------------------------
 
 export type ScoreSummariesOrderBy =
@@ -80,7 +80,7 @@ export async function queryScoreSummaries(
 			scoreCount: sql<number>`COUNT(${scores.id})`
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where)
 		.groupBy(user.id, user.name, user.image)
@@ -106,7 +106,7 @@ export async function queryScoreSummariesCount(
 	const result = await db
 		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartId, charts.id))
+		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where);
 	return Number(result[0]?.count ?? 0);
