@@ -8,7 +8,7 @@ import {
 	bigint
 } from 'drizzle-orm/pg-core';
 import { user } from './auth';
-import { charts } from '$lib/server/database/schemas/charts';
+import { charts } from './charts';
 
 export const scores = pgTable('scores', {
 	id: text('id').primaryKey(),
