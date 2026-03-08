@@ -40,7 +40,8 @@ export type ClearType =
 
 export interface BpmChange {
 	bpm: number;
-	offsetFromStart: number;
+	time: number;
+	position: number
 }
 
 export interface BmsPoints {
@@ -159,8 +160,8 @@ export interface ScoreSubmission {
 	noteOrderAlgorithmP2: number;
 	/** Integer flags of DpOptions */
 	dpOptions: number;
-	/** uint64 serialized as string */
-	gameVersion: string;
+	/** uint64, let's hope it doesn't overflow safe int */
+	gameVersion: number;
 }
 
 /**

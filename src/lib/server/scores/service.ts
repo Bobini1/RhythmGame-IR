@@ -51,8 +51,9 @@ export async function submitScore(
 				avgDensity: chartData.avgDensity,
 				endDensity: chartData.endDensity,
 				histogramData: chartData.histogramData,
-				bpmChanges: chartData.bpmChanges
-			} as unknown as typeof charts.$inferInsert)
+				bpmChanges: chartData.bpmChanges,
+				gameVersion: chartData.gameVersion
+			})
 			.onConflictDoNothing()
 			.returning({ id: charts.id }));
 

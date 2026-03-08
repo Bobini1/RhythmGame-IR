@@ -1,5 +1,6 @@
 import { db } from '$lib/server/database/client';
-import { scores, charts } from '$lib/server/database/schemas/scores';
+import { scores } from '$lib/server/database/schemas/scores';
+import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq, asc, desc, and, sql, type SQL } from 'drizzle-orm';
 import { poorPlusBad, clearTypeCaseExpr, bestClearTypeExpr } from './sql-helpers';
@@ -110,4 +111,3 @@ export async function queryScoreSummariesCount(
 		.where(where);
 	return Number(result[0]?.count ?? 0);
 }
-

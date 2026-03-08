@@ -1,5 +1,6 @@
 import { db } from '$lib/server/database/client';
-import { scores, charts } from '$lib/server/database/schemas/scores';
+import { scores } from '$lib/server/database/schemas/scores';
+import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,7 @@ export interface ApiChart {
 	peakDensity: number;
 	avgDensity: number;
 	endDensity: number;
+	gameVersion: number;
 	createdAt: Date;
 	updatedAt: Date;
 	scoreCount: number;
@@ -45,7 +47,7 @@ export interface ApiChartHistogram {
 }
 
 export interface ApiChartBpmChanges {
-	bpmChanges: { bpm: number; offsetFromStart: number }[];
+	bpmChanges: { bpm: number; time: number; position: number }[];
 }
 
 export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
@@ -81,7 +83,8 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 			createdAt: charts.createdAt,
 			updatedAt: charts.updatedAt,
 			scoreCount: sql<number>`COUNT(${scores.id})`,
-			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})`
+			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})`,
+			gameVersion: charts.gameVersion
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.chartId, charts.id))
@@ -89,11 +92,7 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 		.groupBy(charts.id)
 		.limit(1);
 	if (!rows[0]) return null;
-	return {
-		...rows[0],
-		scoreCount: Number(rows[0].scoreCount),
-		playerCount: Number(rows[0].playerCount)
-	};
+	return rows[0];
 }
 
 export async function getChartHistogram(md5: string): Promise<ApiChartHistogram | null> {

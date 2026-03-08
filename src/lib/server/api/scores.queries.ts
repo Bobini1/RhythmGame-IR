@@ -1,5 +1,6 @@
 import { db } from '$lib/server/database/client';
-import { scores, charts, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 import { clearTypeCaseExpr, gradeCaseExpr } from './sql-helpers';
 
@@ -32,7 +33,7 @@ export interface ApiScore {
 	noteOrderAlgorithm: number;
 	noteOrderAlgorithmP2: number;
 	dpOptions: number;
-	gameVersion: string;
+	gameVersion: number;
 	length: number;
 	unixTimestamp: number;
 	sha256: string;
@@ -138,37 +139,6 @@ function scoresCollectionOrder(orderBy: ScoresOrderBy, sort: 'asc' | 'desc'): SQ
 	}
 }
 
-export interface ScoresCollectionRow {
-	id: string;
-	userId: number;
-	chartMd5: string;
-	chartTitle: string;
-	chartSubtitle: string;
-	playLevel: number;
-	difficulty: number;
-	points: number;
-	maxPoints: number;
-	maxCombo: number;
-	maxHits: number;
-	judgementCounts: number[];
-	mineHits: number;
-	normalNoteCount: number;
-	scratchCount: number;
-	lnCount: number;
-	bssCount: number;
-	mineCount: number;
-	clearType: string;
-	randomSequence: number[];
-	randomSeed: string;
-	noteOrderAlgorithm: number;
-	noteOrderAlgorithmP2: number;
-	dpOptions: number;
-	gameVersion: string;
-	length: number;
-	unixTimestamp: number;
-	sha256: string;
-}
-
 export interface ScoresCollectionFilters {
 	chart?: string;
 	user?: number;
@@ -199,7 +169,7 @@ export async function queryScores(
 	offset: number,
 	orderBy: ScoresOrderBy = 'date',
 	sort: 'asc' | 'desc' = 'desc'
-): Promise<ScoresCollectionRow[]> {
+): Promise<ApiScore[]> {
 	const conditions = buildScoresConditions(filters);
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -252,5 +222,3 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 		.where(where);
 	return result[0]?.count ?? 0;
 }
-
-

@@ -14,33 +14,34 @@ export const charts = pgTable('charts', {
 	genre: text('genre').notNull().default(''),
 	rank: integer('rank').notNull().default(2),
 	total: doublePrecision('total').notNull().default(160),
-	playLevel: integer('play_level').notNull().default(0),
-	difficulty: integer('difficulty').notNull().default(0),
+	playLevel: integer('play_level').notNull(),
+	difficulty: integer('difficulty').notNull(),
 	/** 5 | 7 | 10 | 14 */
 	keymode: integer('keymode').notNull(),
-	normalNoteCount: integer('normal_note_count').notNull().default(0),
-	scratchCount: integer('scratch_count').notNull().default(0),
-	lnCount: integer('ln_count').notNull().default(0),
-	bssCount: integer('bss_count').notNull().default(0),
-	mineCount: integer('mine_count').notNull().default(0),
+	normalNoteCount: integer('normal_note_count').notNull(),
+	scratchCount: integer('scratch_count').notNull(),
+	lnCount: integer('ln_count').notNull(),
+	bssCount: integer('bss_count').notNull(),
+	mineCount: integer('mine_count').notNull(),
 	/** Duration in nanoseconds */
 	length: integer('length').notNull(),
-	initialBpm: doublePrecision('initial_bpm').notNull().default(0),
-	maxBpm: doublePrecision('max_bpm').notNull().default(0),
-	minBpm: doublePrecision('min_bpm').notNull().default(0),
-	mainBpm: doublePrecision('main_bpm').notNull().default(0),
-	avgBpm: doublePrecision('avg_bpm').notNull().default(0),
-	peakDensity: doublePrecision('peak_density').notNull().default(0),
-	avgDensity: doublePrecision('avg_density').notNull().default(0),
-	endDensity: doublePrecision('end_density').notNull().default(0),
+	initialBpm: doublePrecision('initial_bpm').notNull(),
+	maxBpm: doublePrecision('max_bpm').notNull(),
+	minBpm: doublePrecision('min_bpm').notNull(),
+	mainBpm: doublePrecision('main_bpm').notNull(),
+	avgBpm: doublePrecision('avg_bpm').notNull(),
+	peakDensity: doublePrecision('peak_density').notNull(),
+	avgDensity: doublePrecision('avg_density').notNull(),
+	endDensity: doublePrecision('end_density').notNull(),
+	gameVersion: integer('game_version').notNull(),
 	/**
 	 * Array of arrays of note counts, one sub-array per HistogramNoteType:
 	 * [Normal, Scratch, LongNote, BssNote, Landmine, Invisible]
 	 */
 	histogramData: jsonb('histogram_data').$type<number[][]>().notNull().default([]),
-	/** Array of { bpm: number; offsetFromStart: number } */
+	/** Array of { bpm: number; position: number; time: number } */
 	bpmChanges: jsonb('bpm_changes')
-		.$type<{ bpm: number; offsetFromStart: number }[]>()
+		.$type<{ bpm: number; time: number; position: number }[]>()
 		.notNull()
 		.default([]),
 	createdAt: timestamp('created_at').defaultNow().notNull(),

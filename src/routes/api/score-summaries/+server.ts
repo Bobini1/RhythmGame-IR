@@ -42,7 +42,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		]);
 
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreSummaryLinks(chart, r.userId) }, fields)
+			pickFields({ ...r, _links: scoreSummaryLinks(chart, r.user.id) }, fields)
 		);
 
 		return json(data, {

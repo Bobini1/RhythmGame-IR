@@ -34,10 +34,22 @@ const uint64StringSchema = z
 // ---------------------------------------------------------------------------
 
 export const bpmChangeSchema = z.object({
-	bpm: z.number().positive(),
+	bpm: z.number().nonnegative(),
 	position: z.number(),
 	time: z.int()
 });
+
+function packVersion(major: number, minor: number, patch: number): number {
+	return (major << 40) | (minor << 20) | patch;
+}
+
+function unpackVersion(version: number): { major: number; minor: number; patch: number } {
+	return {
+		major: (version >> 40) & 0xfffff,
+		minor: (version >> 20) & 0xfffff,
+		patch: version & 0xfffff
+	};
+}
 
 // ---------------------------------------------------------------------------
 // ChartSubmission
@@ -73,7 +85,8 @@ export const chartSubmissionSchema = z.object({
 	avgDensity: z.number().min(0),
 	endDensity: z.number().min(0),
 	histogramData: z.array(z.array(z.int())).default([]),
-	bpmChanges: z.array(bpmChangeSchema).default([])
+	bpmChanges: z.array(bpmChangeSchema).default([]),
+	gameVersion: z.int().min(packVersion(1, 3, 0)),
 });
 
 // ---------------------------------------------------------------------------
@@ -114,7 +127,7 @@ export const scoreSubmissionSchema = z.object({
 	noteOrderAlgorithm: z.int().min(0),
 	noteOrderAlgorithmP2: z.int().min(0),
 	dpOptions: z.int().min(0),
-	gameVersion: uint64StringSchema
+	gameVersion: z.int().min(0)
 });
 
 // ---------------------------------------------------------------------------
