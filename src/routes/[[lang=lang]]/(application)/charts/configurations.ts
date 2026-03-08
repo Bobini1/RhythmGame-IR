@@ -1,7 +1,4 @@
-import { page } from '$app/state';
-import { goto } from '$app/navigation';
 import type { ChartListRow } from '$lib/server/scores/query';
-import type { TableConfiguration } from '$lib/models/table';
 import type { ColumnDef } from '@tanstack/table-core';
 import { renderComponent } from '$lib/components/ui/data-table';
 import ChartLinkCell from '$lib/components/table-cells/chart-link-cell.svelte';
