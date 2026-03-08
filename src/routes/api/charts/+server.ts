@@ -4,7 +4,7 @@ import {
 	queryChartsCount,
 	type ChartsOrderBy,
 	type ChartsCollectionFilters
-} from '$lib/server/api/queries';
+} from '$lib/server/api/charts.queries';
 import {
 	parsePagination,
 	parseSorting,

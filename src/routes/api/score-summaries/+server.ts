@@ -3,7 +3,7 @@ import {
 	queryScoreSummaries,
 	queryScoreSummariesCount,
 	type ScoreSummariesOrderBy
-} from '$lib/server/api/queries';
+} from '$lib/server/api/score-summaries.queries';
 import {
 	parsePagination,
 	parseSorting,

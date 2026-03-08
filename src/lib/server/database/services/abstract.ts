@@ -9,7 +9,7 @@ export const MAX_INSERT_LIMIT = 100;
 export const MAX_DELETE_LIMIT = 100;
 
 export interface DeleteQueryOptions {
-	limit: number;
+	limit?: number;
 }
 export interface QueryOptions extends DeleteQueryOptions {
 	offset?: number;

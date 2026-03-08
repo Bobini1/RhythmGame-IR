@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getScoreGauge } from '$lib/server/api/queries';
+import { getScoreGauge } from '$lib/server/api/scores.queries';
 
 export const GET: RequestHandler = async ({ params }) => {
 	const data = await getScoreGauge(params.guid!);

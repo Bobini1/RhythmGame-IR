@@ -1,5 +1,5 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { getUserById } from '$lib/server/api/queries';
+import { getUserById } from '$lib/server/api/users.queries';
 import { userLinks } from '$lib/server/api/utils';
 
 export const GET: RequestHandler = async ({ params }) => {

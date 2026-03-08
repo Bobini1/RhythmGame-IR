@@ -178,7 +178,7 @@ describe('AbstractService - Update Methods', () => {
 
 			// Act
 			const results = await service.updateWhere(
-				[(table) => gt(table.id, users[0].id), eq(testUsers.name, [users[1].name])],
+				[(table) => gt(table.id, users[0].id), eq(testUsers.name, users[1].name)],
 				updateData
 			);
 

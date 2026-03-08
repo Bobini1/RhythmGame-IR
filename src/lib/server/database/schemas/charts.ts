@@ -1,10 +1,16 @@
-import { pgTable, text, integer, doublePrecision, timestamp, jsonb } from 'drizzle-orm/pg-core';
-import { randomUUID } from 'crypto';
+import {
+	pgTable,
+	text,
+	integer,
+	doublePrecision,
+	timestamp,
+	jsonb,
+	bigint
+} from 'drizzle-orm/pg-core';
 
+// autoincrement
 export const charts = pgTable('charts', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
+	id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
 	sha256: text('sha256').notNull().unique(),
 	md5: text('md5').notNull().unique(),
 	title: text('title').notNull(),

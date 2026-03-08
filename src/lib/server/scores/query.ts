@@ -1,5 +1,6 @@
 import { db } from '$lib/server/database/client';
-import { scores, charts, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq, desc, asc, count, inArray, and, sql, type SQL } from 'drizzle-orm';
 import type {
@@ -609,7 +610,7 @@ export async function getUserListCount(): Promise<number> {
 export type ChartListSortColumn = 'title' | 'play_count' | 'artist';
 
 export interface ChartListRow {
-	id: string;
+	id: number;
 	md5: string;
 	title: string;
 	subtitle: string;

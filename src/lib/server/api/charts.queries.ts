@@ -8,7 +8,7 @@ import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 // ---------------------------------------------------------------------------
 
 export interface ApiChart {
-	id: string;
+	id: number;
 	sha256: string;
 	md5: string;
 	title: string;
@@ -128,7 +128,7 @@ export interface ChartsCollectionFilters {
 }
 
 export interface ChartsCollectionRow {
-	id: string;
+	id: number;
 	md5: string;
 	sha256: string;
 	title: string;

@@ -4,7 +4,7 @@ import {
 	queryScoresCount,
 	type ScoresOrderBy,
 	type ScoresCollectionFilters
-} from '$lib/server/api/queries';
+} from '$lib/server/api/scores.queries';
 import {
 	parsePagination,
 	parseSorting,

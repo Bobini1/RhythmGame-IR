@@ -4,18 +4,18 @@ import {
 	integer,
 	doublePrecision,
 	timestamp,
-	jsonb
+	jsonb,
+	bigint
 } from 'drizzle-orm/pg-core';
 import { user } from './auth';
 import { charts } from '$lib/server/database/schemas/charts';
 
 export const scores = pgTable('scores', {
-	/** Game-generated GUID – used as PK to deduplicate submissions */
 	id: text('id').primaryKey(),
-	userId: integer('user_id')
+	userId: bigint('user_id', { mode: 'number' })
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	chartId: text('chart_id')
+	chartId: bigint('chart_id', { mode: 'number' })
 		.notNull()
 		.references(() => charts.id, { onDelete: 'cascade' }),
 	points: doublePrecision('points').notNull(),
@@ -48,7 +48,7 @@ export type Score = typeof scores.$inferSelect;
 export type ScoreInsert = typeof scores.$inferInsert;
 
 export const scoreExtras = pgTable('score_extras', {
-	id: text('id').primaryKey(),
+	id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
 	scoreId: text('score_id')
 		.notNull()
 		.unique()
@@ -58,14 +58,16 @@ export const scoreExtras = pgTable('score_extras', {
 	 * { offsetFromStart, points, column, noteIndex, action, noteRemoved }
 	 */
 	replayData: jsonb('replay_data')
-		.$type<{
-			offsetFromStart: number;
-			points: { value: number; judgement: number; deviation: number } | null;
-			column: number;
-			noteIndex: number;
-			action: number; // 0=None 1=Press 2=Release
-			noteRemoved: boolean;
-		}[]>()
+		.$type<
+			{
+				offsetFromStart: number;
+				points: { value: number; judgement: number; deviation: number } | null;
+				column: number;
+				noteIndex: number;
+				action: number; // 0=None 1=Press 2=Release
+				noteRemoved: boolean;
+			}[]
+		>()
 		.notNull()
 		.default([]),
 	/**
@@ -73,17 +75,18 @@ export const scoreExtras = pgTable('score_extras', {
 	 * { name, maxGauge, threshold, courseGauge, gaugeHistory: [{ offsetFromStart, gauge }] }
 	 */
 	gaugeHistory: jsonb('gauge_history')
-		.$type<{
-			name: string;
-			maxGauge: number;
-			threshold: number;
-			courseGauge: boolean;
-			gaugeHistory: { offsetFromStart: number; gauge: number }[];
-		}[]>()
+		.$type<
+			{
+				name: string;
+				maxGauge: number;
+				threshold: number;
+				courseGauge: boolean;
+				gaugeHistory: { offsetFromStart: number; gauge: number }[];
+			}[]
+		>()
 		.notNull()
 		.default([])
 });
 
 export type ScoreExtras = typeof scoreExtras.$inferSelect;
 export type ScoreExtrasInsert = typeof scoreExtras.$inferInsert;
-

@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getChartByMd5 } from '$lib/server/api/queries';
+import { getChartByMd5 } from '$lib/server/api/charts.queries';
 import { chartLinks } from '$lib/server/api/utils';
 
 export const GET: RequestHandler = async ({ params }) => {

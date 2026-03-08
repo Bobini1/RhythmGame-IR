@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getScoreByGuid } from '$lib/server/api/queries';
+import { getScoreByGuid } from '$lib/server/api/scores.queries';
 import { scoreLinks } from '$lib/server/api/utils';
 
 export const GET: RequestHandler = async ({ params }) => {

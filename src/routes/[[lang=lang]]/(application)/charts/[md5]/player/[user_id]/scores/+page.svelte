@@ -56,7 +56,7 @@
 				<a href={chartHref} class="hover:underline">{chartTitle}</a>
 				<span>/</span>
 				<a href={profileHref} class="flex items-center gap-1 hover:underline">
-					<Avatar src={profile.image ?? undefined} id={profile.id} size={20} styleClass="h-5 w-5" />
+					<Avatar src={profile.image ?? undefined} id={profile.id.toString()} size={20} styleClass="h-5 w-5" />
 					{profile.name}
 				</a>
 			</div>

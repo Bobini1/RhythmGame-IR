@@ -75,7 +75,7 @@
 	<div class="flex flex-col gap-8">
 		<!-- Profile header -->
 		<div class="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-			<Avatar src={profile.image ?? undefined} id={profile.id} size={96} styleClass="h-24 w-24 shrink-0" />
+			<Avatar src={profile.image ?? undefined} id={profile.id.toString()} size={96} styleClass="h-24 w-24 shrink-0" />
 			<div class="flex flex-col justify-center">
 				<h1 class="text-3xl font-bold">{profile.name}</h1>
 			</div>

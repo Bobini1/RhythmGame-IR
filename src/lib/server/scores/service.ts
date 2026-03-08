@@ -2,7 +2,6 @@ import { db } from '$lib/server/database/client';
 import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { eq } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
 import type { ScoreSubmissionPayloadOutput } from './validation';
 
 /**
@@ -14,7 +13,7 @@ import type { ScoreSubmissionPayloadOutput } from './validation';
 export async function submitScore(
 	userId: number,
 	payload: ScoreSubmissionPayloadOutput
-): Promise<{ scoreId: string; chartId: string }> {
+): Promise<{ scoreId: string; chartId: number }> {
 	const { chartData, scoreData, replayData, gaugeHistory } = payload;
 
 	return await db.transaction(async (tx) => {
@@ -118,7 +117,6 @@ export async function submitScore(
 		// 4. Insert score extras (replay + gauge)
 		// ------------------------------------------------------------------
 		await tx.insert(scoreExtras).values({
-			id: randomUUID(),
 			scoreId: scoreData.guid,
 			replayData,
 			gaugeHistory

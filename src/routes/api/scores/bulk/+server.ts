@@ -6,7 +6,7 @@ import { submitScore } from '$lib/server/scores/service';
 const bulkPayloadSchema = z.array(scoreSubmissionPayloadSchema);
 
 type BulkResultItem =
-	| { guid: string; status: 'created'; scoreId: string; chartId: string }
+	| { guid: string; status: 'created'; scoreId: string; chartId: number }
 	| { guid: string; status: 'duplicate' }
 	| { guid: string; status: 'invalid'; details: unknown }
 	| { guid: string; status: 'error'; message: string };

@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { queryUsers, queryUsersCount, type UsersOrderBy } from '$lib/server/api/queries';
+import { queryUsers, queryUsersCount, type UsersOrderBy } from '$lib/server/api/users.queries';
 import {
 	parsePagination,
 	parseSorting,
