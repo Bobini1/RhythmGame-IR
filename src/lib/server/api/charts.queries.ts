@@ -1,7 +1,7 @@
 import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
-import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql, type SQL } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
 // GET /api/charts/:md5 single chart resource
@@ -189,8 +189,8 @@ export async function queryCharts(
 		case 'play_count':
 		default:           orderExprs = [dir(playerCountExpr), asc(mergedTitle)]; break;
 	}
-
-	const rows = await db
+	
+	return await db
 		.select({
 			id: charts.id,
 			md5: charts.md5,
@@ -213,8 +213,6 @@ export async function queryCharts(
 		.orderBy(...orderExprs)
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)
 		.offset(offset ?? 0);
-
-	return rows;
 }
 
 export async function queryChartsCount(filters: ChartsCollectionFilters): Promise<number> {
