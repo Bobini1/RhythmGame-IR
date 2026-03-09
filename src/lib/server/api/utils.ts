@@ -212,11 +212,9 @@ export function userLinks(publicId: number) {
 	};
 }
 
-export function scoreLinks(guid: string, chartMd5: string, userId: number) {
+export function scoreLinks(id: string, chartMd5: string, userId: number) {
 	return {
-		self: `/api/scores/${encodeURIComponent(guid)}`,
-		replay: `/api/scores/${encodeURIComponent(guid)}/replay-data`,
-		gauge: `/api/scores/${encodeURIComponent(guid)}/gauge-history`,
+		self: `/api/scores/${id}`,
 		chart: `/api/charts/${chartMd5}`,
 		user: `/api/users/${userId}`
 	};

@@ -1,5 +1,5 @@
 import { db } from '$lib/server/database/client';
-import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq, desc, asc, count, inArray, and, sql, type SQL } from 'drizzle-orm';
@@ -419,12 +419,11 @@ export async function getScoresByIds(
 			unixTimestamp: scores.unixTimestamp,
 			sha256: charts.sha256,
 			md5: charts.md5,
-			replayData: scoreExtras.replayData,
-			gaugeHistory: scoreExtras.gaugeHistory
+			replayData: scores.replayData,
+			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
-		.innerJoin(scoreExtras, eq(scoreExtras.scoreId, scores.id))
 		.where(and(inArray(scores.id, guids), eq(scores.userId, userId)));
 
 	return rows.map((r) => ({
@@ -501,12 +500,11 @@ export async function getScoresForChartMd5(md5: string): Promise<UserScoreGroup[
 			unixTimestamp: scores.unixTimestamp,
 			sha256: charts.sha256,
 			chartMd5: charts.md5,
-			replayData: scoreExtras.replayData,
-			gaugeHistory: scoreExtras.gaugeHistory
+			replayData: scores.replayData,
+			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
-		.innerJoin(scoreExtras, eq(scoreExtras.scoreId, scores.id))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(eq(charts.md5, md5))
 		.orderBy(asc(user.id), desc(scores.unixTimestamp));

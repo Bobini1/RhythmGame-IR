@@ -22,7 +22,7 @@ export const scores = pgTable('scores', {
 	maxPoints: doublePrecision('max_points').notNull(),
 	maxCombo: integer('max_combo').notNull(),
 	maxHits: integer('max_hits').notNull(),
-	judgementCounts: jsonb('judgement_counts').$type<number[]>().notNull().default([]),
+	judgementCounts: jsonb('judgement_counts').$type<number[]>().notNull(),
 	mineHits: integer('mine_hits').notNull(),
 	normalNoteCount: integer('normal_note_count').notNull(),
 	scratchCount: integer('scratch_count').notNull(),
@@ -30,9 +30,8 @@ export const scores = pgTable('scores', {
 	bssCount: integer('bss_count').notNull(),
 	mineCount: integer('mine_count').notNull(),
 	clearType: text('clear_type').notNull(),
-	randomSequence: jsonb('random_sequence').$type<number[]>().notNull().default([]),
-	/** Stored as string to preserve uint64 precision */
-	randomSeed: text('random_seed').notNull().default('0'),
+	randomSequence: jsonb('random_sequence').$type<bigint[]>().notNull(),
+	randomSeed: bigint('random_seed', { mode: 'bigint' }).notNull(),
 	noteOrderAlgorithm: integer('note_order_algorithm').notNull(),
 	noteOrderAlgorithmP2: integer('note_order_algorithm_p2').notNull(),
 	dpOptions: integer('dp_options').notNull(),
@@ -41,18 +40,6 @@ export const scores = pgTable('scores', {
 	length: integer('length').notNull(),
 	/** Unix timestamp (seconds) when the score was set */
 	unixTimestamp: integer('unix_timestamp').notNull(),
-	createdAt: timestamp('created_at').defaultNow().notNull()
-});
-
-export type Score = typeof scores.$inferSelect;
-export type ScoreInsert = typeof scores.$inferInsert;
-
-export const scoreExtras = pgTable('score_extras', {
-	id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
-	scoreId: text('score_id')
-		.notNull()
-		.unique()
-		.references(() => scores.id, { onDelete: 'cascade' }),
 	/**
 	 * Array of HitEvent objects:
 	 * { offsetFromStart, points, column, noteIndex, action, noteRemoved }
@@ -68,8 +55,7 @@ export const scoreExtras = pgTable('score_extras', {
 				noteRemoved: boolean;
 			}[]
 		>()
-		.notNull()
-		.default([]),
+		.notNull(),
 	/**
 	 * Array of GaugeHistoryGroup objects:
 	 * { name, maxGauge, threshold, courseGauge, gaugeHistory: [{ offsetFromStart, gauge }] }
@@ -84,9 +70,9 @@ export const scoreExtras = pgTable('score_extras', {
 				gaugeHistory: { offsetFromStart: number; gauge: number }[];
 			}[]
 		>()
-		.notNull()
-		.default([])
+		.notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
-export type ScoreExtras = typeof scoreExtras.$inferSelect;
-export type ScoreExtrasInsert = typeof scoreExtras.$inferInsert;
+export type Score = typeof scores.$inferSelect;
+export type ScoreInsert = typeof scores.$inferInsert;

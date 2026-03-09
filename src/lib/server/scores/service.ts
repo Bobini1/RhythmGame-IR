@@ -1,8 +1,8 @@
 import { db } from '$lib/server/database/client';
-import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
-import { eq } from 'drizzle-orm';
-import type { ScoreSubmissionPayloadOutput } from './validation';
+import { eq, sql } from 'drizzle-orm';
+import { packVersion, type ScoreSubmissionPayloadOutput } from './validation';
 
 /**
  * Persists a full score submission (chart upsert + score insert + extras) in a
@@ -14,7 +14,7 @@ export async function submitScore(
 	userId: number,
 	payload: ScoreSubmissionPayloadOutput
 ): Promise<{ scoreId: string; chartMd5: string }> {
-	const { chartData, scoreData, replayData, gaugeHistory } = payload;
+	const { chartData, scoreData } = payload;
 
 	return await db.transaction(async (tx) => {
 		// ------------------------------------------------------------------
@@ -53,7 +53,40 @@ export async function submitScore(
 				bpmChanges: chartData.bpmChanges,
 				gameVersion: chartData.gameVersion
 			})
-			.onConflictDoNothing();
+			.onConflictDoUpdate({
+				target: charts.sha256,
+				set: {
+					md5: chartData.md5,
+					title: chartData.title,
+					artist: chartData.artist,
+					subtitle: chartData.subtitle,
+					subartist: chartData.subartist,
+					genre: chartData.genre,
+					rank: chartData.rank,
+					total: chartData.total,
+					playLevel: chartData.playLevel,
+					difficulty: chartData.difficulty,
+					keymode: chartData.keymode,
+					normalNoteCount: chartData.normalNoteCount,
+					scratchCount: chartData.scratchCount,
+					lnCount: chartData.lnCount,
+					bssCount: chartData.bssCount,
+					mineCount: chartData.mineCount,
+					length: chartData.length,
+					initialBpm: chartData.initialBpm,
+					maxBpm: chartData.maxBpm,
+					minBpm: chartData.minBpm,
+					mainBpm: chartData.mainBpm,
+					avgBpm: chartData.avgBpm,
+					peakDensity: chartData.peakDensity,
+					avgDensity: chartData.avgDensity,
+					endDensity: chartData.endDensity,
+					histogramData: chartData.histogramData,
+					bpmChanges: chartData.bpmChanges,
+					gameVersion: chartData.gameVersion
+				},
+				setWhere: sql`${charts.gameVersion} = ${packVersion(1, 2, 8)}`
+			});
 
 		// ------------------------------------------------------------------
 		// 2. Check for duplicate score
@@ -73,7 +106,7 @@ export async function submitScore(
 		}
 
 		// ------------------------------------------------------------------
-		// 3. Insert score
+		// 3. Insert score (with replay and gauge data)
 		// ------------------------------------------------------------------
 		await tx.insert(scores).values({
 			id: scoreData.guid,
@@ -98,16 +131,9 @@ export async function submitScore(
 			dpOptions: scoreData.dpOptions,
 			gameVersion: scoreData.gameVersion,
 			length: scoreData.length,
-			unixTimestamp: scoreData.unixTimestamp
-		});
-
-		// ------------------------------------------------------------------
-		// 4. Insert score extras (replay + gauge)
-		// ------------------------------------------------------------------
-		await tx.insert(scoreExtras).values({
-			scoreId: scoreData.guid,
-			replayData,
-			gaugeHistory
+			unixTimestamp: scoreData.unixTimestamp,
+			replayData: scoreData.replayData,
+			gaugeHistory: scoreData.gaugeHistory
 		});
 
 		return { scoreId: scoreData.guid, chartMd5: chartData.md5 };

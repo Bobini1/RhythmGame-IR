@@ -1,5 +1,5 @@
 import { db } from '$lib/server/database/client';
-import { scores, scoreExtras } from '$lib/server/database/schemas/scores';
+import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 import { clearTypeCaseExpr, gradeCaseExpr } from './sql-helpers';
@@ -28,8 +28,8 @@ export interface ApiScore {
 	bssCount: number;
 	mineCount: number;
 	clearType: string;
-	randomSequence: number[];
-	randomSeed: string;
+	randomSequence: bigint[];
+	randomSeed: bigint;
 	noteOrderAlgorithm: number;
 	noteOrderAlgorithmP2: number;
 	dpOptions: number;
@@ -37,9 +37,6 @@ export interface ApiScore {
 	length: number;
 	unixTimestamp: number;
 	sha256: string;
-}
-
-export interface ApiScoreReplay {
 	replayData: {
 		offsetFromStart: number;
 		points: { value: number; judgement: number; deviation: number } | null;
@@ -48,9 +45,6 @@ export interface ApiScoreReplay {
 		action: number;
 		noteRemoved: boolean;
 	}[];
-}
-
-export interface ApiScoreGauge {
 	gaugeHistory: {
 		name: string;
 		maxGauge: number;
@@ -60,7 +54,7 @@ export interface ApiScoreGauge {
 	}[];
 }
 
-export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
+export async function getScoreById(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
 			id: scores.id,
@@ -90,29 +84,13 @@ export async function getScoreByGuid(guid: string): Promise<ApiScore | null> {
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256
+			sha256: charts.sha256,
+			replayData: scores.replayData,
+			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
 		.where(eq(scores.id, guid))
-		.limit(1);
-	return rows[0] ?? null;
-}
-
-export async function getScoreReplay(guid: string): Promise<ApiScoreReplay | null> {
-	const rows = await db
-		.select({ replayData: scoreExtras.replayData })
-		.from(scoreExtras)
-		.where(eq(scoreExtras.scoreId, guid))
-		.limit(1);
-	return rows[0] ?? null;
-}
-
-export async function getScoreGauge(guid: string): Promise<ApiScoreGauge | null> {
-	const rows = await db
-		.select({ gaugeHistory: scoreExtras.gaugeHistory })
-		.from(scoreExtras)
-		.where(eq(scoreExtras.scoreId, guid))
 		.limit(1);
 	return rows[0] ?? null;
 }
@@ -169,7 +147,7 @@ export async function queryScores(
 	offset: number,
 	orderBy: ScoresOrderBy = 'date',
 	sort: 'asc' | 'desc' = 'desc'
-): Promise<ApiScore[]> {
+): Promise<any[]> {
 	const conditions = buildScoresConditions(filters);
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -202,7 +180,9 @@ export async function queryScores(
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256
+			sha256: charts.sha256,
+			replayData: scores.replayData,
+			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.chartMd5, charts.md5))

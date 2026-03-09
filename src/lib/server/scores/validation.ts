@@ -25,10 +25,6 @@ export const guidSchema = z
 		{ message: 'Invalid GUID format' }
 	);
 
-const uint64StringSchema = z
-	.string()
-	.regex(/^\d+$/, 'Must be a non-negative integer string');
-
 // ---------------------------------------------------------------------------
 // BpmChange
 // ---------------------------------------------------------------------------
@@ -39,11 +35,11 @@ export const bpmChangeSchema = z.object({
 	time: z.int()
 });
 
-function packVersion(major: number, minor: number, patch: number): number {
+export function packVersion(major: number, minor: number, patch: number): number {
 	return (major << 40) | (minor << 20) | patch;
 }
 
-function unpackVersion(version: number): { major: number; minor: number; patch: number } {
+export function unpackVersion(version: number): { major: number; minor: number; patch: number } {
 	return {
 		major: (version >> 40) & 0xfffff,
 		minor: (version >> 20) & 0xfffff,
@@ -74,7 +70,7 @@ export const chartSubmissionSchema = z.object({
 	sha256: sha256Schema,
 	md5: md5Schema,
 	isRandom: z.boolean(),
-	randomSequence: z.array(z.int()).default([]),
+	randomSequence: z.array(z.bigint()).default([]),
 	keymode: z.union([z.literal(5), z.literal(7), z.literal(10), z.literal(14)]),
 	initialBpm: z.number(),
 	maxBpm: z.number(),
@@ -86,49 +82,9 @@ export const chartSubmissionSchema = z.object({
 	endDensity: z.number().min(0),
 	histogramData: z.array(z.array(z.int())).default([]),
 	bpmChanges: z.array(bpmChangeSchema).default([]),
-	gameVersion: z.int().min(packVersion(1, 3, 0)),
+	gameVersion: z.int().min(packVersion(1, 2, 8)),
 });
 
-// ---------------------------------------------------------------------------
-// ScoreSubmission
-// ---------------------------------------------------------------------------
-
-export const clearTypeSchema = z.enum([
-	'NOPLAY',
-	'FAILED',
-	'ASSIST_CLEAR',
-	'EASY',
-	'NORMAL',
-	'HARD',
-	'EXHARD',
-	'FC'
-]);
-
-export const scoreSubmissionSchema = z.object({
-	maxPoints: z.number(),
-	maxHits: z.int().min(0),
-	normalNoteCount: z.int().min(0),
-	scratchCount: z.int().min(0),
-	lnCount: z.int().min(0),
-	bssCount: z.int().min(0),
-	mineCount: z.int().min(0),
-	points: z.number().min(0),
-	maxCombo: z.int().min(0),
-	judgementCounts: z.array(z.int().min(0)),
-	mineHits: z.int().min(0),
-	clearType: clearTypeSchema,
-	randomSequence: z.array(z.int()).default([]),
-	unixTimestamp: z.int(),
-	length: z.int().min(0),
-	guid: guidSchema,
-	sha256: sha256Schema,
-	md5: md5Schema,
-	randomSeed: uint64StringSchema,
-	noteOrderAlgorithm: z.int().min(0),
-	noteOrderAlgorithmP2: z.int().min(0),
-	dpOptions: z.int().min(0),
-	gameVersion: z.int().min(0)
-});
 
 // ---------------------------------------------------------------------------
 // BmsPoints
@@ -177,6 +133,49 @@ export const gaugeGroupSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// ScoreSubmission
+// ---------------------------------------------------------------------------
+
+export const clearTypeSchema = z.enum([
+	'NOPLAY',
+	'FAILED',
+	'ASSIST_CLEAR',
+	'EASY',
+	'NORMAL',
+	'HARD',
+	'EXHARD',
+	'FC'
+]);
+
+export const scoreSubmissionSchema = z.object({
+	guid: guidSchema,
+	maxPoints: z.number(),
+	maxHits: z.int().min(0),
+	normalNoteCount: z.int().min(0),
+	scratchCount: z.int().min(0),
+	lnCount: z.int().min(0),
+	bssCount: z.int().min(0),
+	mineCount: z.int().min(0),
+	points: z.number().min(0),
+	maxCombo: z.int().min(0),
+	judgementCounts: z.array(z.int().min(0)),
+	mineHits: z.int().min(0),
+	clearType: clearTypeSchema,
+	randomSequence: z.array(z.bigint()).default([]),
+	unixTimestamp: z.int(),
+	length: z.int().min(0),
+	sha256: sha256Schema,
+	md5: md5Schema,
+	randomSeed: z.bigint().nonnegative(),
+	noteOrderAlgorithm: z.int().min(0),
+	noteOrderAlgorithmP2: z.int().min(0),
+	dpOptions: z.int().min(0),
+	gameVersion: z.int().min(0),
+	replayData: z.array(hitEventSchema),
+	gaugeHistory: z.array(gaugeGroupSchema)
+});
+
+// ---------------------------------------------------------------------------
 // Full payload
 // ---------------------------------------------------------------------------
 
@@ -184,8 +183,6 @@ export const scoreSubmissionPayloadSchema = z
 	.object({
 		chartData: chartSubmissionSchema,
 		scoreData: scoreSubmissionSchema,
-		replayData: z.array(hitEventSchema),
-		gaugeHistory: z.array(gaugeGroupSchema)
 	})
 	.refine((data) => data.chartData.sha256 === data.scoreData.sha256, {
 		message: 'chartData.sha256 must match scoreData.sha256',

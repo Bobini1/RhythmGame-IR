@@ -1,6 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getScoreByGuid } from '$lib/server/api/scores.queries';
+import { getScoreById } from '$lib/server/api/scores.queries';
 import { scoreLinks } from '$lib/server/api/utils';
+import { bigIntJsonResponse } from '$lib/server/api/json-bigint';
 
 export const GET: RequestHandler = async ({ params }) => {
 	const guid = params.guid;
@@ -8,12 +9,12 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ error: 'Missing guid' }, { status: 400 });
 	}
 
-	const score = await getScoreByGuid(guid);
+	const score = await getScoreById(guid);
 	if (!score) {
 		return json({ error: 'Score not found' }, { status: 404 });
 	}
 
-	return json(
+	return bigIntJsonResponse(
 		{ ...score, _links: scoreLinks(score.id, score.chartMd5, score.userId) }
 	);
 };

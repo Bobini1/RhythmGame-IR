@@ -15,6 +15,7 @@ import {
 } from '$lib/server/api/utils';
 import { scoreSubmissionPayloadSchema } from '$lib/server/scores/validation';
 import { submitScore } from '$lib/server/scores/service';
+import { parseBigIntJson, bigIntJsonResponse } from '$lib/server/api/json-bigint';
 
 // ---------------------------------------------------------------------------
 // GET /api/scores — scores collection
@@ -64,7 +65,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			pickFields({ ...r, _links: scoreLinks(r.id, r.chartMd5, r.userId) }, fields)
 		);
 
-		return json(data, {
+		return bigIntJsonResponse(data, {
 			headers: collectionHeaders(url, total, limit, offset)
 		});
 	} catch (err) {
@@ -85,7 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = parseBigIntJson(await request.text());
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
@@ -109,4 +110,3 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };
-

@@ -107,7 +107,7 @@ export interface ChartSubmission {
 	/** MD5 hex (upper-case, 32 chars) */
 	md5: string;
 	isRandom: boolean;
-	randomSequence: number[];
+	randomSequence: bigint[];
 	keymode: Keymode;
 	initialBpm: number;
 	maxBpm: number;
@@ -141,7 +141,7 @@ export interface ScoreSubmission {
 	judgementCounts: number[];
 	mineHits: number;
 	clearType: ClearType;
-	randomSequence: number[];
+	randomSequence: bigint[];
 	/** Unix timestamp in seconds */
 	unixTimestamp: number;
 	/** Duration in nanoseconds */
@@ -152,8 +152,8 @@ export interface ScoreSubmission {
 	sha256: string;
 	/** MD5 hex (upper-case, 32 chars) – must match chartData.md5 */
 	md5: string;
-	/** uint64 serialized as string */
-	randomSeed: string;
+	/** uint64 */
+	randomSeed: bigint;
 	/** Integer value of NoteOrderAlgorithm enum */
 	noteOrderAlgorithm: number;
 	/** Integer value of NoteOrderAlgorithm enum (P2 side for DP) */
