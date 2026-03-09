@@ -25,9 +25,9 @@ const VALID_ORDER_BY = new Set<ScoreSummariesOrderBy>([
 ]);
 
 export const GET: RequestHandler = async ({ url }) => {
-	const chart = url.searchParams.get('chart');
-	if (!chart) {
-		return json({ error: 'Missing required query parameter: chart' }, { status: 400 });
+	const md5 = url.searchParams.get('md5');
+	if (!md5) {
+		return json({ error: 'Missing required query parameter: md5' }, { status: 400 });
 	}
 
 	const { limit, offset } = parsePagination(url);
@@ -37,12 +37,12 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	try {
 		const [rows, total] = await Promise.all([
-			queryScoreSummaries(chart, limit, offset, orderBy, sort, search),
-			queryScoreSummariesCount(chart, search)
+			queryScoreSummaries(md5, limit, offset, orderBy, sort, search),
+			queryScoreSummariesCount(md5, search)
 		]);
 
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreSummaryLinks(chart, r.user.id) }, fields)
+			pickFields({ ...r, _links: scoreSummaryLinks(md5, r.user.id) }, fields)
 		);
 
 		return json(data, {

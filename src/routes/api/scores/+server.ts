@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		]);
 
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreLinks(r.id, r.md5, r.userId) }, fields)
+			pickFields({ ...r, _links: scoreLinks(r.guid, r.md5, r.userId) }, fields)
 		);
 
 		return bigIntJsonResponse(data, {
@@ -87,7 +87,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	let body: unknown;
 	try {
 		body = parseBigIntJson(await request.text());
-	} catch {
+	} catch (err) {
+		console.error('[POST /api/scores] Invalid JSON body', err);
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 

@@ -9,7 +9,7 @@ import { clearTypeCaseExpr, gradeCaseExpr } from './sql-helpers';
 // ---------------------------------------------------------------------------
 
 export interface ApiScore {
-	id: string;
+	guid: string;
 	userId: number;
 	md5: string;
 	sha256: string,
@@ -53,7 +53,7 @@ export interface ApiScore {
 export async function getScoreById(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
-			id: scores.guid,
+			guid: scores.guid,
 			userId: scores.userId,
 			md5: scores.md5,
 			sha256: charts.sha256,
@@ -135,17 +135,16 @@ function buildScoresConditions(filters: ScoresCollectionFilters): SQL[] {
 
 export async function queryScores(
 	filters: ScoresCollectionFilters,
-	limit: number,
-	offset: number,
+	limit?: number,
+	offset?: number,
 	orderBy: ScoresOrderBy = 'date',
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<ApiScore[]> {
 	const conditions = buildScoresConditions(filters);
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
-
 	return db
 		.select({
-			id: scores.guid,
+			guid: scores.guid,
 			userId: scores.userId,
 			md5: scores.md5,
 			sha256: charts.sha256,
@@ -176,8 +175,8 @@ export async function queryScores(
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.where(where)
 		.orderBy(scoresCollectionOrder(orderBy, sort))
-		.limit(limit)
-		.offset(offset);
+		.limit(limit ?? Number.MAX_SAFE_INTEGER)
+		.offset(offset ?? 0);
 }
 
 export async function queryScoresCount(filters: ScoresCollectionFilters): Promise<number> {

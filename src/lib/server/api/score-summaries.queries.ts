@@ -6,7 +6,7 @@ import { eq, asc, desc, and, sql, type SQL } from 'drizzle-orm';
 import { poorPlusBad, clearTypeCaseExpr, bestClearTypeExpr } from './sql-helpers';
 
 // ---------------------------------------------------------------------------
-// GET /api/score_summaries  Escore summaries collection
+// GET /api/score_summaries score summaries collection
 // ---------------------------------------------------------------------------
 
 export type ScoreSummariesOrderBy =
@@ -55,8 +55,8 @@ function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc')
 
 export async function queryScoreSummaries(
 	md5: string,
-	limit: number,
-	offset: number,
+	limit?: number,
+	offset?: number,
 	orderBy: ScoreSummariesOrderBy = 'score_pct',
 	sort: 'asc' | 'desc' = 'desc',
 	search: string = ''
@@ -85,8 +85,8 @@ export async function queryScoreSummaries(
 		.where(where)
 		.groupBy(user.id, user.name, user.image)
 		.orderBy(scoreSummaryOrder(orderBy, sort))
-		.limit(limit)
-		.offset(offset);
+		.limit(limit ?? Number.MAX_SAFE_INTEGER)
+		.offset(offset ?? 0);
 
 	return rows.map(({ userId, userName, userImage, ...rest }) => ({
 		...rest,

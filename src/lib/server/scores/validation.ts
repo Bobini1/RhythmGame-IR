@@ -36,14 +36,15 @@ export const bpmChangeSchema = z.object({
 });
 
 export function packVersion(major: number, minor: number, patch: number): number {
-	return (major << 40) | (minor << 20) | patch;
+	return Number((BigInt(major) << 40n) | (BigInt(minor) << 20n) | BigInt(patch));
 }
 
 export function unpackVersion(version: number): { major: number; minor: number; patch: number } {
+	const versionBig = BigInt(version);
 	return {
-		major: (version >> 40) & 0xfffff,
-		minor: (version >> 20) & 0xfffff,
-		patch: version & 0xfffff
+		major: Number(versionBig >> 40n) & 0xfffff,
+		minor: Number(versionBig >> 20n) & 0xfffff,
+		patch: Number(versionBig) & 0xfffff
 	};
 }
 
@@ -53,10 +54,10 @@ export function unpackVersion(version: number): { major: number; minor: number; 
 
 export const chartSubmissionSchema = z.object({
 	title: z.string(),
-	artist: z.string().default(''),
-	subtitle: z.string().default(''),
-	subartist: z.string().default(''),
-	genre: z.string().default(''),
+	artist: z.string(),
+	subtitle: z.string(),
+	subartist: z.string(),
+	genre: z.string(),
 	rank: z.int(),
 	total: z.number(),
 	playLevel: z.int().min(0),
@@ -70,7 +71,14 @@ export const chartSubmissionSchema = z.object({
 	sha256: sha256Schema,
 	md5: md5Schema,
 	isRandom: z.boolean(),
-	randomSequence: z.array(z.bigint()).default([]),
+	randomSequence: z.preprocess(
+		(val) => {
+			if (val === undefined) return [];
+			if (!Array.isArray(val)) return val;
+			return val.map((v) => toBigIntPreprocess(v));
+		},
+		z.array(z.bigint())
+	),
 	keymode: z.union([z.literal(5), z.literal(7), z.literal(10), z.literal(14)]),
 	initialBpm: z.number(),
 	maxBpm: z.number(),
@@ -80,8 +88,8 @@ export const chartSubmissionSchema = z.object({
 	peakDensity: z.number().min(0),
 	avgDensity: z.number().min(0),
 	endDensity: z.number().min(0),
-	histogramData: z.array(z.array(z.int())).default([]),
-	bpmChanges: z.array(bpmChangeSchema).default([]),
+	histogramData: z.array(z.array(z.int())),
+	bpmChanges: z.array(bpmChangeSchema),
 	gameVersion: z.int().min(packVersion(1, 2, 8)),
 });
 
@@ -161,12 +169,19 @@ export const scoreSubmissionSchema = z.object({
 	judgementCounts: z.array(z.int().min(0)),
 	mineHits: z.int().min(0),
 	clearType: clearTypeSchema,
-	randomSequence: z.array(z.bigint()).default([]),
+	randomSequence: z.preprocess(
+		(val) => {
+			if (val === undefined) return [];
+			if (!Array.isArray(val)) return val;
+			return val.map((v) => toBigIntPreprocess(v));
+		},
+		z.array(z.bigint())
+	),
 	unixTimestamp: z.int(),
 	length: z.int().min(0),
 	sha256: sha256Schema,
 	md5: md5Schema,
-	randomSeed: z.bigint().nonnegative(),
+	randomSeed: z.preprocess((v) => toBigIntPreprocess(v), z.bigint().nonnegative()),
 	noteOrderAlgorithm: z.int().min(0),
 	noteOrderAlgorithmP2: z.int().min(0),
 	dpOptions: z.int().min(0),
@@ -195,3 +210,16 @@ export const scoreSubmissionPayloadSchema = z
 
 export type ScoreSubmissionPayloadOutput = z.output<typeof scoreSubmissionPayloadSchema>;
 
+// Helper preprocessor: coerce numbers, bigint, or numeric strings to BigInt
+const toBigIntPreprocess = (val: unknown) => {
+	if (typeof val === 'bigint') return val;
+	if (typeof val === 'number') {
+		if (!Number.isInteger(val)) throw new Error('Expected integer value for bigint');
+		return BigInt(val);
+	}
+	if (typeof val === 'string') {
+		// accept decimal integer strings (optional)
+		if (/^-?\d+$/.test(val)) return BigInt(val);
+	}
+	return val; // let inner schema reject it
+};

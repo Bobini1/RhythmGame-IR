@@ -1,24 +1,63 @@
-/**
- * BigInt-aware JSON parse / stringify helpers.
- *
- * Standard JSON cannot represent integers beyond Number.MAX_SAFE_INTEGER.
- * We use `json-bigint` configured to produce native BigInt values so that
- * fields like `randomSequence` (int64[]) survive a round-trip without
- * precision loss.
- *
- * - `parseBigIntJson(text)` — parse a JSON string, converting integers that
- *   exceed safe-integer range to `BigInt`.
- * - `bigIntJsonResponse(data, init?)` — build a `Response` whose body is
- *   JSON-stringified with BigInt support (bigints become bare integers in the
- *   output, *not* strings).
- */
-import JSONBigInt from 'json-bigint';
+export const ogirinalJSONParse = JSON.parse;
 
-const jsonBigInt = JSONBigInt({ useNativeBigInt: true, alwaysParseAsBig: false });
+export interface JSONReviverContext {
+	source: string;
+}
+
+const INTEGER_REGEX = /^-?\d+$/;
+
+function isInteger(value: string) {
+	return INTEGER_REGEX.test(value);
+}
+
+/**
+ * Parse a JSON string with potential BigInt values.
+ */
+const parse: typeof ogirinalJSONParse = (text, reviver) => {
+	return ogirinalJSONParse(
+		text,
+		// cannot use arrow function because we want to keep `this` context
+		function reviveWithBigInt(key, value, context?: JSONReviverContext) {
+			// eslint-disable-next-line @typescript-eslint/no-this-alias
+			const obj = this;
+			// @ts-expect-error Expected 3 arguments, but got 4.
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const finalize = (val: any) => (reviver ? reviver.call(obj, key, val, context) : val);
+			if (
+				context?.source &&
+				typeof value === 'number' &&
+				typeof context?.source === 'string' &&
+				(value < Number.MIN_SAFE_INTEGER || value > Number.MAX_SAFE_INTEGER) &&
+				isInteger(context.source) &&
+				BigInt(value) !== BigInt(context.source)
+			) {
+				return finalize(BigInt(context.source));
+			}
+			return finalize(value);
+		}
+	);
+};
+
+// Patch the default JSON.parse to support BigInt values.
+JSON.parse = parse;
+
+// This PATCH makes `JSON.stringify` support BigInt values.
+// @ts-expect-error Property 'toJSON' does not exist on type 'BigInt'.ts(2339)
+BigInt.prototype.toJSON = function toJSON() {
+	// @ts-expect-error Property 'rawJSON' does not exist on type 'JSON'.
+	return JSON.rawJSON(this.toString());
+};
+
+// Named export makes auto-imports in IDE easier.
+const JSONBigInt = {
+	parse,
+	stringify: JSON.stringify
+};
+export default JSONBigInt;
 
 /** Parse a raw JSON string, promoting large integers to native BigInt. */
 export function parseBigIntJson(text: string): unknown {
-	return jsonBigInt.parse(text);
+	return JSONBigInt.parse(text);
 }
 
 /**
@@ -26,7 +65,7 @@ export function parseBigIntJson(text: string): unknown {
  * BigInt values are serialised as bare integer literals (no quotes).
  */
 export function stringifyBigInt(value: unknown): string {
-	return jsonBigInt.stringify(value);
+	return JSONBigInt.stringify(value);
 }
 
 /**
@@ -43,4 +82,3 @@ export function bigIntJsonResponse(data: unknown, init?: ResponseInit): Response
 		}
 	});
 }
-

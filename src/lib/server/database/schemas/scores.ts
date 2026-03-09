@@ -35,9 +35,9 @@ export const scores = pgTable('scores', {
 	noteOrderAlgorithm: integer('note_order_algorithm').notNull(),
 	noteOrderAlgorithmP2: integer('note_order_algorithm_p2').notNull(),
 	dpOptions: integer('dp_options').notNull(),
-	gameVersion: integer('game_version').notNull(),
+	gameVersion: bigint('game_version', { mode: 'number' }).notNull(),
 	/** Duration in nanoseconds */
-	length: integer('length').notNull(),
+	length: bigint('length', { mode: 'number' }).notNull(),
 	/** Unix timestamp (seconds) when the score was set */
 	unixTimestamp: integer('unix_timestamp').notNull(),
 	/**

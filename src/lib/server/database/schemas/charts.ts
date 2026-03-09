@@ -30,7 +30,7 @@ export const charts = pgTable('charts', {
 	bssCount: integer('bss_count').notNull(),
 	mineCount: integer('mine_count').notNull(),
 	/** Duration in nanoseconds */
-	length: integer('length').notNull(),
+	length: bigint('length', { mode: 'number' }).notNull(),
 	initialBpm: doublePrecision('initial_bpm').notNull(),
 	maxBpm: doublePrecision('max_bpm').notNull(),
 	minBpm: doublePrecision('min_bpm').notNull(),
@@ -39,7 +39,7 @@ export const charts = pgTable('charts', {
 	peakDensity: doublePrecision('peak_density').notNull(),
 	avgDensity: doublePrecision('avg_density').notNull(),
 	endDensity: doublePrecision('end_density').notNull(),
-	gameVersion: integer('game_version').notNull(),
+	gameVersion: bigint('game_version', { mode: 'number' }).notNull(),
 	/**
 	 * Array of arrays of note counts, one sub-array per HistogramNoteType:
 	 * [Normal, Scratch, LongNote, BssNote, Landmine, Invisible]

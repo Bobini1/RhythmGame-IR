@@ -4,7 +4,7 @@ import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
-// GET /api/charts/:md5  Esingle chart resource
+// GET /api/charts/:md5 single chart resource
 // ---------------------------------------------------------------------------
 
 export interface ApiChart {
@@ -114,7 +114,7 @@ export async function getChartBpmChanges(md5: string): Promise<ApiChartBpmChange
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/charts  Echarts collection
+// GET /api/charts charts collection
 // ---------------------------------------------------------------------------
 
 export type ChartsOrderBy = 'title' | 'play_count' | 'play_level' | 'score_count' | 'player_count';
@@ -167,8 +167,8 @@ function buildChartsConditions(filters: ChartsCollectionFilters): SQL[] {
 
 export async function queryCharts(
 	filters: ChartsCollectionFilters,
-	limit: number,
-	offset: number,
+	limit?: number,
+	offset?: number,
 	orderBy: ChartsOrderBy = 'player_count',
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<ChartsCollectionRow[]> {
@@ -211,8 +211,8 @@ export async function queryCharts(
 		.where(where)
 		.groupBy(charts.id)
 		.orderBy(...orderExprs)
-		.limit(limit)
-		.offset(offset);
+		.limit(limit ?? Number.MAX_SAFE_INTEGER)
+		.offset(offset ?? 0);
 
 	return rows.map((r) => ({
 		...r,

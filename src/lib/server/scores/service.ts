@@ -1,7 +1,7 @@
 import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
-import { eq, sql } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { packVersion, type ScoreSubmissionPayloadOutput } from './validation';
 
 /**
@@ -18,75 +18,96 @@ export async function submitScore(
 
 	return await db.transaction(async (tx) => {
 		// ------------------------------------------------------------------
-		// 1. Upsert chart by sha256
+		// 1. Upsert chart with proper conflict avoidance
 		// ------------------------------------------------------------------
-		await tx
-			.insert(charts)
-			.values({
-				sha256: chartData.sha256,
-				md5: chartData.md5,
-				title: chartData.title,
-				artist: chartData.artist,
-				subtitle: chartData.subtitle,
-				subartist: chartData.subartist,
-				genre: chartData.genre,
-				rank: chartData.rank,
-				total: chartData.total,
-				playLevel: chartData.playLevel,
-				difficulty: chartData.difficulty,
-				keymode: chartData.keymode,
-				normalNoteCount: chartData.normalNoteCount,
-				scratchCount: chartData.scratchCount,
-				lnCount: chartData.lnCount,
-				bssCount: chartData.bssCount,
-				mineCount: chartData.mineCount,
-				length: chartData.length,
-				initialBpm: chartData.initialBpm,
-				maxBpm: chartData.maxBpm,
-				minBpm: chartData.minBpm,
-				mainBpm: chartData.mainBpm,
-				avgBpm: chartData.avgBpm,
-				peakDensity: chartData.peakDensity,
-				avgDensity: chartData.avgDensity,
-				endDensity: chartData.endDensity,
-				histogramData: chartData.histogramData,
-				bpmChanges: chartData.bpmChanges,
-				gameVersion: chartData.gameVersion
+		// First, try to find existing chart by md5 or sha256
+		const existingChart = await tx
+			.select({
+				md5: charts.md5,
+				sha256: charts.sha256,
+				gameVersion: charts.gameVersion
 			})
-			.onConflictDoUpdate({
-				target: charts.sha256,
-				set: {
-					md5: chartData.md5,
-					title: chartData.title,
-					artist: chartData.artist,
-					subtitle: chartData.subtitle,
-					subartist: chartData.subartist,
-					genre: chartData.genre,
-					rank: chartData.rank,
-					total: chartData.total,
-					playLevel: chartData.playLevel,
-					difficulty: chartData.difficulty,
-					keymode: chartData.keymode,
-					normalNoteCount: chartData.normalNoteCount,
-					scratchCount: chartData.scratchCount,
-					lnCount: chartData.lnCount,
-					bssCount: chartData.bssCount,
-					mineCount: chartData.mineCount,
-					length: chartData.length,
-					initialBpm: chartData.initialBpm,
-					maxBpm: chartData.maxBpm,
-					minBpm: chartData.minBpm,
-					mainBpm: chartData.mainBpm,
-					avgBpm: chartData.avgBpm,
-					peakDensity: chartData.peakDensity,
-					avgDensity: chartData.avgDensity,
-					endDensity: chartData.endDensity,
-					histogramData: chartData.histogramData,
-					bpmChanges: chartData.bpmChanges,
-					gameVersion: chartData.gameVersion
-				},
-				setWhere: sql`${charts.gameVersion} = ${packVersion(1, 2, 8)}`
-			});
+			.from(charts)
+			.where(or(eq(charts.md5, chartData.md5), eq(charts.sha256, chartData.sha256)))
+			.limit(1);
+
+		if (existingChart.length > 0) {
+			const existing = existingChart[0];
+
+			const shouldUpdate = existing.gameVersion === packVersion(1, 2, 8);
+
+			if (shouldUpdate) {
+					await tx
+						.update(charts)
+						.set({
+							md5: chartData.md5,
+							sha256: chartData.sha256,
+							title: chartData.title,
+							artist: chartData.artist,
+							subtitle: chartData.subtitle,
+							subartist: chartData.subartist,
+							genre: chartData.genre,
+							rank: chartData.rank,
+							total: chartData.total,
+							playLevel: chartData.playLevel,
+							difficulty: chartData.difficulty,
+							keymode: chartData.keymode,
+							normalNoteCount: chartData.normalNoteCount,
+							scratchCount: chartData.scratchCount,
+							lnCount: chartData.lnCount,
+							bssCount: chartData.bssCount,
+							mineCount: chartData.mineCount,
+							length: chartData.length,
+							initialBpm: chartData.initialBpm,
+							maxBpm: chartData.maxBpm,
+							minBpm: chartData.minBpm,
+							mainBpm: chartData.mainBpm,
+							avgBpm: chartData.avgBpm,
+							peakDensity: chartData.peakDensity,
+							avgDensity: chartData.avgDensity,
+							endDensity: chartData.endDensity,
+							histogramData: chartData.histogramData,
+							bpmChanges: chartData.bpmChanges,
+							gameVersion: chartData.gameVersion
+						})
+						.where(eq(charts.md5, chartData.md5));
+			}
+		} else {
+				await tx
+					.insert(charts)
+					.values({
+						sha256: chartData.sha256,
+						md5: chartData.md5,
+						title: chartData.title,
+						artist: chartData.artist,
+						subtitle: chartData.subtitle,
+						subartist: chartData.subartist,
+						genre: chartData.genre,
+						rank: chartData.rank,
+						total: chartData.total,
+						playLevel: chartData.playLevel,
+						difficulty: chartData.difficulty,
+						keymode: chartData.keymode,
+						normalNoteCount: chartData.normalNoteCount,
+						scratchCount: chartData.scratchCount,
+						lnCount: chartData.lnCount,
+						bssCount: chartData.bssCount,
+						mineCount: chartData.mineCount,
+						length: chartData.length,
+						initialBpm: chartData.initialBpm,
+						maxBpm: chartData.maxBpm,
+						minBpm: chartData.minBpm,
+						mainBpm: chartData.mainBpm,
+						avgBpm: chartData.avgBpm,
+						peakDensity: chartData.peakDensity,
+						avgDensity: chartData.avgDensity,
+						endDensity: chartData.endDensity,
+						histogramData: chartData.histogramData,
+						bpmChanges: chartData.bpmChanges,
+						gameVersion: chartData.gameVersion
+					})
+					.onConflictDoNothing();
+		}
 
 		// ------------------------------------------------------------------
 		// 2. Check for duplicate score
@@ -139,4 +160,3 @@ export async function submitScore(
 		return { scoreId: scoreData.guid, md5: chartData.md5 };
 	});
 }
-

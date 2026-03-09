@@ -5,13 +5,15 @@ import { type SQL, sql, and } from 'drizzle-orm';
 // ---------------------------------------------------------------------------
 
 export interface PaginationParams {
-	limit: number;
-	offset: number;
+	limit?: number;
+	offset?: number;
 }
 
-export function parsePagination(url: URL, defaultLimit = 20): PaginationParams {
-	const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? defaultLimit)));
-	const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0));
+export function parsePagination(url: URL): PaginationParams {
+	const limitString = url.searchParams.get('limit');
+	const offsetString = url.searchParams.get('offset');
+	const limit = limitString ? Number(limitString) : undefined;
+	const offset = offsetString ? Number(offsetString) : undefined;
 	return { limit, offset };
 }
 
@@ -85,14 +87,14 @@ export function combineFilters(...filters: (SQL | undefined)[]): SQL | undefined
 export function collectionHeaders(
 	baseUrl: URL,
 	total: number,
-	limit: number,
-	offset: number
+	limit?: number,
+	offset?: number
 ): Record<string, string> {
 	const headers: Record<string, string> = {
 		'X-Total-Count': String(total),
-		'X-Limit': String(limit),
-		'X-Offset': String(offset)
 	};
+	if (limit !== undefined) headers['X-Limit'] = String(limit);
+	if (offset !== undefined) headers['X-Offset'] = String(offset);
 
 	// Link header (RFC 8288)
 	const links: string[] = [];
@@ -104,11 +106,14 @@ export function collectionHeaders(
 		return u.toString();
 	};
 
-	links.push(`<${makeUrl(0)}>; rel="first"`);
-	if (offset > 0) links.push(`<${makeUrl(Math.max(0, offset - limit))}>; rel="prev"`);
-	if (offset + limit < total) links.push(`<${makeUrl(offset + limit)}>; rel="next"`);
-	const lastOffset = total > 0 ? Math.floor((total - 1) / limit) * limit : 0;
-	links.push(`<${makeUrl(lastOffset)}>; rel="last"`);
+	if (limit && offset) links.push(`<${makeUrl(0)}>; rel="first"`);
+	if (limit && offset && offset > 0) links.push(`<${makeUrl(Math.max(0, offset - limit))}>; rel="prev"`);
+	if (limit && (offset ?? 0) + limit < total)
+		links.push(`<${makeUrl((offset ?? 0) + limit)}>; rel="next"`);
+	if (limit) {
+		const lastOffset = total > 0 ? Math.floor((total - 1) / limit) * limit : 0;
+		links.push(`<${makeUrl(lastOffset)}>; rel="last"`);
+	}
 
 	headers['Link'] = links.join(', ');
 	return headers;

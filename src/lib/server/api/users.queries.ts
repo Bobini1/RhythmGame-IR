@@ -1,10 +1,10 @@
 import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { user } from '$lib/server/database/schemas/auth';
-import { eq, asc, desc, count, sql } from 'drizzle-orm';
+import { asc, count, desc, eq, sql } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
-// GET /api/users/:id  Esingle user resource
+// GET /api/users/:id single user resource
 // ---------------------------------------------------------------------------
 
 export interface ApiUser {
@@ -32,15 +32,11 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.limit(1);
 	if (!rows[0]) return null;
-	return {
-		...rows[0],
-		scoreCount: Number(rows[0].scoreCount),
-		chartCount: Number(rows[0].chartCount)
-	};
+	return rows[0];
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/users  Eusers collection
+// GET /api/users users collection
 // ---------------------------------------------------------------------------
 
 export type UsersOrderBy = 'name' | 'score_count' | 'chart_count';
@@ -54,8 +50,8 @@ export interface UsersCollectionRow {
 }
 
 export async function queryUsers(
-	limit: number,
-	offset: number,
+	limit?: number,
+	offset?: number,
 	orderBy: UsersOrderBy = 'score_count',
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<UsersCollectionRow[]> {
@@ -69,7 +65,7 @@ export async function queryUsers(
 				? [dir(chartCountExpr), asc(user.name)]
 				: [dir(scoreCountExpr), asc(user.name)];
 
-	const rows = await db
+	return db
 		.select({
 			id: user.id,
 			name: user.name,
@@ -81,14 +77,8 @@ export async function queryUsers(
 		.leftJoin(scores, eq(scores.userId, user.id))
 		.groupBy(user.id, user.name, user.image)
 		.orderBy(...orderExprs)
-		.limit(limit)
-		.offset(offset);
-
-	return rows.map((r) => ({
-		...r,
-		scoreCount: Number(r.scoreCount),
-		chartCount: Number(r.chartCount)
-	}));
+		.limit(limit ?? Number.MAX_SAFE_INTEGER)
+		.offset(offset ?? 0);
 }
 
 export async function queryUsersCount(): Promise<number> {
