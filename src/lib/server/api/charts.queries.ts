@@ -2,7 +2,6 @@ import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
-import { clearTypeSchema } from '$lib/server/scores/validation';
 
 // ---------------------------------------------------------------------------
 // GET /api/charts/:md5 single chart resource
@@ -142,9 +141,6 @@ export interface ChartsCollectionRow {
 	keymode: number;
 	scoreCount: number;
 	playerCount: number;
-	clearCounts: {
-		[clearType: string]: number;
-	}
 }
 
 function buildChartsConditions(filters: ChartsCollectionFilters): SQL[] {
@@ -194,13 +190,6 @@ export async function queryCharts(
 		default:           orderExprs = [dir(playerCountExpr), asc(mergedTitle)]; break;
 	}
 
-	const clearTypes = clearTypeSchema.options as string[];
-	const clearCountsExpr = sql<Record<string, number>>`
-		jsonb_build_object(${sql.join(
-			clearTypes.flatMap((ct) => [sql`${ct}`, sql`COUNT(CASE WHEN ${scores.clearType} = ${ct} THEN 1 END)`]),
-			sql`, `
-		)})`;
-
 	const rows = await db
 		.select({
 			id: charts.id,
@@ -215,8 +204,7 @@ export async function queryCharts(
 			difficulty: charts.difficulty,
 			keymode: charts.keymode,
 			scoreCount: scoreCountExpr,
-			playerCount: playerCountExpr,
-			clearCounts: clearCountsExpr
+			playerCount: playerCountExpr
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.md5, charts.md5))
@@ -226,7 +214,11 @@ export async function queryCharts(
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)
 		.offset(offset ?? 0);
 
-	return rows;
+	return rows.map((r) => ({
+		...r,
+		scoreCount: Number(r.scoreCount),
+		playerCount: Number(r.playerCount)
+	}));
 }
 
 export async function queryChartsCount(filters: ChartsCollectionFilters): Promise<number> {
@@ -235,3 +227,4 @@ export async function queryChartsCount(filters: ChartsCollectionFilters): Promis
 	const result = await db.select({ count: count() }).from(charts).where(where);
 	return result[0]?.count ?? 0;
 }
+
