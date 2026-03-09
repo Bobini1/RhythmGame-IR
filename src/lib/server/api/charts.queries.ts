@@ -82,12 +82,12 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 			endDensity: charts.endDensity,
 			createdAt: charts.createdAt,
 			updatedAt: charts.updatedAt,
-			scoreCount: sql<number>`COUNT(${scores.id})`,
+			scoreCount: sql<number>`COUNT(${scores.guid})`,
 			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})`,
 			gameVersion: charts.gameVersion
 		})
 		.from(charts)
-		.leftJoin(scores, eq(scores.chartMd5, charts.md5))
+		.leftJoin(scores, eq(scores.md5, charts.md5))
 		.where(eq(charts.md5, md5))
 		.groupBy(charts.id)
 		.limit(1);
@@ -173,7 +173,7 @@ export async function queryCharts(
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<ChartsCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
-	const scoreCountExpr = sql<number>`COUNT(${scores.id})`;
+	const scoreCountExpr = sql<number>`COUNT(${scores.guid})`;
 	const playerCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
 
@@ -207,7 +207,7 @@ export async function queryCharts(
 			playerCount: playerCountExpr
 		})
 		.from(charts)
-		.leftJoin(scores, eq(scores.chartMd5, charts.md5))
+		.leftJoin(scores, eq(scores.md5, charts.md5))
 		.where(where)
 		.groupBy(charts.id)
 		.orderBy(...orderExprs)

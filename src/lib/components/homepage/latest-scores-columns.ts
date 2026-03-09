@@ -30,7 +30,7 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 			renderComponent(LatestScoreTitleCell, {
 				title: row.original.chartTitle,
 				subtitle: row.original.chartSubtitle,
-				md5: row.original.chartMd5
+				md5: row.original.md5
 			}),
 		enableSorting: false
 	},

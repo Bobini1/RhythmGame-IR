@@ -13,7 +13,7 @@ import { packVersion, type ScoreSubmissionPayloadOutput } from './validation';
 export async function submitScore(
 	userId: number,
 	payload: ScoreSubmissionPayloadOutput
-): Promise<{ scoreId: string; chartMd5: string }> {
+): Promise<{ scoreId: string; md5: string }> {
 	const { chartData, scoreData } = payload;
 
 	return await db.transaction(async (tx) => {
@@ -92,9 +92,9 @@ export async function submitScore(
 		// 2. Check for duplicate score
 		// ------------------------------------------------------------------
 		const existing = await tx
-			.select({ id: scores.id })
+			.select({ id: scores.guid })
 			.from(scores)
-			.where(eq(scores.id, scoreData.guid))
+			.where(eq(scores.guid, scoreData.guid))
 			.limit(1);
 
 		if (existing.length > 0) {
@@ -109,9 +109,9 @@ export async function submitScore(
 		// 3. Insert score (with replay and gauge data)
 		// ------------------------------------------------------------------
 		await tx.insert(scores).values({
-			id: scoreData.guid,
+			guid: scoreData.guid,
 			userId,
-			chartMd5: chartData.md5,
+			md5: chartData.md5,
 			points: scoreData.points,
 			maxPoints: scoreData.maxPoints,
 			maxCombo: scoreData.maxCombo,
@@ -136,7 +136,7 @@ export async function submitScore(
 			gaugeHistory: scoreData.gaugeHistory
 		});
 
-		return { scoreId: scoreData.guid, chartMd5: chartData.md5 };
+		return { scoreId: scoreData.guid, md5: chartData.md5 };
 	});
 }
 

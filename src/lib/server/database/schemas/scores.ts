@@ -11,11 +11,11 @@ import { user } from './auth';
 import { charts } from './charts';
 
 export const scores = pgTable('scores', {
-	id: text('id').primaryKey(),
+	guid: text('guid').primaryKey(),
 	userId: bigint('user_id', { mode: 'number' })
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	chartMd5: text('chart_md5')
+	md5: text('md5')
 		.notNull()
 		.references(() => charts.md5, { onDelete: 'cascade' }),
 	points: doublePrecision('points').notNull(),

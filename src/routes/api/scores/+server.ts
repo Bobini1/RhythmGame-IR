@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		]);
 
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreLinks(r.id, r.chartMd5, r.userId) }, fields)
+			pickFields({ ...r, _links: scoreLinks(r.id, r.md5, r.userId) }, fields)
 		);
 
 		return bigIntJsonResponse(data, {
@@ -100,8 +100,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const { scoreId, chartMd5 } = await submitScore(Number(locals.user.id), parsed.data);
-		return json({ id: scoreId, chartMd5 }, { status: 201 });
+		const { scoreId, md5 } = await submitScore(Number(locals.user.id), parsed.data);
+		return json({ id: scoreId, md5 }, { status: 201 });
 	} catch (err) {
 		if (err instanceof Error && (err as Error & { code?: string }).code === 'DUPLICATE_SCORE') {
 			return json({ error: 'Score already exists' }, { status: 409 });

@@ -30,7 +30,7 @@ export const columns: ColumnDef<ScoreRow>[] = [
 			renderComponent(ScoreTitleCell, {
 				title: row.original.chartTitle,
 				subtitle: row.original.chartSubtitle,
-				md5: row.original.chartMd5
+				md5: row.original.md5
 			}),
 		enableSorting: true,
 		sortDescFirst: false

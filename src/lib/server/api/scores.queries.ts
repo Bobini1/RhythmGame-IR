@@ -5,17 +5,14 @@ import { eq, asc, desc, count, and, sql, type SQL } from 'drizzle-orm';
 import { clearTypeCaseExpr, gradeCaseExpr } from './sql-helpers';
 
 // ---------------------------------------------------------------------------
-// GET /api/scores/:guid  Esingle score resource
+// GET /api/scores/:guid single score resource
 // ---------------------------------------------------------------------------
 
 export interface ApiScore {
 	id: string;
 	userId: number;
-	chartMd5: string;
-	chartTitle: string;
-	chartSubtitle: string;
-	playLevel: number;
-	difficulty: number;
+	md5: string;
+	sha256: string,
 	points: number;
 	maxPoints: number;
 	maxCombo: number;
@@ -36,7 +33,6 @@ export interface ApiScore {
 	gameVersion: number;
 	length: number;
 	unixTimestamp: number;
-	sha256: string;
 	replayData: {
 		offsetFromStart: number;
 		points: { value: number; judgement: number; deviation: number } | null;
@@ -57,13 +53,10 @@ export interface ApiScore {
 export async function getScoreById(guid: string): Promise<ApiScore | null> {
 	const rows = await db
 		.select({
-			id: scores.id,
+			id: scores.guid,
 			userId: scores.userId,
-			chartMd5: charts.md5,
-			chartTitle: charts.title,
-			chartSubtitle: charts.subtitle,
-			playLevel: charts.playLevel,
-			difficulty: charts.difficulty,
+			md5: scores.md5,
+			sha256: charts.sha256,
 			points: scores.points,
 			maxPoints: scores.maxPoints,
 			maxCombo: scores.maxCombo,
@@ -84,19 +77,18 @@ export async function getScoreById(guid: string): Promise<ApiScore | null> {
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256,
 			replayData: scores.replayData,
 			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
-		.where(eq(scores.id, guid))
+		.innerJoin(charts, eq(scores.md5, charts.md5))
+		.where(eq(scores.guid, guid))
 		.limit(1);
 	return rows[0] ?? null;
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/scores  Escores collection
+// GET /api/scores scores collection
 // ---------------------------------------------------------------------------
 
 export type ScoresOrderBy = 'date' | 'score_pct' | 'grade' | 'combo' | 'clear_type';
@@ -147,19 +139,16 @@ export async function queryScores(
 	offset: number,
 	orderBy: ScoresOrderBy = 'date',
 	sort: 'asc' | 'desc' = 'desc'
-): Promise<any[]> {
+): Promise<ApiScore[]> {
 	const conditions = buildScoresConditions(filters);
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
 	return db
 		.select({
-			id: scores.id,
+			id: scores.guid,
 			userId: scores.userId,
-			chartMd5: charts.md5,
-			chartTitle: charts.title,
-			chartSubtitle: charts.subtitle,
-			playLevel: charts.playLevel,
-			difficulty: charts.difficulty,
+			md5: scores.md5,
+			sha256: charts.sha256,
 			points: scores.points,
 			maxPoints: scores.maxPoints,
 			maxCombo: scores.maxCombo,
@@ -180,12 +169,11 @@ export async function queryScores(
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256,
 			replayData: scores.replayData,
 			gaugeHistory: scores.gaugeHistory
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
+		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.where(where)
 		.orderBy(scoresCollectionOrder(orderBy, sort))
 		.limit(limit)
@@ -198,7 +186,7 @@ export async function queryScoresCount(filters: ScoresCollectionFilters): Promis
 	const result = await db
 		.select({ count: count() })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
+		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.where(where);
 	return result[0]?.count ?? 0;
 }

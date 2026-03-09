@@ -46,7 +46,7 @@ function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc')
 		case 'grade':        return dir(bestPct);
 		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
 		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
-		case 'play_count':   return sql`${dir(sql`COUNT(${scores.id})`)}`;
+		case 'play_count':   return sql`${dir(sql`COUNT(${scores.guid})`)}`;
 		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypeCaseExpr()})`)}`;
 		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
 		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
@@ -54,14 +54,14 @@ function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc')
 }
 
 export async function queryScoreSummaries(
-	chartMd5: string,
+	md5: string,
 	limit: number,
 	offset: number,
 	orderBy: ScoreSummariesOrderBy = 'score_pct',
 	sort: 'asc' | 'desc' = 'desc',
 	search: string = ''
 ): Promise<ScoreSummaryRow[]> {
-	const conditions: SQL[] = [eq(charts.md5, chartMd5)];
+	const conditions: SQL[] = [eq(charts.md5, md5)];
 	if (search) conditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 	const where = and(...conditions);
 
@@ -77,10 +77,10 @@ export async function queryScoreSummaries(
 			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
 			bestClearType: bestClearTypeExpr(),
 			latestDate: sql<number>`MAX(${scores.unixTimestamp})`,
-			scoreCount: sql<number>`COUNT(${scores.id})`
+			scoreCount: sql<number>`COUNT(${scores.guid})`
 		})
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
+		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where)
 		.groupBy(user.id, user.name, user.image)
@@ -96,17 +96,17 @@ export async function queryScoreSummaries(
 }
 
 export async function queryScoreSummariesCount(
-	chartMd5: string,
+	md5: string,
 	search: string = ''
 ): Promise<number> {
-	const conditions: SQL[] = [eq(charts.md5, chartMd5)];
+	const conditions: SQL[] = [eq(charts.md5, md5)];
 	if (search) conditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 	const where = and(...conditions);
 
 	const result = await db
 		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
 		.from(scores)
-		.innerJoin(charts, eq(scores.chartMd5, charts.md5))
+		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(where);
 	return Number(result[0]?.count ?? 0);

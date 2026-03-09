@@ -15,6 +15,6 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	return bigIntJsonResponse(
-		{ ...score, _links: scoreLinks(score.id, score.chartMd5, score.userId) }
+		{ ...score, _links: scoreLinks(score.id, score.md5, score.userId) }
 	);
 };
