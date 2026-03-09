@@ -214,11 +214,7 @@ export async function queryCharts(
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)
 		.offset(offset ?? 0);
 
-	return rows.map((r) => ({
-		...r,
-		scoreCount: Number(r.scoreCount),
-		playerCount: Number(r.playerCount)
-	}));
+	return rows;
 }
 
 export async function queryChartsCount(filters: ChartsCollectionFilters): Promise<number> {
