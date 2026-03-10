@@ -224,7 +224,7 @@ function getChartOrderBy(sortBy: ChartSortableColumn | null, sortDir: 'asc' | 'd
 		case 'grade':        return dir(bestPct);
 		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
 		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
-		case 'play_count':   return sql`${dir(sql`COUNT(${scores.guid})`)}`;
+		case 'play_count':   return sql`${dir(sql`COUNT(${scores.guid})::int`)}`;
 		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypeCaseExpr()})`)}`;
 		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
 		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
@@ -257,7 +257,7 @@ export async function getChartScores(
 			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
 			bestClearType: bestClearTypeExpr(),
 			latestDate: sql<number>`MAX(${scores.unixTimestamp})`,
-			scoreCount: sql<number>`COUNT(${scores.guid})`
+			scoreCount: sql<number>`COUNT(${scores.guid})::int`
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
@@ -272,14 +272,12 @@ export async function getChartScores(
 }
 
 export async function getChartScoreCount(md5: string, search: string = ''): Promise<number> {
-	const searchFilter = search
-		? sql`${user.name} ILIKE ${'%' + search + '%'}`
-		: undefined;
+	const searchFilter = search ? sql`${user.name} ILIKE ${'%' + search + '%'}` : undefined;
 	const baseFilter = eq(charts.md5, md5);
 	const whereClause = searchFilter ? and(baseFilter, searchFilter) : baseFilter;
 
 	const result = await db
-		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
+		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})::int` })
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
@@ -577,7 +575,7 @@ export async function getUserList(
 	sortDir: 'asc' | 'desc' = 'desc'
 ): Promise<UserListRow[]> {
 	const dir = sortDir === 'asc' ? asc : desc;
-	const scoreCountExpr = sql<number>`COUNT(${scores.guid})`;
+	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
 	const orderExprs =
 		sortBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)];
 	const rows = await db
@@ -628,7 +626,7 @@ export async function getChartList(
 	search: string = ''
 ): Promise<ChartListRow[]> {
 	const dir = sortDir === 'asc' ? asc : desc;
-	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
+	const playCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})::int`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
 	const mergedArtist = sql`TRIM(${charts.artist} || ' ' || ${charts.subartist})`;
 	const orderExprs =

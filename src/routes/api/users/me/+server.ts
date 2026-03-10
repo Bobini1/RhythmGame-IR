@@ -3,6 +3,7 @@ import { APIError } from 'better-auth';
 import { db } from '$lib/server/database/client';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq } from 'drizzle-orm';
+import { parseFields, pickFields } from '$lib/server/api/utils';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
@@ -24,13 +25,9 @@ export const GET: RequestHandler = async (event) => {
 		if (!session) {
 			return json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 		}
+		const fields = parseFields(event.url);
 
-		return json(
-			{
-				user: event.locals.user
-			},
-			{ headers: corsHeaders }
-		);
+		return json(pickFields(event.locals.user, fields), { headers: corsHeaders });
 	} catch (error) {
 		console.error('Get user error:', error);
 		if (error instanceof APIError) {

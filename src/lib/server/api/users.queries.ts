@@ -23,8 +23,8 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 			name: user.name,
 			image: user.image,
 			createdAt: user.createdAt,
-			scoreCount: sql<number>`COUNT(${scores.guid})`,
-			chartCount: sql<number>`COUNT(DISTINCT ${scores.md5})`
+			scoreCount: sql<number>`COUNT(${scores.guid})::int`,
+			chartCount: sql<number>`COUNT(DISTINCT ${scores.md5})::int`
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
@@ -56,8 +56,8 @@ export async function queryUsers(
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<UsersCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
-	const scoreCountExpr = sql<number>`COUNT(${scores.guid})`;
-	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.md5})`;
+	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
+	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.md5})::int`;
 	const orderExprs =
 		orderBy === 'name'
 			? [dir(user.name)]

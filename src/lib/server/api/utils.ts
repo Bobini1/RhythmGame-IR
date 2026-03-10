@@ -192,7 +192,7 @@ export function pickFields<T extends Record<string, unknown>>(
 ): Partial<T> {
 	if (!fields) return obj;
 	return Object.fromEntries(
-		Object.entries(obj).filter(([key]) => fields.has(key) || key === '_links')
+		Object.entries(obj).filter(([key]) => fields.has(key))
 	) as Partial<T>;
 }
 

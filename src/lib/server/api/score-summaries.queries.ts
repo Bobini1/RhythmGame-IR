@@ -41,15 +41,23 @@ function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc')
 	const dir = sort === 'asc' ? asc : desc;
 	const bestPct = sql`MAX(${scores.points} / NULLIF(${scores.maxPoints}, 0))`;
 	switch (orderBy) {
-		case 'player':       return sql`${dir(user.name)}, MAX(${scores.unixTimestamp}) DESC`;
+		case 'player':
+			return sql`${dir(user.name)}, MAX(${scores.unixTimestamp}) DESC`;
 		case 'score_pct':
-		case 'grade':        return dir(bestPct);
-		case 'combo':        return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
-		case 'combo_breaks': return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
-		case 'play_count':   return sql`${dir(sql`COUNT(${scores.guid})`)}`;
-		case 'clear_type':   return sql`${dir(sql`MAX(${clearTypeCaseExpr()})`)}`;
-		case 'date':         return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
-		default:             return sql`MAX(${scores.unixTimestamp}) DESC`;
+		case 'grade':
+			return dir(bestPct);
+		case 'combo':
+			return sql`${dir(sql`MAX(${scores.maxCombo})`)}`;
+		case 'combo_breaks':
+			return sql`${dir(sql`MIN(${poorPlusBad})`)}`;
+		case 'play_count':
+			return sql`${dir(sql`COUNT(${scores.guid})::int`)}`;
+		case 'clear_type':
+			return sql`${dir(sql`MAX(${clearTypeCaseExpr()})`)}`;
+		case 'date':
+			return sql`${dir(sql`MAX(${scores.unixTimestamp})`)}`;
+		default:
+			return sql`MAX(${scores.unixTimestamp}) DESC`;
 	}
 }
 
@@ -77,7 +85,7 @@ export async function queryScoreSummaries(
 			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
 			bestClearType: bestClearTypeExpr(),
 			latestDate: sql<number>`MAX(${scores.unixTimestamp})`,
-			scoreCount: sql<number>`COUNT(${scores.guid})`
+			scoreCount: sql<number>`COUNT(${scores.guid})::int`
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
@@ -104,7 +112,7 @@ export async function queryScoreSummariesCount(
 	const where = and(...conditions);
 
 	const result = await db
-		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})` })
+		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})::int` })
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))

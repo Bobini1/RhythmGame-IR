@@ -1,13 +1,14 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getScoreById } from '$lib/server/api/scores.queries';
-import { scoreLinks } from '$lib/server/api/utils';
+import { parseFields, pickFields, scoreLinks } from '$lib/server/api/utils';
 import { bigIntJsonResponse } from '$lib/server/api/json-bigint';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, url }) => {
 	const guid = params.guid;
 	if (!guid) {
 		return json({ error: 'Missing guid' }, { status: 400 });
 	}
+	const fields = parseFields(url);
 
 	const score = await getScoreById(guid);
 	if (!score) {
@@ -15,6 +16,6 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	return bigIntJsonResponse(
-		{ ...score, _links: scoreLinks(score.guid, score.md5, score.userId) }
+		pickFields({ ...score, _links: scoreLinks(score.guid, score.md5, score.userId) }, fields)
 	);
 };

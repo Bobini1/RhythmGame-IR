@@ -36,18 +36,12 @@ export interface ApiChart {
 	avgDensity: number;
 	endDensity: number;
 	gameVersion: number;
+	bpmChanges: { bpm: number; time: number; position: number }[];
+	histogramData: number[][];
 	createdAt: Date;
 	updatedAt: Date;
 	scoreCount: number;
 	playerCount: number;
-}
-
-export interface ApiChartHistogram {
-	histogramData: number[][];
-}
-
-export interface ApiChartBpmChanges {
-	bpmChanges: { bpm: number; time: number; position: number }[];
 }
 
 export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
@@ -82,9 +76,11 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 			endDensity: charts.endDensity,
 			createdAt: charts.createdAt,
 			updatedAt: charts.updatedAt,
-			scoreCount: sql<number>`COUNT(${scores.guid})`,
-			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})`,
-			gameVersion: charts.gameVersion
+			scoreCount: sql<number>`COUNT(${scores.guid})::int`,
+			playerCount: sql<number>`COUNT(DISTINCT ${scores.userId})::int`,
+			gameVersion: charts.gameVersion,
+			bpmChanges: charts.bpmChanges,
+			histogramData: charts.histogramData
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.md5, charts.md5))
@@ -94,28 +90,6 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 	if (!rows[0]) return null;
 	return rows[0];
 }
-
-export async function getChartHistogram(md5: string): Promise<ApiChartHistogram | null> {
-	const result = await db
-		.select({ histogramData: charts.histogramData })
-		.from(charts)
-		.where(eq(charts.md5, md5))
-		.limit(1);
-	return result[0] ?? null;
-}
-
-export async function getChartBpmChanges(md5: string): Promise<ApiChartBpmChanges | null> {
-	const result = await db
-		.select({ bpmChanges: charts.bpmChanges })
-		.from(charts)
-		.where(eq(charts.md5, md5))
-		.limit(1);
-	return result[0] ?? null;
-}
-
-// ---------------------------------------------------------------------------
-// GET /api/charts charts collection
-// ---------------------------------------------------------------------------
 
 export type ChartsOrderBy = 'title' | 'play_count' | 'play_level' | 'score_count' | 'player_count';
 
@@ -173,8 +147,8 @@ export async function queryCharts(
 	sort: 'asc' | 'desc' = 'desc'
 ): Promise<ChartsCollectionRow[]> {
 	const dir = sort === 'asc' ? asc : desc;
-	const scoreCountExpr = sql<number>`COUNT(${scores.guid})`;
-	const playerCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})`;
+	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
+	const playerCountExpr = sql<number>`COUNT(DISTINCT ${scores.userId})::int`;
 	const mergedTitle = sql`TRIM(${charts.title} || ' ' || ${charts.subtitle})`;
 
 	const conditions = buildChartsConditions(filters);
@@ -182,14 +156,22 @@ export async function queryCharts(
 
 	let orderExprs: SQL[];
 	switch (orderBy) {
-		case 'title':      orderExprs = [dir(mergedTitle)]; break;
-		case 'play_level': orderExprs = [dir(charts.playLevel), asc(mergedTitle)]; break;
-		case 'score_count':  orderExprs = [dir(scoreCountExpr), asc(mergedTitle)]; break;
+		case 'title':
+			orderExprs = [dir(mergedTitle)];
+			break;
+		case 'play_level':
+			orderExprs = [dir(charts.playLevel), asc(mergedTitle)];
+			break;
+		case 'score_count':
+			orderExprs = [dir(scoreCountExpr), asc(mergedTitle)];
+			break;
 		case 'player_count':
 		case 'play_count':
-		default:           orderExprs = [dir(playerCountExpr), asc(mergedTitle)]; break;
+		default:
+			orderExprs = [dir(playerCountExpr), asc(mergedTitle)];
+			break;
 	}
-	
+
 	return await db
 		.select({
 			id: charts.id,
