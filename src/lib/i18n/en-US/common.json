@@ -132,5 +132,11 @@
 	"delete_account_confirm_description": "This will permanently delete your account, all your scores and replay data. This action cannot be undone.",
 	"delete_account_confirm": "Yes, delete my account",
 	"delete_account_success": "Your account has been deleted.",
-	"delete_account_error": "Failed to delete account. Please try again."
+	"delete_account_error": "Failed to delete account. Please try again.",
+	"player_settings": "Player Settings",
+	"signed_in_as": "Signed in as {{user}}",
+	"name": "Name",
+	"sign_out": "Sign out",
+	"sign_in_to_access_features": "Sign in to access player features",
+	"native_apps_use_bearer_tokens": "Native apps should use bearer token authentication"
 }

@@ -110,7 +110,7 @@ function scoresCollectionOrder(orderBy: ScoresOrderBy, sort: 'asc' | 'desc'): SQ
 }
 
 export interface ScoresCollectionFilters {
-	chart?: string;
+	md5?: string;
 	user?: number;
 	dateGte?: number;
 	dateLte?: number;
@@ -118,18 +118,39 @@ export interface ScoresCollectionFilters {
 	scorePctLte?: number;
 	comboGte?: number;
 	comboLte?: number;
+	missCountGte?: number;
+	missCountLte?: number;
 }
 
 function buildScoresConditions(filters: ScoresCollectionFilters): SQL[] {
 	const conditions: SQL[] = [];
-	if (filters.chart) conditions.push(eq(charts.md5, filters.chart));
+	if (filters.md5) conditions.push(eq(charts.md5, filters.md5));
 	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
-	if (filters.dateGte !== undefined) conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
-	if (filters.dateLte !== undefined) conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
-	if (filters.scorePctGte !== undefined) conditions.push(sql`${scores.points} / NULLIF(${scores.maxPoints}, 0) >= ${filters.scorePctGte}`);
-	if (filters.scorePctLte !== undefined) conditions.push(sql`${scores.points} / NULLIF(${scores.maxPoints}, 0) <= ${filters.scorePctLte}`);
-	if (filters.comboGte !== undefined) conditions.push(sql`${scores.maxCombo} >= ${filters.comboGte}`);
-	if (filters.comboLte !== undefined) conditions.push(sql`${scores.maxCombo} <= ${filters.comboLte}`);
+	if (filters.dateGte !== undefined)
+		conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
+	if (filters.dateLte !== undefined)
+		conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
+	if (filters.scorePctGte !== undefined)
+		conditions.push(
+			sql`${scores.points} / NULLIF(${scores.maxPoints}, 0) >= ${filters.scorePctGte}`
+		);
+	if (filters.scorePctLte !== undefined)
+		conditions.push(
+			sql`${scores.points} / NULLIF(${scores.maxPoints}, 0) <= ${filters.scorePctLte}`
+		);
+	if (filters.comboGte !== undefined)
+		conditions.push(sql`${scores.maxCombo} >= ${filters.comboGte}`);
+	if (filters.comboLte !== undefined)
+		conditions.push(sql`${scores.maxCombo} <= ${filters.comboLte}`);
+	// Poor + Bad = Misses
+	if (filters.missCountGte !== undefined)
+		conditions.push(
+			sql`${scores.judgementCounts}[0] + ${scores.judgementCounts}[1] + ${scores.judgementCounts}[2] >= ${filters.missCountGte}`
+		);
+	if (filters.missCountLte !== undefined)
+		conditions.push(
+			sql`${scores.judgementCounts}[0] + ${scores.judgementCounts}[1] + ${scores.judgementCounts}[2] <= ${filters.missCountGte}`
+		);
 	return conditions;
 }
 

@@ -132,5 +132,11 @@
 	"delete_account_confirm_description": "Spowoduje to trwałe usunięcie Twojego konta, wszystkich wyników i danych powtórek. Tej operacji nie można cofnąć.",
 	"delete_account_confirm": "Tak, usuń moje konto",
 	"delete_account_success": "Twoje konto zostało usunięte.",
-	"delete_account_error": "Nie udało się usunąć konta. Spróbuj ponownie."
+	"delete_account_error": "Nie udało się usunąć konta. Spróbuj ponownie.",
+	"player_settings": "Ustawienia Gracza",
+	"signed_in_as": "Zalogowany jako {{user}}",
+	"name": "Imię",
+	"sign_out": "Wyloguj się",
+	"sign_in_to_access_features": "Zaloguj się, aby uzyskać dostęp do funkcji gracza",
+	"native_apps_use_bearer_tokens": "Aplikacje natywne powinny używać uwierzytelniania za pomocą tokenów bearer"
 }

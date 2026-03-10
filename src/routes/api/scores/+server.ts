@@ -35,9 +35,9 @@ export const GET: RequestHandler = async ({ url }) => {
 	const fields = parseFields(url);
 
 	const filters: ScoresCollectionFilters = {};
-	const chart = url.searchParams.get('chart');
+	const md5 = url.searchParams.get('md5');
 	const userParam = url.searchParams.get('user');
-	if (chart) filters.chart = chart;
+	if (md5) filters.md5 = md5;
 	if (userParam !== null && !isNaN(Number(userParam))) filters.user = Number(userParam);
 
 	const dateGte = url.searchParams.get('date_gte');

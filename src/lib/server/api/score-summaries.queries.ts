@@ -4,6 +4,7 @@ import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq, asc, desc, and, sql, type SQL } from 'drizzle-orm';
 import { poorPlusBad, clearTypeCaseExpr, bestClearTypeExpr } from './sql-helpers';
+import type { ScoresCollectionFilters } from '$lib/server/api/scores.queries';
 
 // ---------------------------------------------------------------------------
 // GET /api/score_summaries score summaries collection
@@ -27,6 +28,7 @@ export interface ScoreSummaryUser {
 
 export interface ScoreSummaryRow {
 	user: ScoreSummaryUser;
+	md5: string;
 	bestPoints: number;
 	maxPoints: number;
 	bestCombo: number;
@@ -61,23 +63,69 @@ function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc')
 	}
 }
 
+export interface ScoreSummaryFilters {
+	md5?: string;
+	user?: number;
+	lastPlayedGte?: number;
+	lastPlayedLte?: number;
+	scorePctGte?: number;
+	scorePctLte?: number;
+	comboGte?: number;
+	comboLte?: number;
+	missCountGte?: number;
+	missCountLte?: number;
+}
+
+function buildWhereConditions(filters: ScoreSummaryFilters): SQL[] {
+	const conditions: SQL[] = [];
+	if (filters.md5) conditions.push(eq(charts.md5, filters.md5));
+	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
+	return conditions;
+}
+
+function buildHavingConditions(filters: ScoreSummaryFilters): SQL[] {
+	const conditions: SQL[] = [];
+	if (filters.lastPlayedGte !== undefined)
+		conditions.push(sql`MAX(${scores.unixTimestamp}) >= ${filters.lastPlayedGte}`);
+	if (filters.lastPlayedLte !== undefined)
+		conditions.push(sql`MAX(${scores.unixTimestamp}) <= ${filters.lastPlayedLte}`);
+	if (filters.scorePctGte !== undefined)
+		conditions.push(
+			sql`MAX(${scores.points} / NULLIF(${scores.maxPoints}, 0)) >= ${filters.scorePctGte}`
+		);
+	if (filters.scorePctLte !== undefined)
+		conditions.push(
+			sql`MIN(${scores.points} / NULLIF(${scores.maxPoints}, 0)) <= ${filters.scorePctLte}`
+		);
+	if (filters.comboGte !== undefined)
+		conditions.push(sql`MAX(${scores.maxCombo}) >= ${filters.comboGte}`);
+	if (filters.comboLte !== undefined)
+		conditions.push(sql`MIN(${scores.maxCombo}) <= ${filters.comboLte}`);
+	if (filters.missCountGte !== undefined)
+		conditions.push(sql`MIN(${poorPlusBad}) >= ${filters.missCountGte}`);
+	if (filters.missCountLte !== undefined)
+		conditions.push(sql`MAX(${poorPlusBad}) <= ${filters.missCountLte}`);
+	return conditions;
+}
+
 export async function queryScoreSummaries(
-	md5: string,
+	filters: ScoreSummaryFilters,
 	limit?: number,
 	offset?: number,
 	orderBy: ScoreSummariesOrderBy = 'score_pct',
 	sort: 'asc' | 'desc' = 'desc',
 	search: string = ''
 ): Promise<ScoreSummaryRow[]> {
-	const conditions: SQL[] = [eq(charts.md5, md5)];
-	if (search) conditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
-	const where = and(...conditions);
+	const whereConditions = buildWhereConditions(filters);
+	const havingConditions = buildHavingConditions(filters);
+	if (search) whereConditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 
 	const rows = await db
 		.select({
 			userId: user.id,
 			userName: user.name,
 			userImage: user.image,
+			md5: charts.md5,
 			bestPoints: sql<number>`MAX(${scores.points})`,
 			maxPoints: sql<number>`MAX(${scores.maxPoints})`,
 			bestCombo: sql<number>`MAX(${scores.maxCombo})`,
@@ -90,8 +138,9 @@ export async function queryScoreSummaries(
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
-		.where(where)
-		.groupBy(user.id, user.name, user.image)
+		.where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+		.groupBy(user.id, user.name, user.image, charts.md5)
+		.having(havingConditions.length > 0 ? and(...havingConditions) : undefined)
 		.orderBy(scoreSummaryOrder(orderBy, sort))
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)
 		.offset(offset ?? 0);
@@ -104,18 +153,29 @@ export async function queryScoreSummaries(
 }
 
 export async function queryScoreSummariesCount(
-	md5: string,
+	filters: ScoreSummaryFilters,
 	search: string = ''
 ): Promise<number> {
-	const conditions: SQL[] = [eq(charts.md5, md5)];
-	if (search) conditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
-	const where = and(...conditions);
+	const whereConditions = buildWhereConditions(filters);
+	const havingConditions = buildHavingConditions(filters);
+	if (search) whereConditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 
-	const result = await db
-		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})::int` })
+	// Create a subquery that matches the main query's filtering logic
+	const subquery = db
+		.select({
+			userId: scores.userId
+		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
-		.where(where);
+		.where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+		.groupBy(scores.userId, charts.md5)
+		.having(havingConditions.length > 0 ? and(...havingConditions) : undefined);
+
+	// Count distinct users from the filtered subquery
+	const result = await db
+		.select({ count: sql<number>`COUNT(DISTINCT ${scores.userId})::int` })
+		.from(subquery.as('filtered_users'));
+
 	return Number(result[0]?.count ?? 0);
 }
