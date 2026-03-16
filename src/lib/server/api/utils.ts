@@ -200,37 +200,37 @@ export function pickFields<T extends Record<string, unknown>>(
 // HATEOAS links
 // ---------------------------------------------------------------------------
 
-export function chartLinks(md5: string) {
+export function chartLinks(baseUrl: URL, md5: string) {
 	return {
-		self: `/api/charts/${md5}`,
-		histogram: `/api/charts/${md5}/histogram`,
-		bpm_changes: `/api/charts/${md5}/bpm-changes`,
-		scores: `/api/scores?chart=${md5}`,
-		score_summaries: `/api/score-summaries?chart=${md5}`
+		self: new URL(`/api/charts/${md5}`, baseUrl),
+		scores: new URL(`/api/scores?md5=${md5}`, baseUrl),
+		scoreSummaries: new URL(`/api/score-summaries?md5=${md5}`, baseUrl)
 	};
 }
 
-export function userLinks(publicId: number) {
+export function userLinks(baseUrl: URL, userId: number) {
 	return {
-		self: `/api/users/${publicId}`,
-		scores: `/api/scores?user=${publicId}`
+		self: new URL(`/api/users/${userId}`, baseUrl),
+		scores: new URL(`/api/scores?user=${userId}`, baseUrl),
+		scoreSummaries: new URL(`/api/score-summaries?user=${userId}`, baseUrl)
 	};
 }
 
-export function scoreLinks(id: string, md5: string, userId: number) {
+export function scoreLinks(baseUrl: URL, id: string, md5: string, userId: number) {
 	return {
-		self: `/api/scores/${id}`,
-		chart: `/api/charts/${md5}`,
-		user: `/api/users/${userId}`
+		self: new URL(`/api/scores/${id}`, baseUrl),
+		chart: new URL(`/api/charts/${md5}`, baseUrl),
+		user: new URL(`/api/users/${userId}`, baseUrl),
+		parentScoreSummary: new URL(`/api/score-summaries?md5=${md5}&user=${userId}`, baseUrl)
 	};
 }
 
-export function scoreSummaryLinks(md5: string, userId: number) {
+export function scoreSummaryLinks(baseUrl: URL, md5: string, userId: number) {
 	return {
-		self: `/api/score-summaries?chart=${md5}&user=${userId}`,
-		chart: `/api/charts/${md5}`,
-		user: `/api/users/${userId}`,
-		scores: `/api/scores?chart=${md5}&user=${userId}`
+		self: new URL(`/api/score-summaries?md5=${md5}&user=${userId}`, baseUrl),
+		chart: new URL(`/api/charts/${md5}`, baseUrl),
+		user: new URL(`/api/users/${userId}`, baseUrl),
+		scores: new URL(`/api/scores?md5=${md5}&user=${userId}`, baseUrl)
 	};
 }
 

@@ -7,6 +7,7 @@ import {
 	jsonb,
 	bigint
 } from 'drizzle-orm/pg-core';
+import type { BpmChange } from '$lib/models/scores';
 
 // autoincrement
 export const charts = pgTable('charts', {
@@ -47,7 +48,7 @@ export const charts = pgTable('charts', {
 	histogramData: jsonb('histogram_data').$type<number[][]>().notNull().default([]),
 	/** Array of { bpm: number; position: number; time: number } */
 	bpmChanges: jsonb('bpm_changes')
-		.$type<{ bpm: number; time: number; position: number }[]>()
+		.$type<BpmChange[]>()
 		.notNull()
 		.default([]),
 	createdAt: timestamp('created_at').defaultNow().notNull(),

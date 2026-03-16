@@ -14,9 +14,15 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		return json({ error: 'Chart not found' }, { status: 404 });
 	}
 
-	return json(pickFields({
-		...chart,
-		_links: chartLinks(md5)
-	}, fields));
+	const baseUrl = new URL(url.protocol + '//' + url.host);
+	return json(
+		pickFields(
+			{
+				...chart,
+				_links: chartLinks(baseUrl, md5)
+			},
+			fields
+		)
+	);
 };
 

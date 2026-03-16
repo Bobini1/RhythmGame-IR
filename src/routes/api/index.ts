@@ -7,16 +7,6 @@ export const Health = `${CONTROLLER}/health`;
 export const DbHealth = `${CONTROLLER}/health/db`;
 export const Demo = `${CONTROLLER}/demo`;
 
-// Authenticated user management (GET / DELETE)
-export const User = `${CONTROLLER}/user`;
-
-// Legacy SSR-supporting route (user profile page data)
-export const userScores = (userId: string) => `${CONTROLLER}/user/${userId}/scores`;
-
-// ---------------------------------------------------------------------------
-// Flat REST API
-// ---------------------------------------------------------------------------
-
 // Resource endpoints
 export const chart = (md5: string) => `${CONTROLLER}/charts/${md5}`;
 export const userById = (id: string) => `${CONTROLLER}/users/${id}`;

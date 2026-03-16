@@ -43,8 +43,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryScoreSummariesCount(filters, search)
 		]);
 
+		const baseUrl = new URL(url.protocol + '//' + url.host);
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreSummaryLinks(r.md5, r.user.id) }, fields)
+			pickFields({ ...r, _links: scoreSummaryLinks(baseUrl, r.md5, r.user.id) }, fields)
 		);
 
 		return json(data, {

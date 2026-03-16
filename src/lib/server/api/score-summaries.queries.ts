@@ -125,7 +125,7 @@ export async function queryScoreSummaries(
 			userId: user.id,
 			userName: user.name,
 			userImage: user.image,
-			md5: sql<string>`MAX(${charts.md5})`,
+			md5: charts.md5,
 			bestPoints: sql<number>`MAX(${scores.points})`,
 			maxPoints: sql<number>`MAX(${scores.maxPoints})`,
 			bestCombo: sql<number>`MAX(${scores.maxCombo})`,
@@ -139,7 +139,7 @@ export async function queryScoreSummaries(
 		.innerJoin(charts, eq(scores.md5, charts.md5))
 		.innerJoin(user, eq(scores.userId, user.id))
 		.where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-		.groupBy(user.id, user.name, user.image)
+		.groupBy(user.id, user.name, user.image, charts.md5)
 		.having(havingConditions.length > 0 ? and(...havingConditions) : undefined)
 		.orderBy(scoreSummaryOrder(orderBy, sort))
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)

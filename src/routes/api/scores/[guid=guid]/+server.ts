@@ -15,7 +15,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		return json({ error: 'Score not found' }, { status: 404 });
 	}
 
+	const baseUrl = new URL(url.protocol + '//' + url.host);
 	return bigIntJsonResponse(
-		pickFields({ ...score, _links: scoreLinks(score.guid, score.md5, score.userId) }, fields)
+		pickFields({ ...score, _links: scoreLinks(baseUrl, score.guid, score.md5, score.userId) }, fields)
 	);
 };

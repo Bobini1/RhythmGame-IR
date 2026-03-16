@@ -32,6 +32,8 @@ export const guidSchema = z
 export const bpmChangeSchema = z.object({
 	bpm: z.number().nonnegative(),
 	position: z.number(),
+	beatPosition: z.number(),
+	scroll: z.number(),
 	time: z.int()
 });
 

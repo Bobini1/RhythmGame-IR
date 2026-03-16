@@ -61,8 +61,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryScoresCount(filters)
 		]);
 
+		const baseUrl = new URL(url.protocol + '//' + url.host);
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreLinks(r.guid, r.md5, r.userId) }, fields)
+			pickFields({ ...r, _links: scoreLinks(baseUrl, r.guid, r.md5, r.userId) }, fields)
 		);
 
 		return bigIntJsonResponse(data, {

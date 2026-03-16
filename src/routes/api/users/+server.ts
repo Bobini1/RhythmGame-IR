@@ -22,9 +22,8 @@ export const GET: RequestHandler = async ({ url }) => {
 			queryUsersCount()
 		]);
 
-		const data = rows.map((r) =>
-			pickFields({ ...r, _links: userLinks(r.id) }, fields)
-		);
+		const baseUrl = new URL(url.protocol + '//' + url.host);
+		const data = rows.map((r) => pickFields({ ...r, _links: userLinks(baseUrl, r.id) }, fields));
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)

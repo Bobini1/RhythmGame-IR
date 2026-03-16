@@ -40,8 +40,10 @@ export type ClearType =
 
 export interface BpmChange {
 	bpm: number;
+	scroll: number;
 	time: number;
 	position: number
+	beatPosition: number;
 }
 
 export interface BmsPoints {

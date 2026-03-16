@@ -3,7 +3,7 @@ import { APIError } from 'better-auth';
 import { db } from '$lib/server/database/client';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq } from 'drizzle-orm';
-import { parseFields, pickFields } from '$lib/server/api/utils';
+import { parseFields, pickFields, userLinks } from '$lib/server/api/utils';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
@@ -27,7 +27,17 @@ export const GET: RequestHandler = async (event) => {
 		}
 		const fields = parseFields(event.url);
 
-		return json(pickFields(event.locals.user, fields), { headers: corsHeaders });
+		const baseUrl = new URL(event.url.protocol + '://' + event.url.host);
+		return json(
+			pickFields(
+				{
+					...event.locals.user,
+					_links: userLinks(baseUrl, Number(event.locals.user.id))
+				},
+				fields
+			),
+			{ headers: corsHeaders }
+		);
 	} catch (error) {
 		console.error('Get user error:', error);
 		if (error instanceof APIError) {

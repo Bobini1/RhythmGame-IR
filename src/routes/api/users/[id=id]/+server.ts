@@ -19,7 +19,7 @@ export const OPTIONS: RequestHandler = async () => {
 };
 
 export const GET: RequestHandler = async ({ params, url }) => {
-	const id = Number(params.user_id);
+	const id = Number(params.id);
 	if (!id) {
 		return json({ error: 'Missing id' }, { status: 400 });
 	}
@@ -31,11 +31,12 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		return json({ error: 'User not found' }, { status: 404 });
 	}
 
+	const baseUrl = new URL(url.protocol + '//' + url.host);
 	return json(
 		pickFields(
 			{
 				...profile,
-				_links: userLinks(id)
+				_links: userLinks(baseUrl, id)
 			},
 			fields
 		)
