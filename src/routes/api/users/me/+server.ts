@@ -27,7 +27,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 		const fields = parseFields(event.url);
 
-		const baseUrl = new URL(event.url.protocol + '://' + event.url.host);
+		const baseUrl = new URL(event.url.protocol + '//' + event.url.host);
 		return json(
 			pickFields(
 				{
