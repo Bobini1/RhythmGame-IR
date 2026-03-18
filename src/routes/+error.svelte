@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { getTitleTemplate } from '$lib/client/configurations/meta-tags';
 	import * as Alert from '$lib/components/ui/alert';
-	import Button from '../../lib/components/ui/button/button.svelte';
+	import Button from '../lib/components/ui/button/button.svelte';
 	import { locale, t } from '$lib/i18n';
 	import { metaTags } from '$lib/stores';
 	import { CircleAlert } from '@lucide/svelte';

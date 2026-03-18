@@ -19,14 +19,10 @@ export type ScoreSummariesOrderBy =
 	| 'date'
 	| 'play_count';
 
-export interface ScoreSummaryUser {
-	id: number;
-	name: string;
-	image: string | null;
-}
-
 export interface ScoreSummaryRow {
-	user: ScoreSummaryUser;
+	userId: number
+	userImage: string | null;
+	userName: string;
 	md5: string;
 	bestPoints: number;
 	maxPoints: number;
@@ -157,12 +153,7 @@ export async function queryScoreSummaries(
 	const limitedQuery = limit !== undefined ? query.limit(limit) : query;
 	const finalQuery = offset !== undefined ? limitedQuery.offset(offset) : limitedQuery;
 
-	const rows = await finalQuery;
-
-	return rows.map(({ userId, userName, userImage, ...rest }) => ({
-		user: { id: Number(userId), name: userName, image: userImage },
-		...rest
-	}));
+	return finalQuery;
 }
 
 export async function queryScoreSummariesCount(
