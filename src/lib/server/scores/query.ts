@@ -192,7 +192,7 @@ export async function getChartByMd5(md5: string): Promise<ChartData | null> {
 	const result = await db
 		.select()
 		.from(charts)
-		.where(eq(charts.md5, md5))
+		.where(eq(charts.md5, md5.toUpperCase()))
 		.limit(1);
 	if (!result[0]) return null;
 	return result[0];
@@ -242,7 +242,7 @@ export async function getChartScores(
 	const searchFilter = search
 		? sql`${user.name} ILIKE ${'%' + search + '%'}`
 		: undefined;
-	const baseFilter = eq(charts.md5, md5);
+	const baseFilter = eq(charts.md5, md5.toUpperCase());
 	const whereClause = searchFilter ? and(baseFilter, searchFilter) : baseFilter;
 
 	const rows = await db
@@ -273,7 +273,7 @@ export async function getChartScores(
 
 export async function getChartScoreCount(md5: string, search: string = ''): Promise<number> {
 	const searchFilter = search ? sql`${user.name} ILIKE ${'%' + search + '%'}` : undefined;
-	const baseFilter = eq(charts.md5, md5);
+	const baseFilter = eq(charts.md5, md5.toUpperCase());
 	const whereClause = searchFilter ? and(baseFilter, searchFilter) : baseFilter;
 
 	const result = await db
@@ -359,7 +359,7 @@ export async function getChartUserScores(
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
-		.where(and(eq(charts.md5, md5), eq(scores.userId, userId)))
+		.where(and(eq(charts.md5, md5.toUpperCase()), eq(scores.userId, userId)))
 		.orderBy(getChartUserOrderBy(sortBy, sortDir))
 		.limit(limit)
 		.offset(offset);
@@ -372,187 +372,8 @@ export async function getChartUserScoreCount(md5: string, userId: number): Promi
 		.select({ count: count() })
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
-		.where(and(eq(charts.md5, md5), eq(scores.userId, userId)));
+		.where(and(eq(charts.md5, md5.toUpperCase()), eq(scores.userId, userId)));
 	return result[0]?.count ?? 0;
-}
-
-// ---------------------------------------------------------------------------
-// Full score download (score + extras)
-// ---------------------------------------------------------------------------
-
-export type ScoreDownloadRow = {
-	scoreData: ScoreSubmission;
-	replayData: HitEvent[];
-	gaugeHistory: GaugeHistoryGroup[];
-};
-
-export async function getScoresByIds(
-	userId: number,
-	guids: string[]
-): Promise<ScoreDownloadRow[]> {
-	if (guids.length === 0) return [];
-
-	const rows = await db
-		.select({
-			guid: scores.guid,
-			points: scores.points,
-			maxPoints: scores.maxPoints,
-			maxCombo: scores.maxCombo,
-			maxHits: scores.maxHits,
-			judgementCounts: scores.judgementCounts,
-			mineHits: scores.mineHits,
-			normalNoteCount: scores.normalNoteCount,
-			scratchCount: scores.scratchCount,
-			lnCount: scores.lnCount,
-			bssCount: scores.bssCount,
-			mineCount: scores.mineCount,
-			clearType: scores.clearType,
-			randomSequence: scores.randomSequence,
-			randomSeed: scores.randomSeed,
-			noteOrderAlgorithm: scores.noteOrderAlgorithm,
-			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
-			dpOptions: scores.dpOptions,
-			gameVersion: scores.gameVersion,
-			length: scores.length,
-			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256,
-			md5: charts.md5,
-			replayData: scores.replayData,
-			gaugeHistory: scores.gaugeHistory
-		})
-		.from(scores)
-		.innerJoin(charts, eq(scores.md5, charts.md5))
-		.where(and(inArray(scores.guid, guids), eq(scores.userId, userId)));
-
-	return rows.map((r) => ({
-		scoreData: {
-			guid: r.guid,
-			points: r.points,
-			maxPoints: r.maxPoints,
-			maxCombo: r.maxCombo,
-			maxHits: r.maxHits,
-			judgementCounts: r.judgementCounts,
-			mineHits: r.mineHits,
-			normalNoteCount: r.normalNoteCount,
-			scratchCount: r.scratchCount,
-			lnCount: r.lnCount,
-			bssCount: r.bssCount,
-			mineCount: r.mineCount,
-			clearType: r.clearType as ScoreSubmission['clearType'],
-			randomSequence: r.randomSequence,
-			randomSeed: r.randomSeed,
-			noteOrderAlgorithm: r.noteOrderAlgorithm,
-			noteOrderAlgorithmP2: r.noteOrderAlgorithmP2,
-			dpOptions: r.dpOptions,
-			gameVersion: r.gameVersion,
-			length: r.length,
-			unixTimestamp: r.unixTimestamp,
-			sha256: r.sha256,
-			md5: r.md5
-		},
-		replayData: r.replayData,
-		gaugeHistory: r.gaugeHistory
-	}));
-}
-
-// ---------------------------------------------------------------------------
-// Scores for chart grouped by user (for game client download)
-// ---------------------------------------------------------------------------
-
-export interface UserScoreGroup {
-	profile: {
-		id: number;
-		username: string;
-		avatarUrl: string;
-		profileUrl: string;
-	};
-	scores: ScoreDownloadRow[];
-}
-
-export async function getScoresFormd5(md5: string): Promise<UserScoreGroup[]> {
-	const rows = await db
-		.select({
-			userId: user.id,
-			userName: user.name,
-			userImage: user.image,
-			guid: scores.guid,
-			points: scores.points,
-			maxPoints: scores.maxPoints,
-			maxCombo: scores.maxCombo,
-			maxHits: scores.maxHits,
-			judgementCounts: scores.judgementCounts,
-			mineHits: scores.mineHits,
-			normalNoteCount: scores.normalNoteCount,
-			scratchCount: scores.scratchCount,
-			lnCount: scores.lnCount,
-			bssCount: scores.bssCount,
-			mineCount: scores.mineCount,
-			clearType: scores.clearType,
-			randomSequence: scores.randomSequence,
-			randomSeed: scores.randomSeed,
-			noteOrderAlgorithm: scores.noteOrderAlgorithm,
-			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
-			dpOptions: scores.dpOptions,
-			gameVersion: scores.gameVersion,
-			length: scores.length,
-			unixTimestamp: scores.unixTimestamp,
-			sha256: charts.sha256,
-			md5: charts.md5,
-			replayData: scores.replayData,
-			gaugeHistory: scores.gaugeHistory
-		})
-		.from(scores)
-		.innerJoin(charts, eq(scores.md5, charts.md5))
-		.innerJoin(user, eq(scores.userId, user.id))
-		.where(eq(charts.md5, md5))
-		.orderBy(asc(user.id), desc(scores.unixTimestamp));
-
-	// Group by user id
-	const groupMap = new Map<number, UserScoreGroup>();
-	for (const r of rows) {
-		if (!groupMap.has(r.userId)) {
-			groupMap.set(r.userId, {
-				profile: {
-					id: r.userId,
-					username: r.userName,
-					avatarUrl: r.userImage ?? '',
-					profileUrl: `/players/${r.userId}`
-				},
-				scores: []
-			});
-		}
-		groupMap.get(r.userId)!.scores.push({
-			scoreData: {
-				guid: r.guid,
-				points: r.points,
-				maxPoints: r.maxPoints,
-				maxCombo: r.maxCombo,
-				maxHits: r.maxHits,
-				judgementCounts: r.judgementCounts,
-				mineHits: r.mineHits,
-				normalNoteCount: r.normalNoteCount,
-				scratchCount: r.scratchCount,
-				lnCount: r.lnCount,
-				bssCount: r.bssCount,
-				mineCount: r.mineCount,
-				clearType: r.clearType as ScoreSubmission['clearType'],
-				randomSequence: r.randomSequence,
-				randomSeed: r.randomSeed,
-				noteOrderAlgorithm: r.noteOrderAlgorithm,
-				noteOrderAlgorithmP2: r.noteOrderAlgorithmP2,
-				dpOptions: r.dpOptions,
-				gameVersion: r.gameVersion,
-			length: r.length,
-			unixTimestamp: r.unixTimestamp,
-			sha256: r.sha256,
-			md5: r.md5
-		},
-		replayData: r.replayData,
-		gaugeHistory: r.gaugeHistory
-	});
-	}
-
-	return Array.from(groupMap.values());
 }
 
 // ---------------------------------------------------------------------------

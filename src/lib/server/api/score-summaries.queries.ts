@@ -3,8 +3,7 @@ import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq, asc, desc, and, sql, type SQL } from 'drizzle-orm';
-import { poorPlusBad, clearTypeCaseExpr, bestClearTypeExpr } from './sql-helpers';
-import type { ScoresCollectionFilters } from '$lib/server/api/scores.queries';
+import { poorPlusBad, clearTypeCaseExpr } from './sql-helpers';
 
 // ---------------------------------------------------------------------------
 // GET /api/score_summaries score summaries collection
@@ -37,6 +36,12 @@ export interface ScoreSummaryRow {
 	bestComboBreaks: number;
 	latestDate: number;
 	scoreCount: number;
+	// GUIDs for the scores that produced the "best" values above
+	bestPointsGuid: string;
+	bestComboGuid: string;
+	bestComboBreaksGuid: string;
+	bestClearTypeGuid: string;
+	latestDateGuid: string;
 }
 
 function scoreSummaryOrder(orderBy: ScoreSummariesOrderBy, sort: 'asc' | 'desc'): SQL {
@@ -78,7 +83,7 @@ export interface ScoreSummaryFilters {
 
 function buildWhereConditions(filters: ScoreSummaryFilters): SQL[] {
 	const conditions: SQL[] = [];
-	if (filters.md5) conditions.push(eq(charts.md5, filters.md5));
+	if (filters.md5) conditions.push(eq(charts.md5, filters.md5.toUpperCase()));
 	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
 	return conditions;
 }
@@ -120,20 +125,26 @@ export async function queryScoreSummaries(
 	const havingConditions = buildHavingConditions(filters);
 	if (search) whereConditions.push(sql`${user.name} ILIKE ${'%' + search + '%'}`);
 
-	const rows = await db
+	// Build base query and apply limit/offset only when provided
+	const query = db
 		.select({
 			userId: user.id,
 			userName: user.name,
 			userImage: user.image,
 			md5: charts.md5,
-			bestPoints: sql<number>`MAX(${scores.points})`,
-			maxPoints: sql<number>`MAX(${scores.maxPoints})`,
-			bestCombo: sql<number>`MAX(${scores.maxCombo})`,
-			maxHits: sql<number>`MAX(${scores.maxHits})`,
-			bestComboBreaks: sql<number>`MIN(${poorPlusBad})`,
-			bestClearType: bestClearTypeExpr(),
+			bestPoints: sql<number>`(ARRAY_AGG(${scores.points} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			maxPoints: sql<number>`(ARRAY_AGG(${scores.maxPoints} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			bestCombo: sql<number>`(ARRAY_AGG(${scores.maxCombo} ORDER BY ${scores.maxCombo} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			maxHits: sql<number>`(ARRAY_AGG(${scores.maxHits} ORDER BY ${scores.maxCombo} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			bestComboBreaks: sql<number>`(ARRAY_AGG(${poorPlusBad} ORDER BY ${poorPlusBad} ASC, ${scores.unixTimestamp} DESC))[1]`,
+			bestClearType: sql<string>`(ARRAY_AGG(${scores.clearType} ORDER BY ${clearTypeCaseExpr()} DESC, ${scores.unixTimestamp} DESC))[1]`,
 			latestDate: sql<number>`MAX(${scores.unixTimestamp})`,
-			scoreCount: sql<number>`COUNT(${scores.guid})::int`
+			scoreCount: sql<number>`COUNT(${scores.guid})::int`,
+			latestDateGuid: sql<string>`(ARRAY_AGG(${scores.guid} ORDER BY ${scores.unixTimestamp} DESC))[1]`,
+			bestPointsGuid: sql<string>`(ARRAY_AGG(${scores.guid} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			bestComboGuid: sql<string>`(ARRAY_AGG(${scores.guid} ORDER BY ${scores.maxCombo} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			bestComboBreaksGuid: sql<string>`(ARRAY_AGG(${scores.guid} ORDER BY ${poorPlusBad} ASC, ${scores.unixTimestamp} DESC))[1]`,
+			bestClearTypeGuid: sql<string>`(ARRAY_AGG(${scores.guid} ORDER BY ${clearTypeCaseExpr()} DESC, ${scores.unixTimestamp} DESC))[1]`
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
@@ -141,14 +152,16 @@ export async function queryScoreSummaries(
 		.where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
 		.groupBy(user.id, user.name, user.image, charts.md5)
 		.having(havingConditions.length > 0 ? and(...havingConditions) : undefined)
-		.orderBy(scoreSummaryOrder(orderBy, sort))
-		.limit(limit ?? Number.MAX_SAFE_INTEGER)
-		.offset(offset ?? 0);
+		.orderBy(scoreSummaryOrder(orderBy, sort));
+
+	const limitedQuery = limit !== undefined ? query.limit(limit) : query;
+	const finalQuery = offset !== undefined ? limitedQuery.offset(offset) : limitedQuery;
+
+	const rows = await finalQuery;
 
 	return rows.map(({ userId, userName, userImage, ...rest }) => ({
-		...rest,
-		user: { id: userId, name: userName, image: userImage },
-		scoreCount: Number(rest.scoreCount)
+		user: { id: Number(userId), name: userName, image: userImage },
+		...rest
 	}));
 }
 

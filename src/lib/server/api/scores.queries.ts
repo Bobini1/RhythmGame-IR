@@ -82,7 +82,7 @@ export async function getScoreById(guid: string): Promise<ApiScore | null> {
 		})
 		.from(scores)
 		.innerJoin(charts, eq(scores.md5, charts.md5))
-		.where(eq(scores.guid, guid))
+		.where(eq(scores.guid, guid.toLowerCase()))
 		.limit(1);
 	return rows[0] ?? null;
 }
@@ -124,7 +124,7 @@ export interface ScoresCollectionFilters {
 
 function buildScoresConditions(filters: ScoresCollectionFilters): SQL[] {
 	const conditions: SQL[] = [];
-	if (filters.md5) conditions.push(eq(charts.md5, filters.md5));
+	if (filters.md5) conditions.push(eq(charts.md5, filters.md5.toUpperCase()));
 	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
 	if (filters.dateGte !== undefined)
 		conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);

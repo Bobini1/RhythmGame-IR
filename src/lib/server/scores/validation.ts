@@ -7,23 +7,24 @@ import { z } from 'zod';
 const sha256Schema = z
 	.string()
 	.length(64)
-	.regex(/^[0-9A-Fa-f]{64}$/, 'Must be a 64-character hex string');
+	.regex(/^[0-9A-Fa-f]{64}$/, 'Must be a 64-character hex string')
+	.toUpperCase();
 
 const md5Schema = z
 	.string()
 	.length(32)
-	.regex(/^[0-9A-Fa-f]{32}$/, 'Must be a 32-character hex string');
+	.regex(/^[0-9A-Fa-f]{32}$/, 'Must be a 32-character hex string')
+	.toUpperCase();
 
 // {8bb95133-d26f-4be2-99f2-642fde0fe215}
 export const guidSchema = z
 	.string()
 	.refine(
 		(val) =>
-			/^{([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})}$/.test(
-				val
-			),
+			/^{([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})}$/.test(val),
 		{ message: 'Invalid GUID format' }
-	);
+	)
+	.toLowerCase();
 
 // ---------------------------------------------------------------------------
 // BpmChange

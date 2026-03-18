@@ -1,4 +1,5 @@
 import { type SQL, sql, and } from 'drizzle-orm';
+import type { ScoreSummaryRow } from '$lib/server/api/score-summaries.queries';
 
 // ---------------------------------------------------------------------------
 // Pagination
@@ -225,12 +226,17 @@ export function scoreLinks(baseUrl: URL, id: string, md5: string, userId: number
 	};
 }
 
-export function scoreSummaryLinks(baseUrl: URL, md5: string, userId: number) {
+export function scoreSummaryLinks(baseUrl: URL, md5: string, userId: number, summary: ScoreSummaryRow) {
 	return {
 		self: new URL(`/api/score-summaries?md5=${md5}&user=${userId}`, baseUrl),
 		chart: new URL(`/api/charts/${md5}`, baseUrl),
 		user: new URL(`/api/users/${userId}`, baseUrl),
-		scores: new URL(`/api/scores?md5=${md5}&user=${userId}`, baseUrl)
+		scores: new URL(`/api/scores?md5=${md5}&user=${userId}`, baseUrl),
+		bestPointsScore: new URL(`/api/scores/${summary.bestPointsGuid}`, baseUrl),
+		bestClearTypeScore: new URL(`/api/scores/${summary.bestClearTypeGuid}`, baseUrl),
+		bestComboScore: new URL(`/api/scores/${summary.bestComboGuid}`, baseUrl),
+		bestComboBreaksScore: new URL(`/api/scores/${summary.bestComboBreaksGuid}`, baseUrl),
+		latestDateScore: new URL(`/api/scores/${summary.latestDateGuid}`, baseUrl)
 	};
 }
 

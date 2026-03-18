@@ -14,7 +14,7 @@ import {
 	pickFields
 } from '$lib/server/api/utils';
 import { scoreSubmissionPayloadSchema } from '$lib/server/scores/validation';
-import { submitScore } from '$lib/server/scores/service';
+import { submitScore } from '$lib/server/api/service';
 import { parseBigIntJson, bigIntJsonResponse } from '$lib/server/api/json-bigint';
 
 // ---------------------------------------------------------------------------
@@ -102,10 +102,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const { scoreId, md5 } = await submitScore(Number(locals.user.id), parsed.data);
-		return json({ id: scoreId, md5 }, { status: 201 });
+		await submitScore(Number(locals.user.id), parsed.data);
+		return json({ message: 'Score submitted successfully' }, { status: 201 });
 	} catch (err) {
-		if (err instanceof Error && (err as Error & { code?: string }).code === 'DUPLICATE_SCORE') {
+		if (err instanceof Error && (err as Error & { message?: string }).message === 'DUPLICATE_SCORE') {
 			return json({ error: 'Score already exists' }, { status: 409 });
 		}
 		console.error('[POST /api/scores]', err);

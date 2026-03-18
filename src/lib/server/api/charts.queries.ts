@@ -84,7 +84,7 @@ export async function getChartByMd5(md5: string): Promise<ApiChart | null> {
 		})
 		.from(charts)
 		.leftJoin(scores, eq(scores.md5, charts.md5))
-		.where(eq(charts.md5, md5))
+		.where(eq(charts.md5, md5.toUpperCase()))
 		.groupBy(charts.id)
 		.limit(1);
 	if (!rows[0]) return null;

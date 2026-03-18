@@ -13,7 +13,6 @@ import {
 	parseFields,
 	pickFields
 } from '$lib/server/api/utils';
-import type { ScoresCollectionFilters } from '$lib/server/api/scores.queries';
 
 const VALID_ORDER_BY = new Set<ScoreSummariesOrderBy>([
 	'player',
@@ -45,7 +44,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const baseUrl = new URL(url.protocol + '//' + url.host);
 		const data = rows.map((r) =>
-			pickFields({ ...r, _links: scoreSummaryLinks(baseUrl, r.md5, r.user.id) }, fields)
+			pickFields({ ...r, _links: scoreSummaryLinks(baseUrl, r.md5, r.user.id, r) }, fields)
 		);
 
 		return json(data, {

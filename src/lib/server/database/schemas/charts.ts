@@ -46,7 +46,6 @@ export const charts = pgTable('charts', {
 	 * [Normal, Scratch, LongNote, BssNote, Landmine, Invisible]
 	 */
 	histogramData: jsonb('histogram_data').$type<number[][]>().notNull().default([]),
-	/** Array of { bpm: number; position: number; time: number } */
 	bpmChanges: jsonb('bpm_changes')
 		.$type<BpmChange[]>()
 		.notNull()

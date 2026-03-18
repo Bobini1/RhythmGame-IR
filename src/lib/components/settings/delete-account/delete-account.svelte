@@ -12,7 +12,7 @@
 	async function deleteAccount() {
 		isLoading = true;
 		try {
-			const res = await fetch('/api/user', { method: 'DELETE' });
+			const res = await fetch('/api/users/me', { method: 'DELETE' });
 			if (!res.ok) {
 				toast.error($t('common.delete_account_error'));
 				return;

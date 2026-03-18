@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		pickFields(
 			{
 				...chart,
-				_links: chartLinks(baseUrl, md5)
+				_links: chartLinks(baseUrl, md5.toUpperCase())
 			},
 			fields
 		)
