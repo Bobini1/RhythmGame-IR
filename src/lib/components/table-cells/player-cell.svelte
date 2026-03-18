@@ -5,7 +5,7 @@
 
 	let { userId, name, image }: { userId: number; name: string; image: string | null } = $props();
 	const md5 = $derived(page.params.md5);
-	const href = $derived(langHref(`/charts/${md5}/player/${userId}/scores`));
+	const href = $derived(langHref(`/charts/${md5}/players/${userId}/scores`));
 </script>
 
 <a {href} class="flex items-center gap-2 hover:underline">
