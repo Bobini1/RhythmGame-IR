@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import Avatar from '$lib/components/avatar/avatar.svelte';

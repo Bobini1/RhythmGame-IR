@@ -3,7 +3,7 @@ import { getUserList, getUserListCount } from '$lib/server/scores/query';
 import type { UserListSortColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<UserListSortColumn>(['name', 'score_count']);
 
 export const load: PageServerLoad = async ({ url, setHeaders }) => {

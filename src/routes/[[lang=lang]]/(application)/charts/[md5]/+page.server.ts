@@ -8,7 +8,7 @@ import {
 import type { ChartSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
 	'player',
 	'score_pct',

@@ -9,7 +9,7 @@ import {
 import type { ChartUserSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
 	'score_pct', 'grade', 'combo', 'clear_type', 'date',
 	'poor', 'empty_poor', 'bad', 'good', 'great', 'perfect', 'mine_hit'
