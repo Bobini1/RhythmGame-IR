@@ -40,7 +40,7 @@ export const columns: ColumnDef<ScoreRow>[] = [
 	{
 		id: 'score_pct',
 		header: 'players.profile.score_table.score',
-		size: 90,
+		size: 80,
 		accessorFn: (row) => (row.maxPoints > 0 ? row.points / row.maxPoints : 0),
 		cell: ({ row }) => {
 			const { points, maxPoints } = row.original;

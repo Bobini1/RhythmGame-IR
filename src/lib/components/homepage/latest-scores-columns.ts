@@ -15,10 +15,11 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 		maxSize: 60,
 		size: 40,
 		accessorFn: (row) => row.playLevel,
-		cell: ({ row }) => renderComponent(PlayLevelCell, {
-			playLevel: row.original.playLevel,
-			difficulty: row.original.difficulty
-		}),
+		cell: ({ row }) =>
+			renderComponent(PlayLevelCell, {
+				playLevel: row.original.playLevel,
+				difficulty: row.original.difficulty
+			}),
 		enableSorting: false
 	},
 	{
@@ -39,7 +40,8 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
 		id: 'player',
 		header: 'homepage.latest_scores.player',
-		size: 150,
+		maxSize: 150,
+		size: 120,
 		accessorFn: (row) => row.userName,
 		cell: ({ row }) =>
 			renderComponent(LatestScorePlayerCell, {
@@ -52,7 +54,7 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
 		id: 'score_pct',
 		header: 'homepage.latest_scores.score',
-		size: 90,
+		size: 70,
 		accessorFn: (row) => (row.maxPoints > 0 ? row.points / row.maxPoints : 0),
 		cell: ({ row }) => {
 			const { points, maxPoints } = row.original;
@@ -92,7 +94,8 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
 		id: 'date',
 		header: 'homepage.latest_scores.date',
-		size: 110,
+		maxSize: 110,
+		size: 80,
 		accessorFn: (row) => row.unixTimestamp,
 		cell: ({ row }) =>
 			Intl.DateTimeFormat(locale.get()).format(new Date(row.original.unixTimestamp * 1000)),

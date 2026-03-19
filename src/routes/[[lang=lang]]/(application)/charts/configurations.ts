@@ -9,7 +9,7 @@ export const columns: ColumnDef<ChartListRow>[] = [
 		id: 'level',
 		header: 'charts.list.level',
 		maxSize: 60,
-		size: 40,
+		size: 30,
 		accessorFn: (row) => row.playLevel,
 		cell: ({ row }) =>
 			renderComponent(PlayLevelCell, {
@@ -35,7 +35,8 @@ export const columns: ColumnDef<ChartListRow>[] = [
 	{
 		id: 'artist',
 		header: 'charts.list.artist',
-		size: 200,
+		maxSize: 200,
+		size: 240,
 		accessorFn: (row) => row.artist,
 		cell: ({ row }) => {
 			const a = row.original.artist;
@@ -47,7 +48,8 @@ export const columns: ColumnDef<ChartListRow>[] = [
 	{
 		id: 'play_count',
 		header: 'charts.list.play_count',
-		size: 100,
+		maxSize: 100,
+		size: 50,
 		accessorFn: (row) => row.playCount,
 		cell: ({ row }) => row.original.playCount,
 		enableSorting: true

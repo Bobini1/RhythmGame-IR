@@ -18,7 +18,7 @@ export const columns: ColumnDef<ChartUserScoreRow>[] = [
 	{
 		id: 'score_pct',
 		header: 'charts.score_table.score',
-		size: 90,
+		size: 70,
 		accessorFn: (row) => (row.maxPoints > 0 ? row.points / row.maxPoints : 0),
 		cell: ({ row }) => {
 			const { points, maxPoints } = row.original;
