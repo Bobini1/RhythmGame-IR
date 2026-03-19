@@ -359,14 +359,15 @@
 					min="1"
 					max={table.getPageCount()}
 					onchange={(v) => {
-						const val = v.target?.value;
+						if (!(v.target instanceof HTMLInputElement)) return;
+						const val = Number(v.target?.value);
 						const pageCount = table.getPageCount();
 						if (!val) return;
 						if (val < 1) {
-							v.target.value = 1;
+							v.target.value = (1).toString();
 						}
 						if (val > pageCount) {
-							v.target.value = pageCount;
+							v.target.value = pageCount.toString();
 						}
 						table.setPageIndex(Number(v.target.value) - 1);
 					}}
