@@ -75,12 +75,16 @@ export interface ScoreSummaryFilters {
 	comboLte?: number;
 	missCountGte?: number;
 	missCountLte?: number;
+	dateGte?: number;
+	dateLte?: number;
 }
 
 function buildWhereConditions(filters: ScoreSummaryFilters): SQL[] {
 	const conditions: SQL[] = [];
 	if (filters.md5) conditions.push(eq(charts.md5, filters.md5.toUpperCase()));
 	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
+	if (filters.dateGte !== undefined) conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
+	if (filters.dateLte !== undefined) conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
 	return conditions;
 }
 
