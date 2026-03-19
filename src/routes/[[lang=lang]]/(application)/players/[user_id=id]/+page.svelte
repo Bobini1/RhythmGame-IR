@@ -70,7 +70,7 @@
 	}
 </script>
 
-<BasePage title="players.profile.title" description="players.profile.description">
+<BasePage title={$t("players.profile.title", { name: profile.name })} description={$t("players.profile.description", { name: profile.name })}>
 	<div class="flex flex-col gap-8">
 		<!-- Profile header -->
 		<div class="flex flex-col items-center gap-4 sm:flex-row sm:items-start">

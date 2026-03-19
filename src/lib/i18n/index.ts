@@ -15,7 +15,6 @@ interface Params {
 	player?: string;
 }
 
-/** @type {import('sveltekit-i18n').Config} */
 const config: Config<Params> = {
 	parser: parser(),
 	loaders: [

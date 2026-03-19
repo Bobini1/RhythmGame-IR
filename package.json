@@ -79,7 +79,6 @@
 		"postgres": "^3.4.8",
 		"svelte-meta-tags": "^4.5.0",
 		"svelte-turnstile": "^0.11.0",
-		"sveltekit-i18n": "^2.4.2",
 		"zod": "^4.3.6"
 	}
 }
