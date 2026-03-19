@@ -5,12 +5,12 @@
 	import AppSidebar from './sidebar/sidebar.svelte';
 	import ScrollToTop from '../scroll-to-top/scroll-to-top.svelte';
 	import { Elements } from '$lib/enums/elements';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 
 	// Check if current page is homepage (with or without language prefix)
-	const isHomepage = $derived($page.url.pathname === '/' || $page.url.pathname.match(/^\/[a-z]{2}-[A-Z]{2}\/?$/));
+	const isHomepage = $derived(page.url.pathname === '/' || page.url.pathname.match(/^\/[a-z]{2}-[A-Z]{2}\/?$/));
 
 	const scrollableClasses = $derived(
 		isHomepage
