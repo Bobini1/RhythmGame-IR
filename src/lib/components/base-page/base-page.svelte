@@ -28,5 +28,6 @@
 		locale.subscribe(setPageMetaTags);
 	});
 </script>
-
+<div class="w-full max-w-5xl mx-auto min-w-0">
 {@render children?.()}
+</div>

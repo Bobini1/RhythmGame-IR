@@ -14,9 +14,9 @@
 		<Header />
 		<div
 			id={Elements.ScrollableContent}
-			class="relative flex grow flex-col overflow-x-hidden overflow-y-auto"
+			class="relative flex grow flex-col overflow-y-auto"
 		>
-			<main class="flex flex-auto grow flex-col items-center gap-8 p-4">
+			<main class="flex flex-auto grow flex-col gap-8 p-4 min-w-0">
 				{@render children?.()}
 			</main>
 			<Footer />
