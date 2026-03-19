@@ -74,7 +74,7 @@
 </script>
 
 <div class="container mx-auto max-w-6xl px-4 py-8">
-	<section class="flex flex-col items-center justify-center w-full" style="min-height: calc(100vh - var(--app-header-height, 56px));">
+	<section class="flex flex-col items-center justify-center w-full" style="min-height: calc(100vh - 56px);">
 		<div class="mb-8 text-center">
 			<div class="mb-6">
 				<h1
