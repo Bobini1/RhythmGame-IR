@@ -97,7 +97,7 @@
 						href="https://github.com/Bobini1/RhythmGame/releases/latest"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 group flex items-center justify-center gap-3 rounded-xl px-10 py-5 text-xl font-bold shadow-lg transition-all"
+						class="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 group flex items-center justify-center gap-3 rounded-xl px-10 py-5 text-xl font-bold shadow-lg transition-all text-center"
 					>
 						<Download class="h-6 w-6 transition-transform group-hover:translate-y-0.5" />
 						{$t('homepage.download.download_latest')}
