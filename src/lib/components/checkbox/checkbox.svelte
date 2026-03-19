@@ -4,9 +4,8 @@
 
 	let {
 		checked = false,
-		controlledChecked = true,
 		...restProps
 	}: ComponentProps<typeof Checkbox> = $props();
 </script>
 
-<Checkbox {checked} {controlledChecked} {...restProps} />
+<Checkbox {checked} {...restProps} />
