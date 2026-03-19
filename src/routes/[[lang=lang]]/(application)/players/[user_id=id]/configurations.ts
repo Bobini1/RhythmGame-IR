@@ -11,7 +11,8 @@ export const columns: ColumnDef<ScoreRow>[] = [
 	{
 		id: 'level',
 		header: 'players.profile.score_table.level',
-		size: 60,
+		maxSize: 60,
+		size: 40,
 		accessorFn: (row) => row.playLevel,
 		cell: ({ row }) =>
 			renderComponent(PlayLevelCell, {
@@ -23,7 +24,8 @@ export const columns: ColumnDef<ScoreRow>[] = [
 	{
 		id: 'title',
 		header: 'players.profile.score_table.title',
-		size: 300,
+		maxSize: 300,
+		size: 240,
 		accessorFn: (row) =>
 			row.chartSubtitle ? `${row.chartTitle} ${row.chartSubtitle}` : row.chartTitle,
 		cell: ({ row }) =>

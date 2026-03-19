@@ -12,7 +12,8 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
 		id: 'level',
 		header: 'homepage.latest_scores.level',
-		size: 60,
+		maxSize: 60,
+		size: 40,
 		accessorFn: (row) => row.playLevel,
 		cell: ({ row }) => renderComponent(PlayLevelCell, {
 			playLevel: row.original.playLevel,
@@ -23,7 +24,8 @@ export const latestScoresColumns: ColumnDef<LatestScoreRow>[] = [
 	{
 		id: 'title',
 		header: 'homepage.latest_scores.title',
-		size: 260,
+		maxSize: 260,
+		size: 200,
 		accessorFn: (row) =>
 			row.chartSubtitle ? `${row.chartTitle} ${row.chartSubtitle}` : row.chartTitle,
 		cell: ({ row }) =>

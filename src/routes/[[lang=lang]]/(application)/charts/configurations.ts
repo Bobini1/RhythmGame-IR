@@ -8,7 +8,8 @@ export const columns: ColumnDef<ChartListRow>[] = [
 	{
 		id: 'level',
 		header: 'charts.list.level',
-		size: 60,
+		maxSize: 60,
+		size: 40,
 		accessorFn: (row) => row.playLevel,
 		cell: ({ row }) =>
 			renderComponent(PlayLevelCell, {
@@ -20,7 +21,8 @@ export const columns: ColumnDef<ChartListRow>[] = [
 	{
 		id: 'title',
 		header: 'charts.list.title_col',
-		size: 300,
+		maxSize: 300,
+		size: 240,
 		accessorFn: (row) => row.title,
 		cell: ({ row }) =>
 			renderComponent(ChartLinkCell, {
