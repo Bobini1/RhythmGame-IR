@@ -14,7 +14,13 @@ import {
 	pickFields
 } from '$lib/server/api/utils';
 
-const VALID_ORDER_BY = new Set<ChartsOrderBy>(['title', 'play_count', 'play_level', 'score_count', 'player_count']);
+const VALID_ORDER_BY = new Set<ChartsOrderBy>([
+	'title',
+	'play_count',
+	'play_level',
+	'score_count',
+	'player_count'
+]);
 
 export const GET: RequestHandler = async ({ url }) => {
 	const { limit, offset } = parsePagination(url);
@@ -33,18 +39,18 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const playLevelGte = url.searchParams.get('play_level_gte');
 	const playLevelLte = url.searchParams.get('play_level_lte');
-	if (playLevelGte !== null && !isNaN(Number(playLevelGte))) filters.playLevelGte = Number(playLevelGte);
-	if (playLevelLte !== null && !isNaN(Number(playLevelLte))) filters.playLevelLte = Number(playLevelLte);
+	if (playLevelGte !== null && !isNaN(Number(playLevelGte)))
+		filters.playLevelGte = Number(playLevelGte);
+	if (playLevelLte !== null && !isNaN(Number(playLevelLte)))
+		filters.playLevelLte = Number(playLevelLte);
 
 	try {
 		const [rows, total] = await Promise.all([
 			queryCharts(filters, limit, offset, orderBy, sort),
 			queryChartsCount(filters)
 		]);
-
-		const data = rows.map((r) =>
-			pickFields({ ...r, _links: chartLinks(r.md5) }, fields)
-		);
+		const baseUrl = new URL(url.protocol + '//' + url.host);
+		const data = rows.map((r) => pickFields({ ...r, _links: chartLinks(baseUrl, r.md5) }, fields));
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)
@@ -54,4 +60,3 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };
-
