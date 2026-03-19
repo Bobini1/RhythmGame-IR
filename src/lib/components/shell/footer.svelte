@@ -47,7 +47,7 @@
 				<div
 					class="text-muted-foreground flex flex-col items-center space-y-2 text-sm md:flex-row md:space-y-0 md:space-x-6"
 				>
-					<p>{$t('common.copyright', { year: new Date().getFullYear().toString() })}</p>
+					<p>{$t('common.copyright', { year: new Date() })}</p>
 				</div>
 				<div class="flex flex-col items-center space-y-4 md:flex-row md:space-y-0 md:space-x-4">
 					<div class="flex items-center">
