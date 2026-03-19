@@ -184,11 +184,11 @@ export const scoreSubmissionSchema = z.object({
 	length: z.int().min(0),
 	sha256: sha256Schema,
 	md5: md5Schema,
-	randomSeed: z.preprocess((v) => toBigIntPreprocess(v), z.bigint().nonnegative()),
+	randomSeed: z.preprocess((v) => toBigIntPreprocess(v), z.bigint()),
 	noteOrderAlgorithm: z.int().min(0),
 	noteOrderAlgorithmP2: z.int().min(0),
 	dpOptions: z.int().min(0),
-	gameVersion: z.int().min(0),
+	gameVersion: z.int(),
 	replayData: z.array(hitEventSchema),
 	gaugeHistory: z.array(gaugeGroupSchema)
 });
