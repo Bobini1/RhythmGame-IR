@@ -6,10 +6,10 @@
 		"score_count": "Scores"
 	},
 	"profile": {
-		"title": "{{name}}'s profile",
-		"description": "View {{name}}'s scores on the internet ranking",
+		"title": "{name}'s profile",
+		"description": "View {name}'s scores on the internet ranking",
 		"scores_title": "Scores",
-		"search_placeholder": "Search by title…",
+		"search_placeholder": "Search by title/artist…",
 		"score_table": {
 			"level": "Lv.",
 			"title": "Title",

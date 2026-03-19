@@ -55,7 +55,7 @@
 	"user_scores": {
 		"title": "Wyniki",
 		"description": "Wszystkie wyniki gracza na tym utworze",
-		"heading": "{{player}} na {{chart}}"
+		"heading": "{player} na {chart}"
 	}
 }
 
