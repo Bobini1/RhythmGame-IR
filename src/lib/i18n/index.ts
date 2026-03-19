@@ -6,7 +6,7 @@ import { goto } from '$app/navigation';
 import parser, { type Config } from '@sveltekit-i18n/parser-icu';
 
 interface Params {
-	year?: string;
+	year?: Date;
 	number?: number;
 	user?: string;
 	author?: string;

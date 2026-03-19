@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { t } from '$lib/i18n';
 	import PlayLevelCell from '$lib/components/table-cells/play-level-cell.svelte';
-	import type { ChartScoreRow, ChartData } from '$lib/server/scores/query';
+	import type { ChartScoreRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
@@ -14,6 +13,7 @@
 
 	let { data } = $props();
 	let { chart, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
+	// svelte-ignore state_referenced_locally
 	let search = $state<string>(data.search ?? '');
 
 	let debounceTimer: ReturnType<typeof setTimeout>;

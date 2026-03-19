@@ -43,6 +43,7 @@
 		});
 	}
 
+	// svelte-ignore state_referenced_locally
 	let searchInput = $state<string>(initialSearch ?? '');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 	function onSearchInput() {
