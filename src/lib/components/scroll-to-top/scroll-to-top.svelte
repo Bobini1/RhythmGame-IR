@@ -10,7 +10,20 @@
 	let showButton = $state(false);
 	let scrollContainer: Element | null = null;
 
-	afterNavigate(() => {
+	afterNavigate((nav) => {
+		// nav.from and nav.to contain URL objects. If only the search params changed
+		// (e.g. pagination) the pathname will be the same — don't auto-scroll in that case.
+		try {
+			const fromPath = nav?.from?.url?.pathname;
+			const toPath = nav?.to?.url?.pathname;
+			if (fromPath && toPath && fromPath === toPath) {
+				// only query/search changed — preserve scroll
+				return;
+			}
+		} catch {
+			// If structure unexpected, fallback to default behavior
+		}
+
 		scrollToTop();
 	});
 
