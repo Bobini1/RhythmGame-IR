@@ -143,10 +143,6 @@
 					</div>
 				{/if}
 				<div class="flex flex-col">
-					<dt class="text-muted-foreground">{$t('charts.info.sha256')}</dt>
-					<dd class="font-mono text-xs break-all">{chart.sha256}</dd>
-				</div>
-				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.md5')}</dt>
 					<dd class="font-mono text-xs break-all">{chart.md5}</dd>
 				</div>
