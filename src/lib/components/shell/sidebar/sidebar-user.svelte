@@ -1,7 +1,6 @@
 <script lang="ts">
 	import authClient from '$lib/client/auth/client';
 	import { LogIn, LogOut, Signature, User } from '@lucide/svelte';
-	import { goto } from '$app/navigation';
 	import Menu from '$lib/components/menu/menu.svelte';
 	import type { MenuActionItem, MenuConfiguration } from '$lib/models/menu';
 	import UserMenuTrigger from './user-menu-trigger.svelte';

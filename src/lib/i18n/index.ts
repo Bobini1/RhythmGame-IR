@@ -1,8 +1,9 @@
-import i18n, { type Config } from 'sveltekit-i18n';
+import i18n from '@sveltekit-i18n/base';
 import { Locale } from '../../routes/api';
 import { AvailableLocales } from '$lib/enums/available-locales';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
+import parser, { type Config } from '@sveltekit-i18n/parser-icu';
 
 interface Params {
 	year?: string;
@@ -16,6 +17,7 @@ interface Params {
 
 /** @type {import('sveltekit-i18n').Config} */
 const config: Config<Params> = {
+	parser: parser(),
 	loaders: [
 		{
 			locale: AvailableLocales.Polish,

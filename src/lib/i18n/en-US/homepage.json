@@ -108,6 +108,15 @@
 		"description": "Visit the SvelteKit documentation to learn more and start your journey.",
 		"button": "SvelteKit Documentation"
 	},
+	"download": {
+		"title": "Download",
+		"get_latest": "Get the Latest Release",
+		"available_for_windows_linux": "Available for Windows and Linux",
+		"download_latest": "Download Latest Release",
+		"alternative_methods": "Alternative Installation Methods",
+		"alternative_methods_description": "For advanced users and package managers.",
+		"aur": "AUR Package"
+	},
 	"latest_scores": {
 		"latest_scores": "Latest Scores",
 		"title": "Title",

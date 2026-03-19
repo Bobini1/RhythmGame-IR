@@ -20,7 +20,7 @@
 
 	const mainClasses = $derived(
 		isHomepage
-			? "flex flex-auto grow flex-col items-center gap-8 p-4 bg-background/85 dark:bg-background/92 backdrop-blur-xs"
+			? "flex flex-auto grow flex-col items-center gap-8 p-4 bg-background/92 dark:bg-background/92 backdrop-blur-xs"
 			: "flex flex-auto grow flex-col items-center gap-8 p-4"
 	);
 </script>

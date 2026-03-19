@@ -5,7 +5,7 @@
 	import { langGoto } from '$lib/utils';
 
 	let { data } = $props();
-	let { latestScores, total, page: currentPage, pageSize } = $derived(data);
+	let { latestScores, total, page: currentPage, pageSize, latestRelease } = $derived(data);
 
 	function updateUrl(params: { page?: number; limit?: number }) {
 		const url = new URL(page.url);
@@ -21,6 +21,7 @@
 		{total}
 		{currentPage}
 		{pageSize}
+		{latestRelease}
 		pageIndexChanged={(i) => updateUrl({ page: i, limit: pageSize })}
 		pageSizeChanged={(s) => updateUrl({ page: 0, limit: s })}
 	/>

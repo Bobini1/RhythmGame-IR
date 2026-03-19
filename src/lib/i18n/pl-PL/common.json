@@ -8,10 +8,10 @@
 		"description": "Konfigurowalny BMS player na Windowsa i Linuxa.",
 		"support-email": "tomasz.kalisiak@rhythmgame.eu"
 	},
-	"copyright": "© {{year}} Tomasz Kalisiak.",
+	"copyright": "© {year, date, ::yyyy} Tomasz Kalisiak.",
 	"privacy_policy": "Polityka prywatności",
 	"terms_of_service": "Warunki korzystania z usługi",
-	"error_number": "Błąd ({{number}})",
+	"error_number": "Błąd ({number, number})",
 	"manage_cookies": "Zarządzaj plikami cookie",
 	"cookies_policy": "Polityka plików cookie",
 	"status_code_error": {
@@ -138,5 +138,13 @@
 	"name": "Imię",
 	"sign_out": "Wyloguj się",
 	"sign_in_to_access_features": "Zaloguj się, aby uzyskać dostęp do funkcji gracza",
-	"native_apps_use_bearer_tokens": "Aplikacje natywne powinny używać uwierzytelniania za pomocą tokenów bearer"
+	"native_apps_use_bearer_tokens": "Aplikacje natywne powinny używać uwierzytelniania za pomocą tokenów bearer",
+	"time": {
+		"today": "dzisiaj",
+		"yesterday": "wczoraj",
+		"days_ago": "{number, plural, one {# dzień temu} few {# dni temu} many {# dni temu} other {# dni temu}}",
+		"weeks_ago": "{number, plural, one {# tydzień temu} few {# tygodnie temu} many {# tygodni temu} other {# tygodni temu}}",
+		"months_ago": "{number, plural, one {# miesiąc temu} few {# miesiące temu} many {# miesięcy temu} other {# miesięcy temu}}",
+		"years_ago": "{number, plural, one {# rok temu} few {# lata temu} many {# lat temu} other {# lat temu}}"
+	}
 }

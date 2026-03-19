@@ -8,10 +8,10 @@
 		"description": "A customizable BMS player for Windows and Linux.",
 		"support-email": "tomasz.kalisiak@rhythmgame.eu"
 	},
-	"copyright": "© {{year}} Tomasz Kalisiak.",
+	"copyright": "© {year, date, ::yyyy} Tomasz Kalisiak.",
 	"privacy_policy": "Privacy Policy",
 	"terms_of_service": "Terms of Service",
-	"error_number": "Error ({{number}})",
+	"error_number": "Error ({number, number})",
 	"manage_cookies": "Manage cookies",
 	"cookies_policy": "Cookies policy",
 	"status_code_error": {
@@ -138,5 +138,13 @@
 	"name": "Name",
 	"sign_out": "Sign out",
 	"sign_in_to_access_features": "Sign in to access player features",
-	"native_apps_use_bearer_tokens": "Native apps should use bearer token authentication"
+	"native_apps_use_bearer_tokens": "Native apps should use bearer token authentication",
+	"time": {
+		"today": "today",
+		"yesterday": "yesterday",
+		"days_ago": "{number, plural, one {# day ago} other {# days ago}}",
+		"weeks_ago": "{number, plural, one {# week ago} other {# weeks ago}}",
+		"months_ago": "{number, plural, one {# month ago} other {# months ago}}",
+		"years_ago": "{number, plural, one {# year ago} other {# years ago}}"
+	}
 }
