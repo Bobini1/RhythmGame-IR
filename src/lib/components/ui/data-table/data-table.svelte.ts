@@ -3,7 +3,6 @@ import {
 	type TableOptions,
 	type TableOptionsResolved,
 	type TableState,
-	type Updater,
 	createTable,
 } from "@tanstack/table-core";
 
@@ -50,14 +49,15 @@ export function createSvelteTable<TData extends RowData>(options: TableOptions<T
 	);
 
 	const table = createTable(resolvedOptions);
-	let state = $state<TableState>(table.initialState);
+	let state = $state<Partial<TableState>>(table.initialState);
 
 	function updateOptions() {
-		table.setOptions(() => {
-			return mergeObjects(resolvedOptions, options, {
+		table.setOptions((prev) => {
+			return mergeObjects(prev, options, {
 				state: mergeObjects(state, options.state || {}),
 
-				onStateChange: (updater: Updater<TableState>) => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				onStateChange: (updater: any) => {
 					if (updater instanceof Function) state = updater(state);
 					else state = mergeObjects(state, updater);
 
@@ -114,7 +114,6 @@ export function mergeObjects<Sources extends readonly MaybeThunk<any>[]>(
 		},
 
 		ownKeys(): (string | symbol)[] {
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const all = new Set<string | symbol>();
 			for (const s of sources) {
 				const obj = resolve(s);
