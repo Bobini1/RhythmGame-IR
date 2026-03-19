@@ -74,79 +74,81 @@
 </script>
 
 <div class="container mx-auto max-w-6xl px-4 py-8">
-	<div class="mb-16 text-center">
-		<div class="mb-6">
-			<h1
-				class="from-primary to-primary/60 inline-block bg-linear-to-r bg-clip-text pb-3 -mb-3 text-4xl font-bold text-transparent md:text-6xl"
-			>
-				{$t(config.hero.title)}
-			</h1>
-		</div>
-		<p class="text-muted-foreground mx-auto mb-8 max-w-3xl text-xl md:text-2xl">
-			{$t(config.hero.description)}
-		</p>
-	</div>
-
-	<!-- Download Section -->
-	<div class="mb-16">
-		<div class="mx-auto max-w-4xl space-y-8">
-			<!-- Main Download Button -->
-			<div class="flex flex-col items-center gap-3">
-				<a
-					href="https://github.com/Bobini1/RhythmGame/releases/latest"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 group flex items-center justify-center gap-3 rounded-xl px-10 py-5 text-xl font-bold shadow-lg transition-all"
+	<section class="flex flex-col items-center justify-center w-full" style="min-height: calc(100vh - var(--app-header-height, 56px));">
+		<div class="mb-8 text-center">
+			<div class="mb-6">
+				<h1
+					class="from-primary to-primary/60 inline-block bg-linear-to-r bg-clip-text pb-3 -mb-3 text-4xl font-bold text-transparent md:text-6xl"
 				>
-					<Download class="h-6 w-6 transition-transform group-hover:translate-y-0.5" />
-					{$t('homepage.download.download_latest')}
-				</a>
-				{#if latestRelease}
-					<div class="text-muted-foreground flex items-center gap-2 text-sm">
-						<span class="font-medium">{latestRelease.tag_name}</span>
-						<span>•</span>
-						<span>{formatDate(latestRelease.published_at)}</span>
-					</div>
-				{/if}
-				<p class="text-muted-foreground text-xs">
-					{$t('homepage.download.available_for_windows_linux')}
-				</p>
+					{$t(config.hero.title)}
+				</h1>
 			</div>
-
-			<!-- Alternative Installation Methods -->
-			<Card>
-				<CardHeader>
-					<CardTitle>{$t('homepage.download.alternative_methods')}</CardTitle>
-					<CardDescription>{$t('homepage.download.alternative_methods_description')}</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div class="space-y-3">
-						<!-- Nix Flake -->
-						<div class="border-border flex items-center justify-between rounded-lg border p-4">
-							<div class="flex items-center gap-3">
-								<Icon icon="mdi:nix" class="text-primary h-7 w-7" />
-								<div>
-									<div class="font-medium">Nix Flake</div>
-									<code class="text-muted-foreground text-sm">nix run github:Bobini1/RhythmGame</code>
-								</div>
-							</div>
-						</div>
-
-						<!-- AUR Package -->
-						<div class="border-border flex items-center justify-between rounded-lg border p-4">
-							<div class="flex items-center gap-3">
-								<Icon icon="mdi:arch"  class="text-primary h-7 w-7" />
-								<div>
-									<div class="font-medium">{$t('homepage.download.aur')}</div>
-									<code class="text-muted-foreground text-sm">paru -S rhythm-game-git</code>
-								</div>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+			<p class="text-muted-foreground mx-auto mb-6 max-w-3xl text-xl md:text-2xl">
+				{$t(config.hero.description)}
+			</p>
 		</div>
-	</div>
+
+		<!-- Download Section -->
+		<div class="w-full">
+			<div class="mx-auto max-w-4xl space-y-8">
+				<!-- Main Download Button -->
+				<div class="flex flex-col items-center gap-3">
+					<a
+						href="https://github.com/Bobini1/RhythmGame/releases/latest"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 group flex items-center justify-center gap-3 rounded-xl px-10 py-5 text-xl font-bold shadow-lg transition-all"
+					>
+						<Download class="h-6 w-6 transition-transform group-hover:translate-y-0.5" />
+						{$t('homepage.download.download_latest')}
+					</a>
+					{#if latestRelease}
+						<div class="text-muted-foreground flex items-center gap-2 text-sm">
+							<span class="font-medium">{latestRelease.tag_name}</span>
+							<span>•</span>
+							<span>{formatDate(latestRelease.published_at)}</span>
+						</div>
+					{/if}
+					<p class="text-muted-foreground text-xs">
+						{$t('homepage.download.available_for_windows_linux')}
+					</p>
+				</div>
+
+				<!-- Alternative Installation Methods -->
+				<Card>
+					<CardHeader>
+						<CardTitle>{$t('homepage.download.alternative_methods')}</CardTitle>
+						<CardDescription>{$t('homepage.download.alternative_methods_description')}</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div class="space-y-3">
+							<!-- Nix Flake -->
+							<div class="border-border flex items-center justify-between rounded-lg border p-4">
+								<div class="flex items-center gap-3">
+									<Icon icon="mdi:nix" class="text-primary h-7 w-7" />
+									<div>
+										<div class="font-medium">Nix Flake</div>
+										<code class="text-muted-foreground text-sm">nix run github:Bobini1/RhythmGame</code>
+									</div>
+								</div>
+							</div>
+
+							<!-- AUR Package -->
+							<div class="border-border flex items-center justify-between rounded-lg border p-4">
+								<div class="flex items-center gap-3">
+									<Icon icon="mdi:arch"  class="text-primary h-7 w-7" />
+									<div>
+										<div class="font-medium">{$t('homepage.download.aur')}</div>
+										<code class="text-muted-foreground text-sm">paru -S rhythm-game-git</code>
+									</div>
+								</div>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		</div>
+	</section>
 
 	<!-- Latest scores -->
 	{#if latestScores.length > 0 || total > 0}
