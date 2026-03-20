@@ -135,7 +135,6 @@
 	"delete_account_error": "Failed to delete account. Please try again.",
 	"player_settings": "Player Settings",
 	"signed_in_as": "Signed in as {user}",
-	"name": "Name",
 	"sign_out": "Sign out",
 	"sign_in_to_access_features": "Sign in to access player features",
 	"native_apps_use_bearer_tokens": "Native apps should use bearer token authentication",
@@ -146,5 +145,17 @@
 		"weeks_ago": "{number, plural, one {# week ago} other {# weeks ago}}",
 		"months_ago": "{number, plural, one {# month ago} other {# months ago}}",
 		"years_ago": "{number, plural, one {# year ago} other {# years ago}}"
-	}
+	},
+	"avatar_upload_help": "Upload a profile picture",
+	"profile_picture": "Profile picture",
+	"invalid_image": "Selected file is not an image",
+	"file_too_large": "File is too large (max 5 MB)",
+	"not_authenticated": "You must be signed in",
+	"upload_error": "Upload failed. Please try again.",
+	"update_profile_error": "Failed to update profile image",
+	"upload_success": "Profile picture uploaded",
+	"choose_file": "Choose file",
+	"uploading": "Uploading",
+	"upload": "Upload",
+	"select_file": "Select a file"
 }

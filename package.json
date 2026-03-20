@@ -67,6 +67,8 @@
 		"vitest-browser-svelte": "^0.1.0"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.437.0",
+		"@aws-sdk/s3-request-presigner": "^3.437.0",
 		"@dicebear/collection": "^9.4.0",
 		"@dicebear/core": "^9.4.0",
 		"@iconify/svelte": "^5.2.1",
