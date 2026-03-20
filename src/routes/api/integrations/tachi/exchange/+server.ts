@@ -15,8 +15,8 @@ export const POST: RequestHandler = async (event) => {
     const { code } = body as { code?: string };
     if (!code) return json({ error: 'Missing code' }, { status: 400 });
 
-		const base = env.BOKUTACHI_BASE_URL;
-		const tokenRes = await fetch(`${base}/api/v1/oauth/token`, {
+		const base = env.BOKUTACHI_API;
+		const tokenRes = await fetch(`${base}/oauth/token`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
