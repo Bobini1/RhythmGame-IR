@@ -2,6 +2,7 @@
   import Avatar from '$lib/components/avatar/avatar.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Camera, X } from '@lucide/svelte';
+  import * as Card from '$lib/components/ui/card';
   import authClient from '$lib/client/auth/client';
   import { toast } from 'svelte-sonner';
   import { t } from '$lib/i18n';
@@ -126,9 +127,20 @@
   }
 </script>
 
-<div class="rounded-lg border p-4">
-  <div class="grid grid-cols-[auto_1fr] gap-4 items-start">
-    <div class="relative">
+<Card.Root class="w-full">
+  <Card.Header>
+    <Card.Title>
+      <div class="flex items-center gap-2">
+        <Camera size="18" />
+        <span>{$t('common.profile_picture')}</span>
+      </div>
+    </Card.Title>
+    <Card.Description>{$t('common.avatar_upload_help')}</Card.Description>
+  </Card.Header>
+
+  <div class="px-4 pb-4">
+    <div class="grid grid-cols-[auto_1fr] gap-4 items-start">
+      <div class="relative">
       <!-- Avatar: show preview if selected, otherwise current user image -->
       <Avatar
         styleClass="h-20 w-20 rounded-full overflow-hidden"
@@ -158,12 +170,6 @@
     </div>
 
     <div class="flex flex-col">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium">{$t('common.profile_picture')}</div>
-          <div class="text-sm text-muted-foreground">{$t('common.avatar_upload_help')}</div>
-        </div>
-      </div>
 
       {#if file}
         <div class="mt-4">
@@ -199,6 +205,7 @@
     </div>
   </div>
 </div>
+</Card.Root>
 
 
 

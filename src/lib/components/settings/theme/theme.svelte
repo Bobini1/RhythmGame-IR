@@ -27,7 +27,7 @@
 	</Card.Header>
 	<div class="px-4 pb-4">
 		<Select.Root type="single" onValueChange={onChangeTheme}>
-			<Select.Trigger>{$t(currentTheme!.label)}</Select.Trigger>
+			<Select.Trigger>{$t(currentTheme.label)}</Select.Trigger>
 			<Select.Content>
 				{#each themes as option (option.value)}
 					<Select.Item value={option.value}>{$t(option.label)}</Select.Item>

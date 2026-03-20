@@ -7,6 +7,7 @@
 	import { LoaderCircle } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { langHref } from '$lib/utils';
+	import * as Card from '$lib/components/ui/card';
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -35,13 +36,17 @@
 	}
 </script>
 
-<div class="rounded-lg border p-4 flex flex-col gap-3">
-	<div>
-		<h3 class="font-semibold">{$t('common.change_password')}</h3>
-		<p class="text-muted-foreground text-sm mt-1">{$t('common.change_password_description')}</p>
-	</div>
+<Card.Root class="w-full">
+  <Card.Header>
+	<Card.Title>
+	  <h3 class="font-semibold">{$t('common.change_password')}</h3>
+	</Card.Title>
+	<Card.Description>{$t('common.change_password_description')}</Card.Description>
+  </Card.Header>
+
+  <div class="px-4 pb-4">
 	{#if open}
-		<form onsubmit={submit} class="flex flex-col gap-3">
+	  <form onsubmit={submit} class="flex flex-col gap-3">
 			<div class="space-y-1">
 				<Label for="current-password">{$t('common.current_password')}</Label>
 				<Input
@@ -89,13 +94,14 @@
 			<p class="text-muted-foreground text-sm">
 				<a href={langHref('/forgot-password')} class="underline underline-offset-4">{$t('common.request_reset_link')}</a>
 			</p>
-		</form>
-	{:else}
-		<div>
-			<Button variant="outline" size="sm" onclick={() => (open = true)}>
-				{$t('common.change_password')}
-			</Button>
-		</div>
-	{/if}
-</div>
+			</form>
+		{:else}
+			<div>
+				<Button variant="outline" size="sm" onclick={() => (open = true)}>
+					{$t('common.change_password')}
+				</Button>
+			</div>
+		{/if}
+  </div>
+</Card.Root>
 

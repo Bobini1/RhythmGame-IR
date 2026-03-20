@@ -1,86 +1,80 @@
 <script lang="ts">
-	interface Props {
-		id?: number;
-		user?: string;
-		onDisconnect: () => void;
-		onConnect: () => void;
-		manageHref: string;
-	}
+import CardRoot from '$lib/components/ui/card/card.svelte';
+import CardHeader from '$lib/components/ui/card/card-header.svelte';
+import CardTitle from '$lib/components/ui/card/card-title.svelte';
+import CardDescription from '$lib/components/ui/card/card-description.svelte';
 
-	let {
-		id, user, onDisconnect, onConnect,
-		manageHref
-	}: Props = $props();
+interface Props {
+  id?: number;
+  user?: string;
+  onDisconnect: () => void;
+  onConnect: () => void;
+  manageHref: string;
+}
+
+let { id, user, onDisconnect, onConnect, manageHref }: Props = $props();
 </script>
 
-<!-- Use neutral container background to match other settings cards; connected state gets a subtle success tint -->
-<div class={
-  `rounded-lg border p-4 transition-colors duration-150 border-border bg-transparent text-muted-foreground border-bo'
-  }`
-}>
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-3">
-			<div class="h-12 w-12 rounded-lg overflow-hidden flex items-center justify-center">
-				<img
+<!-- Card header holds both description and actions; actions sit to the right on md+ and stack on small screens -->
+<CardRoot class="w-full">
+  <CardHeader>
+  <div class="w-full">
+	  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+		<!-- Left: logo + title + description -->
+		<div class="flex items-start md:items-center gap-3 flex-1 min-w-0">
+				<div class="h-12 w-12 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+				  <img
 					src="https://cdn-boku.tachi.ac/logos/logo-mark.png"
 					alt="Bokutachi logo"
-					class="h-full w-full object-contain"
+					class="h-12 w-12 object-contain"
 					loading="lazy"
-				/>
-			</div>
-			<div>
-				<div class="flex items-center">
-					<h3 class="text-lg font-medium">Bokutachi Integration</h3>
-					{#if id}
-						<!-- Connected badge uses success tokens; subtle background with readable foreground -->
-						<span
-							class="ml-3 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold transition-colors duration-150 bg-success text-success-foreground border border-success-600"
-							aria-hidden="true"
-						>
-              Connected
-            </span>
-					{/if}
+				  />
 				</div>
-				<p class="text-sm text-muted-foreground">Connect your Bokutachi account to enable integrations.</p>
-				{#if id}
-					<p class="mt-2 text-sm">Connected as {user ?? 'unknown'}</p>
-				{/if}
-			</div>
+		  <div class="min-w-0">
+			<CardTitle>
+			  <h3 class="text-lg font-medium">Bokutachi Integration</h3>
+			</CardTitle>
+			<CardDescription>
+			  Connect your Bokutachi account to enable integrations.
+			  {#if id}
+				<div class="mt-2 text-sm">Connected as {user ?? 'unknown'}</div>
+			  {/if}
+			</CardDescription>
+		  </div>
 		</div>
-		<div class="flex gap-2">
-			{#if id}
-				<div class="flex gap-2 items-center">
-					<!-- Manage: subtle variant when connected -->
-					<a
-						class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border hover:bg-muted/90 bg-muted text-muted-foreground border-transparent"
-						href={manageHref}
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						Manage
-					</a>
 
-					<!-- Disconnect: destructive token usage, subtle background and matching foreground -->
-					<button
-						class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border bg-destructive/20 text-destructive-foreground border-destructive"
-						onclick={onDisconnect}
-						aria-label="Disconnect Bokutachi"
-					>
-						Disconnect
-					</button>
-				</div>
-			{:else}
-				<!-- Connect uses primary tokens and consistent sizing -->
-				<button
-					class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 shadow-sm bg-primary text-primary-foreground"
-					onclick={onConnect}
-					aria-label="Connect Bokutachi"
-				>
-					Connect
-				</button>
-			{/if}
+		<!-- Right: actions (aligned to right on wide screens) -->
+		<div class="flex items-center justify-end md:shrink-0">
+		  {#if id}
+			<div class="flex gap-2 items-center">
+			  <a
+				class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border hover:bg-muted/90 bg-muted text-muted-foreground border-transparent"
+				href={manageHref}
+				target="_blank"
+				rel="noopener noreferrer"
+			  >
+				Manage
+			  </a>
+
+			  <button
+				class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border bg-destructive/20 text-destructive-foreground border-destructive"
+				on:click={onDisconnect}
+				aria-label="Disconnect Bokutachi"
+			  >
+				Disconnect
+			  </button>
+			</div>
+		  {:else}
+			<button
+			  class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 shadow-sm bg-primary text-primary-foreground"
+			  on:click={onConnect}
+			  aria-label="Connect Bokutachi"
+			>
+			  Connect
+			</button>
+		  {/if}
 		</div>
+	  </div>
 	</div>
-</div>
-
-<!-- No component-scoped styles required; Tailwind utility classes handle styling -->
+  </CardHeader>
+</CardRoot>
