@@ -9,12 +9,26 @@
 	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { toast } from 'svelte-sonner';
+	import { onMount } from 'svelte';
+	import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 
-	let tachiStatus = $derived(page.data.tachiStatus);
+	let tachiId = $derived(page.data.tachiId);
+
+	let user : string | null = null;
 
 	const session = authClient.useSession();
 
 	const removeUrl = '/api/integrations/tachi/remove';
+
+	onMount(async () => {
+		const res = await fetch(`${PUBLIC_BOKUTACHI_API}/users/${tachiId}`);
+		if (res.ok) {
+			const body = await res.json();
+			user = body?.body?.username ?? null as string | null;
+		} else {
+			console.warn('Tachi API returned', res.status, await res.text());
+		}
+	});
 
 	function startConnect() {
 		const id = env.PUBLIC_BOKUTACHI_CLIENT_ID;
@@ -46,7 +60,7 @@
 		<ThemeSettings />
 		{#if $session.data}
 			<ProfilePicture />
-			<BokutachiIntegration status={tachiStatus} manageHref={`https://boku.tachi.ac/u/${tachiStatus?.id}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
+			<BokutachiIntegration user={user} id={tachiId} manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
 			<ChangePassword />
 			<DeleteAccount />
 		{/if}

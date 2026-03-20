@@ -1,21 +1,16 @@
 <script lang="ts">
 	interface Props {
-		status?: {
-			id: number;
-			user?: string;
-		};
+		id?: number;
+		user?: string;
 		onDisconnect: () => void;
 		onConnect: () => void;
 		manageHref: string;
 	}
 
 	let {
-		status, onDisconnect, onConnect,
+		id, user, onDisconnect, onConnect,
 		manageHref
 	}: Props = $props();
-
-	const user = $derived(status?.user);
-	const id = $derived(status?.id);
 </script>
 
 <!-- Use neutral container background to match other settings cards; connected state gets a subtle success tint -->
