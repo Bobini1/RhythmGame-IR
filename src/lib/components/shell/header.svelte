@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
+	import Icon from '@iconify/svelte';
 	import { Github } from '@lucide/svelte';
 	import ThemeSwitcher from '../theme-switcher/theme-switcher.svelte';
 	import Button from '../ui/button/button.svelte';
@@ -25,6 +26,11 @@
 		</h1>
 	</div>
 	<div class="flex flex-row items-center justify-end gap-2">
+		<a href="https://discord.gg/bDxmuSzXBW" target="_blank">
+			<Button variant="outline" size="icon">
+				<Icon icon="simple-icons:discord" />
+			</Button>
+		</a>
 		<a href="https://github.com/Bobini1/RhythmGame" target="_blank">
 			<Button variant="outline" size="icon">
 				<Github />
