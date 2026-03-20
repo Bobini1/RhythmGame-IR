@@ -4,6 +4,7 @@
 	import ProfilePicture from '$lib/components/settings/profile-picture/profile-picture.svelte';
 	import DeleteAccount from '$lib/components/settings/delete-account/delete-account.svelte';
 	import ChangePassword from '$lib/components/settings/change-password/change-password.svelte';
+	import BokutachiIntegration from '$lib/components/settings/integrations/bokutachi.svelte';
 	import authClient from '$lib/client/auth/client';
 
 	const session = authClient.useSession();
@@ -14,6 +15,7 @@
 		<ThemeSettings />
 		{#if $session.data}
 			<ProfilePicture />
+			<BokutachiIntegration />
 			<ChangePassword />
 			<DeleteAccount />
 		{/if}
