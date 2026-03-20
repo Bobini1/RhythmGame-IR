@@ -82,7 +82,7 @@
 	"auth_protected": "Auth protected",
 	"continue_with_google": "Continue with Google",
 	"or": "OR",
-	"already_signed_in": "You are already signed in!",
+	"already_signed_in": "You are signed in!",
 	"as_x": "As {user}",
 	"signin_title": "Sign in to your account",
 	"signin_description": "Use your credentials",

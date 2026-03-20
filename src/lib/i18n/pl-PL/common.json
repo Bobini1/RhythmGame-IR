@@ -82,7 +82,7 @@
 	"auth_protected": "Wymagane uwierzytelnienie",
 	"continue_with_google": "Kontynuuj za pomocą Google",
 	"or": "LUB",
-	"already_signed_in": "Jesteś już zalogowany!",
+	"already_signed_in": "Jesteś zalogowany!",
 	"as_x": "Jako {user}",
 	"signin_title": "Zaloguj się na swoje konto",
 	"signin_description": "Użyj swoich danych logowania",
