@@ -46,7 +46,7 @@
 		<ThemeSettings />
 		{#if $session.data}
 			<ProfilePicture />
-			<BokutachiIntegration status={tachiStatus} onConnect={startConnect} onDisconnect={disconnect} />
+			<BokutachiIntegration status={tachiStatus} manageHref={`https://boku.tachi.ac/u/${tachiStatus?.id}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
 			<ChangePassword />
 			<DeleteAccount />
 		{/if}

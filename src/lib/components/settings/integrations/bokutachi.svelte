@@ -4,27 +4,23 @@
 			id: number;
 			user?: string;
 		};
-		onDisconnect?: () => void;
-		onStartConnect?: () => void;
+		onDisconnect: () => void;
+		onConnect: () => void;
+		manageHref: string;
 	}
 
 	let {
-		status, onDisconnect = () => {}, onStartConnect = () => {}
+		status, onDisconnect, onConnect,
+		manageHref
 	}: Props = $props();
 
 	const user = $derived(status?.user);
 	const id = $derived(status?.id);
-
-	// derived helper for whether parent provided a session user (undefined = not provided)
-	const hasSession = $derived(user === undefined ? undefined : !!user);
 </script>
 
 <!-- Use neutral container background to match other settings cards; connected state gets a subtle success tint -->
 <div class={
-  `rounded-lg border p-4 transition-colors duration-150 border-border ${
-    id
-      ? 'bg-success/20 text-success-foreground border-success-600 ring-1 ring-success/20'
-      : 'bg-transparent text-muted-foreground border-border'
+  `rounded-lg border p-4 transition-colors duration-150 border-border bg-transparent text-muted-foreground border-bo'
   }`
 }>
 	<div class="flex items-center justify-between">
@@ -57,38 +53,36 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
-			{#if hasSession}
-				{#if id}
-					<div class="flex gap-2 items-center">
-						<!-- Manage: subtle variant when connected -->
-						<a
-							class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border hover:bg-muted/90 bg-muted text-muted-foreground border-transparent"
-							href={`https://boku.tachi.ac/u/${id}`}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							Manage
-						</a>
-
-						<!-- Disconnect: destructive token usage, subtle background and matching foreground -->
-						<button
-							class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border bg-destructive/20 text-destructive-foreground border-destructive"
-							onclick={onDisconnect}
-							aria-label="Disconnect Bokutachi"
-						>
-							Disconnect
-						</button>
-					</div>
-				{:else}
-					<!-- Connect uses primary tokens and consistent sizing -->
-					<button
-						class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 shadow-sm bg-primary text-primary-foreground"
-						onclick={onStartConnect}
-						aria-label="Connect Bokutachi"
+			{#if id}
+				<div class="flex gap-2 items-center">
+					<!-- Manage: subtle variant when connected -->
+					<a
+						class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border hover:bg-muted/90 bg-muted text-muted-foreground border-transparent"
+						href={manageHref}
+						target="_blank"
+						rel="noopener noreferrer"
 					>
-						Connect
+						Manage
+					</a>
+
+					<!-- Disconnect: destructive token usage, subtle background and matching foreground -->
+					<button
+						class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 border bg-destructive/20 text-destructive-foreground border-destructive"
+						onclick={onDisconnect}
+						aria-label="Disconnect Bokutachi"
+					>
+						Disconnect
 					</button>
-				{/if}
+				</div>
+			{:else}
+				<!-- Connect uses primary tokens and consistent sizing -->
+				<button
+					class="rounded-md px-3 py-1 text-sm font-semibold transition-colors duration-150 shadow-sm bg-primary text-primary-foreground"
+					onclick={onConnect}
+					aria-label="Connect Bokutachi"
+				>
+					Connect
+				</button>
 			{/if}
 		</div>
 	</div>
