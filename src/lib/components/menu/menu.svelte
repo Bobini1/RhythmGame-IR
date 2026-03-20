@@ -13,15 +13,19 @@
 		disabled,
 		event
 	}: {
-		rawData: TMenuData;
+		rawData: TMenuData[];
 		configuration: MenuConfiguration<TMenuData>;
 		disabled?: boolean;
-		event: (e: { type: string; data: TMenuData }) => void;
+		event: (e: { type: string; data: TMenuData[] }) => void;
 	} = $props();
 
 	const dir = $derived($direction === 'rl' ? 'rtl' : 'ltr');
 
 	const sidebar = useSidebar();
+
+	function getSnapshot() {
+		return $state.snapshot(rawData) as TMenuData[];
+	}
 </script>
 
 <DropdownMenu.Root {dir}>
@@ -56,7 +60,7 @@
 					<DropdownMenu.Item
 						class="group/item {item.class}"
 						disabled={item.disableIf && item.disableIf(rawData)}
-						onclick={() => event({ type: item.event, data: $state.snapshot(rawData) as TMenuData })}
+						onclick={() => event({ type: item.event, data: getSnapshot() })}
 					>
 						<div class="flex flex-row items-center gap-2">
 							{#if item.icon}

@@ -7,7 +7,7 @@ export interface MenuActionItem<T = void> {
 	icon: Component;
 	iconClass?: string;
 	class?: string;
-	disableIf?: (data: T) => boolean;
+	disableIf?: (data: T[]) => boolean;
 	variant?: ButtonVariant;
 	noTranlationRequired?: boolean;
 }

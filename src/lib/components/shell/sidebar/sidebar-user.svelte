@@ -6,7 +6,15 @@
 	import UserMenuTrigger from './user-menu-trigger.svelte';
 	import { langGoto } from '$lib/utils';
 	const session = authClient.useSession();
-	const user = $derived($session?.data?.user);
+	const user = $derived($session?.data?.user ?? {
+		id: '',
+		name: '',
+		image: null,
+		email: '',
+		emailVerified: false,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	});
 	const showIfUser = (currentUser: typeof user) => {
 		return currentUser?.id;
 	};
@@ -67,4 +75,4 @@
 	}
 </script>
 
-<Menu {configuration} rawData={user} event={(e) => onItemClick(e.type)} />
+<Menu {configuration} rawData={[user]} event={(e) => onItemClick(e.type)} />
