@@ -5,51 +5,6 @@ import { pageCollectionHeaders } from '$lib/server/api/utils';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-interface GitHubRelease {
-	tag_name: string;
-	name: string;
-	published_at: string;
-	html_url: string;
-}
-
-// Simple in-memory cache
-let releaseCache: { data: GitHubRelease | null; timestamp: number } | null = null;
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
-
-async function getLatestRelease(): Promise<GitHubRelease | null> {
-	// Check cache first
-	if (releaseCache && Date.now() - releaseCache.timestamp < CACHE_DURATION) {
-		return releaseCache.data;
-	}
-
-	try {
-		const response = await fetch('https://api.github.com/repos/Bobini1/RhythmGame/releases/latest', {
-			headers: {
-				'Accept': 'application/vnd.github+json',
-				'User-Agent': 'RhythmGame-Website'
-			}
-		});
-
-		if (!response.ok) {
-			console.error('Failed to fetch GitHub release:', response.status);
-			return null;
-		}
-
-		const data = await response.json();
-
-		// Update cache
-		releaseCache = {
-			data,
-			timestamp: Date.now()
-		};
-
-		return data;
-	} catch (error) {
-		console.error('Error fetching GitHub release:', error);
-		return null;
-	}
-}
-
 export const load: PageServerLoad = async (event) => {
 	const showManageCookiesPreferences = event.cookies.get('show-manage-cookies-banner');
 	const cookieBannerOpen =
@@ -62,10 +17,9 @@ export const load: PageServerLoad = async (event) => {
 	);
 	const offset = page * pageSize;
 
-	const [latestScores, total, latestRelease] = await Promise.all([
+	const [latestScores, total] = await Promise.all([
 		getLatestScores(pageSize, offset),
-		getLatestScoreCount(),
-		getLatestRelease()
+		getLatestScoreCount()
 	]);
 
 	event.setHeaders(pageCollectionHeaders(event.url, total, pageSize, page));
@@ -76,7 +30,6 @@ export const load: PageServerLoad = async (event) => {
 		latestScores,
 		total,
 		page,
-		pageSize,
-		latestRelease
+		pageSize
 	};
 };
