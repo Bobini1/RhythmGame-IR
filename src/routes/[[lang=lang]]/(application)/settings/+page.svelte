@@ -14,7 +14,7 @@
 
 	let tachiId = $derived(page.data.tachiId);
 
-	let user : string | null = null;
+	let user : string | undefined = $state(undefined);
 
 	const session = authClient.useSession();
 
@@ -44,7 +44,7 @@
 			const res = await fetch(removeUrl, { method: 'POST' });
 			if (res.ok) {
 				toast.success('Disconnected');
-				tachiStatus = null;
+				user = undefined;
 			} else {
 				toast.error('Failed to disconnect');
 			}
