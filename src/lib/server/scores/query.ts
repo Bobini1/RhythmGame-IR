@@ -385,9 +385,10 @@ export interface UserListRow {
 	name: string;
 	image: string | null;
 	scoreCount: number;
+	createdAt: Date;
 }
 
-export type UserListSortColumn = 'name' | 'score_count';
+export type UserListSortColumn = 'name' | 'score_count' | 'joined';
 
 export async function getUserList(
 	limit: number,
@@ -398,17 +399,22 @@ export async function getUserList(
 	const dir = sortDir === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
 	const orderExprs =
-		sortBy === 'name' ? [dir(user.name)] : [dir(scoreCountExpr), asc(user.name)];
+		sortBy === 'name'
+			? [dir(user.name)]
+			: sortBy === 'joined'
+				? [dir(user.createdAt), asc(user.name)]
+				: [dir(scoreCountExpr), asc(user.name)];
 	const rows = await db
 		.select({
 			id: user.id,
 			name: user.name,
 			image: user.image,
-			scoreCount: scoreCountExpr
+			scoreCount: scoreCountExpr,
+			createdAt: user.createdAt
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
-		.groupBy(user.id, user.name, user.image)
+		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.orderBy(...orderExprs)
 		.limit(limit)
 		.offset(offset);

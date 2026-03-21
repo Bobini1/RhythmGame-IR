@@ -3,7 +3,8 @@
 		"title": "Players",
 		"description": "All players on the internet ranking",
 		"player": "Player",
-		"score_count": "Scores"
+		"score_count": "Scores",
+		"joined": "Joined"
 	},
 	"profile": {
 		"title": "{name}'s profile",

@@ -3,7 +3,8 @@
 		"title": "Gracze",
 		"description": "Wszyscy gracze w rankingu internetowym",
 		"player": "Gracz",
-		"score_count": "Wyniki"
+		"score_count": "Wyniki",
+		"joined": "Dołączył"
 	},
 	"profile": {
 		"title": "Profil gracza {name}",

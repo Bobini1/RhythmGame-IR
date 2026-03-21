@@ -27,6 +27,17 @@
 			enableSorting: true
 		},
 		{
+			id: 'joined',
+			header: 'players.list.joined',
+			size: 160,
+			accessorFn: (row) => row.createdAt,
+			cell: ({ row }) => {
+				const d = new Date(row.original.createdAt as unknown as string);
+				return d && !isNaN(d.getTime()) ? d.toLocaleDateString() : '';
+			},
+			enableSorting: true
+		},
+		{
 			id: 'score_count',
 			header: 'players.list.score_count',
 			size: 120,
