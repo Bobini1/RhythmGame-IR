@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		pickFields(
 			{
 				...profile,
-				_links: userLinks(baseUrl, id)
+				_links: userLinks(baseUrl, id, profile.tachiId)
 			},
 			fields
 		)

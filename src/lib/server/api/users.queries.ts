@@ -2,6 +2,7 @@ import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { user } from '$lib/server/database/schemas/auth';
 import { asc, count, desc, eq, sql } from 'drizzle-orm';
+import { integrations } from '$lib/server/database/schemas/integrations';
 
 // ---------------------------------------------------------------------------
 // GET /api/users/:id single user resource
@@ -14,6 +15,7 @@ export interface ApiUser {
 	createdAt: Date;
 	scoreCount: number;
 	chartCount: number;
+	tachiId: number | null;
 }
 
 export async function getUserById(id: number): Promise<ApiUser | null> {
@@ -24,7 +26,10 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 			image: user.image,
 			createdAt: user.createdAt,
 			scoreCount: sql<number>`COUNT(${scores.guid})::int`,
-			chartCount: sql<number>`COUNT(DISTINCT ${scores.md5})::int`
+			chartCount: sql<number>`COUNT(DISTINCT ${scores.md5})::int`,
+			tachiId: sql<
+				number | null
+			>`(SELECT (${integrations.data}->>'userID')::int FROM ${integrations} WHERE ${integrations}.user_id = ${user.id} AND provider = 'tachi' LIMIT 1)`
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
@@ -39,22 +44,14 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 // GET /api/users users collection
 // ---------------------------------------------------------------------------
 
-export type UsersOrderBy = 'name' | 'score_count' | 'chart_count';
-
-export interface UsersCollectionRow {
-	id: number;
-	name: string;
-	image: string | null;
-	scoreCount: number;
-	chartCount: number;
-}
+export type UsersOrderBy = 'name' | 'score_count' | 'chart_count' | 'joined';
 
 export async function queryUsers(
 	limit?: number,
 	offset?: number,
 	orderBy: UsersOrderBy = 'score_count',
 	sort: 'asc' | 'desc' = 'desc'
-): Promise<UsersCollectionRow[]> {
+): Promise<ApiUser[]> {
 	const dir = sort === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
 	const chartCountExpr = sql<number>`COUNT(DISTINCT ${scores.md5})::int`;
@@ -63,19 +60,25 @@ export async function queryUsers(
 			? [dir(user.name)]
 			: orderBy === 'chart_count'
 				? [dir(chartCountExpr), asc(user.name)]
-				: [dir(scoreCountExpr), asc(user.name)];
+				: orderBy === 'joined'
+					? [dir(user.createdAt), asc(user.name)]
+					: [dir(scoreCountExpr), asc(user.name)];
 
 	return db
 		.select({
 			id: user.id,
 			name: user.name,
 			image: user.image,
+			createdAt: user.createdAt,
 			scoreCount: scoreCountExpr,
-			chartCount: chartCountExpr
+			chartCount: chartCountExpr,
+			tachiId: sql<
+				number | null
+			>`(SELECT (data->>'userID')::text FROM ${integrations} WHERE ${integrations}.user_id = ${user.id} AND provider = 'tachi' LIMIT 1)`
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
-		.groupBy(user.id, user.name, user.image)
+		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.orderBy(...orderExprs)
 		.limit(limit ?? Number.MAX_SAFE_INTEGER)
 		.offset(offset ?? 0);

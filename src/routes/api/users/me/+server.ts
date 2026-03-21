@@ -4,6 +4,7 @@ import { db } from '$lib/server/database/client';
 import { user } from '$lib/server/database/schemas/auth';
 import { eq } from 'drizzle-orm';
 import { parseFields, pickFields, userLinks } from '$lib/server/api/utils';
+import { getUserById } from '$lib/server/api/users.queries';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
@@ -27,12 +28,17 @@ export const GET: RequestHandler = async (event) => {
 		}
 		const fields = parseFields(event.url);
 
+		const profile = await getUserById(Number(event.locals.user.id));
+		if (!profile) {
+			return json({ error: 'User not found' }, { status: 404 });
+		}
+
 		const baseUrl = new URL(event.url.protocol + '//' + event.url.host);
 		return json(
 			pickFields(
 				{
-					...event.locals.user,
-					_links: userLinks(baseUrl, Number(event.locals.user.id))
+					...profile,
+					_links: userLinks(baseUrl, Number(event.locals.user.id), profile.tachiId)
 				},
 				fields
 			),

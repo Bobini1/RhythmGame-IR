@@ -209,11 +209,12 @@ export function chartLinks(baseUrl: URL, md5: string) {
 	};
 }
 
-export function userLinks(baseUrl: URL, userId: number) {
+export function userLinks(baseUrl: URL, userId: number, tachiId: number | null) {
 	return {
 		self: new URL(`/api/users/${userId}`, baseUrl),
 		scores: new URL(`/api/scores?user=${userId}`, baseUrl),
-		scoreSummaries: new URL(`/api/score-summaries?user=${userId}`, baseUrl)
+		scoreSummaries: new URL(`/api/score-summaries?user=${userId}`, baseUrl),
+		tachi: tachiId ? new URL(`/api/users/${tachiId}`, baseUrl) : null
 	};
 }
 
