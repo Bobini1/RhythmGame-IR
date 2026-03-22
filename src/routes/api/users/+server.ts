@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		]);
 
 		const baseUrl = new URL(url.protocol + '//' + url.host);
-		const data = rows.map((r) => pickFields({ ...r, _links: userLinks(baseUrl, r.id) }, fields));
+		const data = rows.map((r) => pickFields({ ...r, _links: userLinks(baseUrl, r.id, r.tachiId) }, fields));
 
 		return json(data, {
 			headers: collectionHeaders(url, total, limit, offset)
