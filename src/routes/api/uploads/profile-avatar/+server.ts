@@ -15,7 +15,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const body = await event.request.json();
 
-		const key = `${event.locals.user.id}/avatar`;
+		const key = `user+${event.locals.user.id}+avatar`;
 
 		const endpoint = env.B2_ENDPOINT;
 		const bucket = env.B2_BUCKET;
