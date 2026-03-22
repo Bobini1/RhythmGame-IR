@@ -1,5 +1,6 @@
 import { type SQL, sql, and } from 'drizzle-orm';
 import type { ScoreSummaryRow } from '$lib/server/api/score-summaries.queries';
+import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 
 // ---------------------------------------------------------------------------
 // Pagination
@@ -214,7 +215,7 @@ export function userLinks(baseUrl: URL, userId: number, tachiId: number | null) 
 		self: new URL(`/api/users/${userId}`, baseUrl),
 		scores: new URL(`/api/scores?user=${userId}`, baseUrl),
 		scoreSummaries: new URL(`/api/score-summaries?user=${userId}`, baseUrl),
-		tachi: tachiId ? new URL(`/api/users/${tachiId}`, baseUrl) : null
+		tachi: tachiId ? new URL(`${PUBLIC_BOKUTACHI_API}/users/${tachiId}`, baseUrl) : null
 	};
 }
 
