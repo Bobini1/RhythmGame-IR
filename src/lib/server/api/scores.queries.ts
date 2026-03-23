@@ -30,6 +30,7 @@ export interface ApiScore {
 	noteOrderAlgorithm: number;
 	noteOrderAlgorithmP2: number;
 	dpOptions: number;
+	keymode: number,
 	gameVersion: number;
 	length: number;
 	unixTimestamp: number;
@@ -74,6 +75,7 @@ export async function getScoreById(guid: string): Promise<ApiScore | null> {
 			noteOrderAlgorithm: scores.noteOrderAlgorithm,
 			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
 			dpOptions: scores.dpOptions,
+			keymode: scores.keymode,
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,
@@ -186,6 +188,7 @@ export async function queryScores(
 			noteOrderAlgorithm: scores.noteOrderAlgorithm,
 			noteOrderAlgorithmP2: scores.noteOrderAlgorithmP2,
 			dpOptions: scores.dpOptions,
+			keymode: scores.keymode,
 			gameVersion: scores.gameVersion,
 			length: scores.length,
 			unixTimestamp: scores.unixTimestamp,

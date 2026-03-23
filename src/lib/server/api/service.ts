@@ -71,6 +71,7 @@ export async function submitScore(userId: number, payload: ScoreSubmissionPayloa
 				noteOrderAlgorithm: scoreData.noteOrderAlgorithm,
 				noteOrderAlgorithmP2: scoreData.noteOrderAlgorithmP2,
 				dpOptions: scoreData.dpOptions,
+				keymode: scoreData.keymode,
 				gameVersion: scoreData.gameVersion,
 				length: scoreData.length,
 				unixTimestamp: scoreData.unixTimestamp,

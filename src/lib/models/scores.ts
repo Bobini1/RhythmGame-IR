@@ -162,6 +162,7 @@ export interface ScoreSubmission {
 	noteOrderAlgorithmP2: number;
 	/** Integer flags of DpOptions */
 	dpOptions: number;
+	keymode: number;
 	/** uint64, let's hope it doesn't overflow safe int */
 	gameVersion: number;
 }

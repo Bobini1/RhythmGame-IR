@@ -10,6 +10,23 @@ import {
 import { user } from './auth';
 import { charts } from './charts';
 
+interface HitEvent {
+	offsetFromStart: number;
+	points: { value: number; judgement: number; deviation: number } | null;
+	column: number;
+	noteIndex: number;
+	action: number; // 0=None 1=Press 2=Release
+	noteRemoved: boolean;
+}
+
+interface GaugeHistoryGroup {
+	name: string;
+	maxGauge: number;
+	threshold: number;
+	courseGauge: boolean;
+	gaugeHistory: { offsetFromStart: number; gauge: number }[];
+}
+
 export const scores = pgTable('scores', {
 	guid: text('guid').primaryKey(),
 	userId: bigint('user_id', { mode: 'number' })
@@ -35,42 +52,14 @@ export const scores = pgTable('scores', {
 	noteOrderAlgorithm: integer('note_order_algorithm').notNull(),
 	noteOrderAlgorithmP2: integer('note_order_algorithm_p2').notNull(),
 	dpOptions: integer('dp_options').notNull(),
+	keymode: integer('keymode').notNull(),
 	gameVersion: bigint('game_version', { mode: 'number' }).notNull(),
 	/** Duration in nanoseconds */
 	length: bigint('length', { mode: 'number' }).notNull(),
 	/** Unix timestamp (seconds) when the score was set */
 	unixTimestamp: integer('unix_timestamp').notNull(),
-	/**
-	 * Array of HitEvent objects:
-	 * { offsetFromStart, points, column, noteIndex, action, noteRemoved }
-	 */
-	replayData: jsonb('replay_data')
-		.$type<
-			{
-				offsetFromStart: number;
-				points: { value: number; judgement: number; deviation: number } | null;
-				column: number;
-				noteIndex: number;
-				action: number; // 0=None 1=Press 2=Release
-				noteRemoved: boolean;
-			}[]
-		>()
-		.notNull(),
-	/**
-	 * Array of GaugeHistoryGroup objects:
-	 * { name, maxGauge, threshold, courseGauge, gaugeHistory: [{ offsetFromStart, gauge }] }
-	 */
-	gaugeHistory: jsonb('gauge_history')
-		.$type<
-			{
-				name: string;
-				maxGauge: number;
-				threshold: number;
-				courseGauge: boolean;
-				gaugeHistory: { offsetFromStart: number; gauge: number }[];
-			}[]
-		>()
-		.notNull(),
+	replayData: jsonb('replay_data').$type<HitEvent[]>().notNull(),
+	gaugeHistory: jsonb('gauge_history').$type<GaugeHistoryGroup[]>().notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 

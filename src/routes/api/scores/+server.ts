@@ -3,7 +3,7 @@ import {
 	queryScores,
 	queryScoresCount,
 	type ScoresOrderBy,
-	type ScoresCollectionFilters
+	type ScoresCollectionFilters, getScoreById
 } from '$lib/server/api/scores.queries';
 import {
 	parsePagination,
@@ -16,6 +16,7 @@ import {
 import { scoreSubmissionPayloadSchema } from '$lib/server/scores/validation';
 import { submitScore } from '$lib/server/api/service';
 import { parseBigIntJson, bigIntJsonResponse } from '$lib/server/api/json-bigint';
+import { uploadScoresToTachi } from '$lib/server/integrations/tachi';
 
 // ---------------------------------------------------------------------------
 // GET /api/scores — scores collection
@@ -95,14 +96,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const parsed = scoreSubmissionPayloadSchema.safeParse(body);
 	if (!parsed.success) {
-		return json(
-			{ error: 'Validation failed', details: parsed.error.flatten() },
-			{ status: 422 }
-		);
+		return json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 });
 	}
 
 	try {
 		await submitScore(Number(locals.user.id), parsed.data);
+		const tachiToken = locals.tachi?.token;
+		if (tachiToken) {
+			const score = await getScoreById(parsed.data.scoreData.guid);
+			if (score) {
+				await uploadScoresToTachi([score], tachiToken);
+			} else {
+				console.error('[POST /api/scores] Score not found for GUID', parsed.data.scoreData.guid);
+			}
+		}
 		return json({ message: 'Score submitted successfully' }, { status: 201 });
 	} catch (err) {
 		if (err instanceof Error && (err as Error & { message?: string }).message === 'DUPLICATE_SCORE') {

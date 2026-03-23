@@ -174,7 +174,6 @@ export const scoreSubmissionSchema = z.object({
 	clearType: clearTypeSchema,
 	randomSequence: z.preprocess(
 		(val) => {
-			if (val === undefined) return [];
 			if (!Array.isArray(val)) return val;
 			return val.map((v) => toBigIntPreprocess(v));
 		},
@@ -188,6 +187,7 @@ export const scoreSubmissionSchema = z.object({
 	noteOrderAlgorithm: z.int().min(0),
 	noteOrderAlgorithmP2: z.int().min(0),
 	dpOptions: z.int().min(0),
+	keymode: z.union([z.literal(5), z.literal(7), z.literal(10), z.literal(14)]),
 	gameVersion: z.int(),
 	replayData: z.array(hitEventSchema),
 	gaugeHistory: z.array(gaugeGroupSchema)
@@ -219,10 +219,6 @@ const toBigIntPreprocess = (val: unknown) => {
 	if (typeof val === 'number') {
 		if (!Number.isInteger(val)) throw new Error('Expected integer value for bigint');
 		return BigInt(val);
-	}
-	if (typeof val === 'string') {
-		// accept decimal integer strings (optional)
-		if (/^-?\d+$/.test(val)) return BigInt(val);
 	}
 	return val; // let inner schema reject it
 };
