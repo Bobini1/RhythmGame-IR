@@ -157,5 +157,6 @@
 	"choose_file": "Choose file",
 	"uploading": "Uploading",
 	"upload": "Upload",
-	"select_file": "Select a file"
+	"select_file": "Select a file",
+	"processing": "Processing..."
 }

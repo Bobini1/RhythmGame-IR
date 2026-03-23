@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
@@ -23,7 +24,7 @@
 </script>
 
 <div class="p-8">
-  <p>Processing...</p>
+  <p>${$t("common.processing")}</p>
 </div>
 
 

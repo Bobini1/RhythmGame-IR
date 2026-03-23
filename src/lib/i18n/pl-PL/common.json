@@ -157,5 +157,6 @@
 	"choose_file": "Wybierz plik",
 	"uploading": "Przesyłanie",
 	"upload": "Prześlij",
-	"select_file": "Wybierz plik"
+	"select_file": "Wybierz plik",
+	"processing": "Ładowanie..."
 }
