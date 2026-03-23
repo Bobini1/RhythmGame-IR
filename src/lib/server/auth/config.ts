@@ -35,9 +35,6 @@ export const auth = betterAuth({
 			generateId: 'serial' // "serial" for auto-incrementing numeric IDs
 		}
 	},
-	session: {
-		expiresIn: 60 * 60 * 24 * 21, // 21 days
-	},
 	plugins: [
 		bearer(),
 		openAPI(),
