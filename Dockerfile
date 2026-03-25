@@ -1,15 +1,15 @@
-FROM node:20-alpine AS builder
+FROM oven/bun:latest AS builder
 WORKDIR /app
-COPY package*.json .
-RUN npm ci
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN bun run build
 
-FROM node:20-alpine
+FROM oven/bun:latest
 WORKDIR /app
 COPY --from=builder /app/build build/
 COPY --from=builder /app/node_modules node_modules/
 COPY package.json .
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["node", "build"]
+CMD ["bun", "build/index.js"]
