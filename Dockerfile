@@ -12,4 +12,4 @@ COPY --from=builder /app/node_modules node_modules/
 COPY package.json .
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["bun", "build/index.js"]
+CMD ["sh", "-c", "bun drizzle-kit migrate && bun build/index.js"]
