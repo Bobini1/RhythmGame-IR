@@ -7,6 +7,7 @@ RUN bun run build
 
 FROM oven/bun:latest
 WORKDIR /app
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src/lib/server/database/migrations ./src/lib/server/database/migrations
