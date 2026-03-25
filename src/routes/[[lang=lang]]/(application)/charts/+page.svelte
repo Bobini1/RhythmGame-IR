@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -55,7 +54,7 @@
 </script>
 
 <BasePage title="charts.list.title" description="charts.list.description">
-	<h2 class="text-xl font-semibold">{$t('charts.list.title')}</h2>
+	<h2 class="text-xl font-semibold mb-6">{$t('charts.list.title')}</h2>
 	<AppDataTable
 		{columns}
 		data={chartList}

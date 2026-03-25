@@ -74,7 +74,7 @@
 </script>
 
 <BasePage title="players.list.title" description="players.list.description">
-	<h2 class="text-xl font-semibold">{$t('players.list.title')}</h2>
+	<h2 class="text-xl font-semibold mb-6">{$t('players.list.title')}</h2>
 	<AppDataTable
 		{columns}
 		data={users}
