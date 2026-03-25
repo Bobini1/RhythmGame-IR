@@ -73,5 +73,5 @@ export const WebSite = {
 	}
 };
 
-export const DefaultGraph = [Organization, WebSite, FAQ];
+export const DefaultGraph = [Organization, WebSite];
 

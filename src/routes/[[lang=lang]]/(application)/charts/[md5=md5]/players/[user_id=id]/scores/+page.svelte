@@ -48,8 +48,6 @@
 
 <BasePage title="charts.user_scores.title" description="charts.user_scores.description">
 	<div class="flex flex-col gap-8">
-
-		<!-- Breadcrumb context -->
 		<div class="flex flex-col gap-2">
 			<div class="text-muted-foreground flex flex-wrap items-center gap-1 text-sm">
 				<a href={chartHref} class="hover:underline">{chartTitle}</a>
@@ -71,7 +69,10 @@
 			sortingChanged={onSortingChanged}
 		>
 			{#snippet headerLeft()}
-				<h1 class="text-2xl font-bold">{$t('charts.user_scores.heading', { chart: chartTitle, player: profile.name })}</h1>
+				<h1 class="text-2xl font-bold">{$t('charts.user_scores.heading', {
+					chart: chartTitle,
+					player: profile.name
+				})}</h1>
 			{/snippet}
 		</AppDataTable>
 	</div>

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
 	import Icon from '@iconify/svelte';
-	import { Github } from '@lucide/svelte';
 	import ThemeSwitcher from '../theme-switcher/theme-switcher.svelte';
 	import Button from '../ui/button/button.svelte';
 	import SidebarTrigger from '../ui/sidebar/sidebar-trigger.svelte';
@@ -33,7 +32,7 @@
 		</a>
 		<a href="https://github.com/Bobini1/RhythmGame" target="_blank">
 			<Button variant="outline" size="icon">
-				<Github />
+				<Icon icon="simple-icons:github" />
 			</Button>
 		</a>
 		<ThemeSwitcher></ThemeSwitcher>
