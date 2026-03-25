@@ -1,0 +1,890 @@
+{
+  "id": "79602c5d-22c2-4bb5-a9d1-7c22d2867eac",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account": {
+      "name": "account",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "account_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_user_id_user_id_fk": {
+          "name": "account_user_id_user_id_fk",
+          "tableFrom": "account",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "session_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_token_unique": {
+          "name": "session_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "user_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verification": {
+      "name": "verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "verification_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.charts": {
+      "name": "charts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "charts_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "md5": {
+          "name": "md5",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "artist": {
+          "name": "artist",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "subtitle": {
+          "name": "subtitle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "subartist": {
+          "name": "subartist",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "genre": {
+          "name": "genre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "rank": {
+          "name": "rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2
+        },
+        "total": {
+          "name": "total",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 160
+        },
+        "play_level": {
+          "name": "play_level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "keymode": {
+          "name": "keymode",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normal_note_count": {
+          "name": "normal_note_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scratch_count": {
+          "name": "scratch_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ln_count": {
+          "name": "ln_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bss_count": {
+          "name": "bss_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mine_count": {
+          "name": "mine_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "length": {
+          "name": "length",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "initial_bpm": {
+          "name": "initial_bpm",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_bpm": {
+          "name": "max_bpm",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_bpm": {
+          "name": "min_bpm",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "main_bpm": {
+          "name": "main_bpm",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avg_bpm": {
+          "name": "avg_bpm",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peak_density": {
+          "name": "peak_density",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avg_density": {
+          "name": "avg_density",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_density": {
+          "name": "end_density",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game_version": {
+          "name": "game_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "histogram_data": {
+          "name": "histogram_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "bpm_changes": {
+          "name": "bpm_changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "charts_sha256_unique": {
+          "name": "charts_sha256_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "sha256"
+          ]
+        },
+        "charts_md5_unique": {
+          "name": "charts_md5_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "md5"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.integrations": {
+      "name": "integrations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "integrations_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "integrations_user_id_user_id_fk": {
+          "name": "integrations_user_id_user_id_fk",
+          "tableFrom": "integrations",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.scores": {
+      "name": "scores",
+      "schema": "",
+      "columns": {
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "md5": {
+          "name": "md5",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "points": {
+          "name": "points",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_points": {
+          "name": "max_points",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_combo": {
+          "name": "max_combo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_hits": {
+          "name": "max_hits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "judgement_counts": {
+          "name": "judgement_counts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mine_hits": {
+          "name": "mine_hits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normal_note_count": {
+          "name": "normal_note_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scratch_count": {
+          "name": "scratch_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ln_count": {
+          "name": "ln_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bss_count": {
+          "name": "bss_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mine_count": {
+          "name": "mine_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clear_type": {
+          "name": "clear_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "random_sequence": {
+          "name": "random_sequence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "random_seed": {
+          "name": "random_seed",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note_order_algorithm": {
+          "name": "note_order_algorithm",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note_order_algorithm_p2": {
+          "name": "note_order_algorithm_p2",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dp_options": {
+          "name": "dp_options",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "keymode": {
+          "name": "keymode",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game_version": {
+          "name": "game_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "length": {
+          "name": "length",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unix_timestamp": {
+          "name": "unix_timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "replay_data": {
+          "name": "replay_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gauge_history": {
+          "name": "gauge_history",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "scores_user_id_user_id_fk": {
+          "name": "scores_user_id_user_id_fk",
+          "tableFrom": "scores",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "scores_md5_charts_md5_fk": {
+          "name": "scores_md5_charts_md5_fk",
+          "tableFrom": "scores",
+          "tableTo": "charts",
+          "columnsFrom": [
+            "md5"
+          ],
+          "columnsTo": [
+            "md5"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
