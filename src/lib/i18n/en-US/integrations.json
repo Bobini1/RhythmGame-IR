@@ -1,0 +1,15 @@
+{
+	"bokutachi": {
+		"manage": "Manage",
+		"manage_label": "Manage your Bokutachi account",
+		"sync": "Upload scores",
+		"syncing": "Uploading…",
+		"synced": "Uploaded ✓",
+		"sync_label": "Upload your Bokutachi scores",
+		"disconnect": "Disconnect",
+		"disconnect_label": "Disconnect your Bokutachi account",
+		"connect": "Connect",
+		"connect_label": "Connect your Bokutachi account",
+		"actions_label": "Bokutachi integration actions"
+	}
+}

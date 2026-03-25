@@ -1,0 +1,15 @@
+{
+	"bokutachi": {
+		"manage": "Zarządzaj",
+		"manage_label": "Zarządzaj swoim kontem Bokutachi",
+		"sync": "Prześlij wyniki",
+		"syncing": "Przesyłanie…",
+		"synced": "Przesłano ✓",
+		"sync_label": "Prześlij swoje wyniki do Bokutachi",
+		"disconnect": "Rozłącz",
+		"disconnect_label": "Rozłącz konto Bokutachi",
+		"connect": "Połącz",
+		"connect_label": "Połącz konto Bokutachi",
+		"actions_label": "Akcje integracji Bokutachi"
+	}
+}

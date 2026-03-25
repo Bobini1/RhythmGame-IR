@@ -70,7 +70,7 @@ export function deriveEarlyLateFromReplay(replayData: HitEvent[]): FastSlow {
 	let fast = 0;
 	let slow = 0;
 	for (const d of replayData) {
-		if (!d.noteRemoved || !d.points) {
+		if (!d.noteRemoved || !d.points || d.points.judgement > Judgement.Perfect) {
 			continue;
 		}
 		if (d.points.deviation < 0) {

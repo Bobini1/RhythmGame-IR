@@ -44,6 +44,11 @@ const config: Config<Params> = {
 			loader: async () => (await import('$lib/i18n/pl-PL/charts.json')).default
 		},
 		{
+			locale: AvailableLocales.Polish,
+			key: 'integrations',
+			loader: async () => (await import('$lib/i18n/pl-PL/integrations.json')).default
+		},
+		{
 			locale: AvailableLocales.English_US,
 			key: 'common',
 			loader: async () => (await import('./en-US/common.json')).default
@@ -67,6 +72,11 @@ const config: Config<Params> = {
 			locale: AvailableLocales.English_US,
 			key: 'charts',
 			loader: async () => (await import('./en-US/charts.json')).default
+		},
+		{
+			locale: AvailableLocales.English_US,
+			key: 'integrations',
+			loader: async () => (await import('./en-US/integrations.json')).default
 		}
 	]
 };

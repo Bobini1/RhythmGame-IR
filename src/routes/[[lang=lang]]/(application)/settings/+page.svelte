@@ -11,6 +11,7 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
+	import { syncScores } from './tachi.remote';
 
 	let tachiId = $derived(page.data.tachiId);
 
@@ -60,7 +61,7 @@
 		<ThemeSettings />
 		{#if $session.data}
 			<ProfilePicture />
-			<BokutachiIntegration user={user} id={tachiId} manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
+			<BokutachiIntegration syncForm={syncScores} user={user} id={tachiId} manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
 			<ChangePassword />
 			<DeleteAccount />
 		{/if}
