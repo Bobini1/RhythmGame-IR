@@ -23,42 +23,34 @@ export const FAQ = {
 	mainEntity: [
 		{
 			'@type': 'Question',
-			name: 'Does this template include internationalization (i18n) support?',
+			name: 'Does RhythmGame support Bokutachi?',
 			acceptedAnswer: {
 				'@type': 'Answer',
-				text: 'Yes, the template includes full i18n support with route-based locale detection and RTL/LTR direction handling.'
+				text: 'Yes, you can link your Bokutachi profile to your RhythmGame account to automatically upload your scores.'
 			}
 		},
 		{
 			'@type': 'Question',
-			name: 'Are shadcn-svelte components integrated?',
+			name: 'Can I play the game without an account?',
 			acceptedAnswer: {
 				'@type': 'Answer',
-				text: 'Yes, shadcn-svelte components are fully integrated with Tailwind CSS v4 for modern UI development.'
+				text: 'Yes, you can still see leaderboards in-game without an account, but you will not be able to submit scores.'
 			}
 		},
 		{
 			'@type': 'Question',
-			name: 'Does the template support SEO and structured data?',
+			name: 'Does RhythmGame upload scores to Lunatic Rave 2 Internet Ranking?',
 			acceptedAnswer: {
 				'@type': 'Answer',
-				text: 'Yes, it includes store-based SEO metadata management and structured data configurations with examples.'
+				text: 'No, the in-game LR2IR ranking is read-only.'
 			}
 		},
 		{
 			'@type': 'Question',
-			name: 'Is there built-in state management?',
+			name: 'What internet rankings does RhythmGame support?',
 			acceptedAnswer: {
 				'@type': 'Answer',
-				text: 'Yes, the template uses centralized Svelte stores for global state management with TypeScript support.'
-			}
-		},
-		{
-			'@type': 'Question',
-			name: 'Are authentication and database abstraction features included?',
-			acceptedAnswer: {
-				'@type': 'Answer',
-				text: 'Coming soon - these features are planned for the roadmap.'
+				text: 'RhythmGame supports its own RhythmGame IR, Bokutachi and LR2IR (read-only).'
 			}
 		}
 	]
