@@ -46,6 +46,7 @@
 			if (res.ok) {
 				toast.success('Disconnected');
 				user = undefined;
+				tachiId = undefined;
 			} else {
 				toast.error('Failed to disconnect');
 			}

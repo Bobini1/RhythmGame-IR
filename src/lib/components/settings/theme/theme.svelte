@@ -25,7 +25,7 @@
 		</Card.Title>
 		<Card.Description>{$t('common.theme_settings_description')}</Card.Description>
 	</Card.Header>
-	<div class="px-4 pb-4">
+	<div class="px-4">
 		<Select.Root type="single" onValueChange={onChangeTheme}>
 			<Select.Trigger>{$t(currentTheme.label)}</Select.Trigger>
 			<Select.Content>

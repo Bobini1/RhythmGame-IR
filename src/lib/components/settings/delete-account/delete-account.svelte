@@ -38,7 +38,7 @@ import * as Card from '$lib/components/ui/card';
 	<Card.Description>{$t('common.delete_account_description')}</Card.Description>
   </Card.Header>
 
-  <div class="px-4 pb-4">
+  <div class="px-4">
 	<AlertDialog.Root bind:open>
 	  <AlertDialog.Trigger>
 		{#snippet child({ props })}

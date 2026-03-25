@@ -44,7 +44,7 @@
 	<Card.Description>{$t('common.change_password_description')}</Card.Description>
   </Card.Header>
 
-  <div class="px-4 pb-4">
+  <div class="px-4">
 	{#if open}
 	  <form onsubmit={submit} class="flex flex-col gap-3">
 			<div class="space-y-1">
