@@ -52,10 +52,8 @@
 				<!-- Right: actions -->
 				<div class="flex items-center justify-end md:shrink-0">
 					{#if id}
-						<ButtonGroup.Root aria-label={$t('integrations.bokutachi.actions_label')}>
-
-							<!-- Sync: submit button, shows feedback via result -->
-							<form {...syncForm}>
+						<!-- Sync: submit button, shows feedback via result -->
+						<form {...syncForm}>
 								<Button
 									type="submit"
 									size="sm"
@@ -71,7 +69,6 @@
 										{$t('integrations.bokutachi.sync')}
 									{/if}
 								</Button>
-							</form>
 							<!-- Manage: a real link, opens externally -->
 							<Button
 								size="sm"
@@ -94,8 +91,7 @@
 							>
 								{$t('integrations.bokutachi.disconnect')}
 							</Button>
-
-						</ButtonGroup.Root>
+						</form>
 					{:else}
 						<Button
 							size="sm"
