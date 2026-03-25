@@ -1,6 +1,7 @@
 {
 	"list": {
 		"title": "Gracze",
+		"unknown": "Nieznany gracz",
 		"description": "Wszyscy gracze w rankingu internetowym",
 		"player": "Gracz",
 		"score_count": "Wyniki",

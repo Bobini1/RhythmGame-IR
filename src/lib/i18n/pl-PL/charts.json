@@ -10,6 +10,7 @@
 	},
 	"page": {
 		"title": "Utwór",
+		"unknown": "Nieznany utwór",
 		"description": "Informacje o utworze i wyniki",
 		"scores_title": "Wyniki",
 		"search_placeholder": "Szukaj po graczu…"

@@ -1,6 +1,7 @@
 {
 	"list": {
 		"title": "Players",
+		"unknown": "Unknown player",
 		"description": "All players on the internet ranking",
 		"player": "Player",
 		"score_count": "Scores",

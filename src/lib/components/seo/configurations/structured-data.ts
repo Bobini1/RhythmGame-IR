@@ -1,22 +1,4 @@
-import { BaseUrl } from '$lib/api/configurations/common';
-
-export const Breadcrumbs = {
-	'@type': 'BreadcrumbList',
-	itemListElement: [
-		{
-			'@type': 'ListItem',
-			position: 1,
-			name: 'Home',
-			item: `${BaseUrl}`
-		},
-		{
-			'@type': 'ListItem',
-			position: 2,
-			name: 'Settings',
-			item: `${BaseUrl}/settings`
-		}
-	]
-};
+import { BaseUrl, AppName, SupportEmail, TwitterUsername } from '$lib/api/configurations/common';
 
 export const FAQ = {
 	'@type': 'FAQPage',
@@ -55,3 +37,41 @@ export const FAQ = {
 		}
 	]
 };
+
+// Minimal Organization + Website entries for richer search results
+export const Organization = {
+	'@id': `${BaseUrl}/#organization`,
+	'@type': 'Organization',
+	name: AppName,
+	url: BaseUrl,
+	logo: {
+		'@type': 'ImageObject',
+		url: `${BaseUrl}/favicon.svg`,
+		width: 512,
+		height: 512
+	},
+	contactPoint: [
+		{
+			'@type': 'ContactPoint',
+			contactType: 'customer support',
+			email: SupportEmail
+		}
+	],
+	// include social profile if available
+	sameAs: TwitterUsername ? [`https://twitter.com/${TwitterUsername.replace(/^@/, '')}`] : undefined
+};
+
+export const WebSite = {
+	'@type': 'WebSite',
+	name: AppName,
+	url: BaseUrl,
+	publisher: { '@id': `${BaseUrl}/#organization` },
+	potentialAction: {
+		'@type': 'SearchAction',
+		target: `${BaseUrl}/search?q={search_term_string}`,
+		'query-input': 'required name=search_term_string'
+	}
+};
+
+export const DefaultGraph = [Organization, WebSite, FAQ];
+

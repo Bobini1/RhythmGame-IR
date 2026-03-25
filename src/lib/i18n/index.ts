@@ -45,6 +45,11 @@ const config: Config<Params> = {
 		},
 		{
 			locale: AvailableLocales.Polish,
+			key: 'navigation',
+			loader: async () => (await import('$lib/i18n/pl-PL/navigation.json')).default
+		},
+		{
+			locale: AvailableLocales.Polish,
 			key: 'integrations',
 			loader: async () => (await import('$lib/i18n/pl-PL/integrations.json')).default
 		},
@@ -72,6 +77,11 @@ const config: Config<Params> = {
 			locale: AvailableLocales.English_US,
 			key: 'charts',
 			loader: async () => (await import('./en-US/charts.json')).default
+		},
+		{
+			locale: AvailableLocales.English_US,
+			key: 'navigation',
+			loader: async () => (await import('$lib/i18n/en-US/navigation.json')).default
 		},
 		{
 			locale: AvailableLocales.English_US,

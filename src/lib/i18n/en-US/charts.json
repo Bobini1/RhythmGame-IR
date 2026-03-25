@@ -10,6 +10,7 @@
 	},
 	"page": {
 		"title": "Chart",
+		"unknown": "Unknown chart",
 		"description": "Chart details and scores",
 		"scores_title": "Scores",
 		"search_placeholder": "Search for player…"
