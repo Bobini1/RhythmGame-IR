@@ -7,8 +7,10 @@ RUN bun run build
 
 FROM oven/bun:latest
 WORKDIR /app
-COPY --from=builder /app/build build/
 COPY --from=builder /app/node_modules node_modules/
+COPY --from=builder /app/src/lib/server/database/migrations src/lib/server/database/migrations/
+COPY --from=builder /app/src/lib/server/database/schemas src/lib/server/database/schemas/
+COPY --from=builder /app/drizzle.config.ts drizzle.config.ts
 COPY package.json .
 EXPOSE 3000
 ENV NODE_ENV=production
