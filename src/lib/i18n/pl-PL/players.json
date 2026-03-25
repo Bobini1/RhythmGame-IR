@@ -5,7 +5,8 @@
 		"description": "Wszyscy gracze w rankingu internetowym",
 		"player": "Gracz",
 		"score_count": "Wyniki",
-		"joined": "Dołączył"
+		"joined": "Dołączył",
+		"search_placeholder": "Szukaj…"
 	},
 	"profile": {
 		"title": "Profil gracza {name}",

@@ -5,7 +5,8 @@
 		"description": "All players on the internet ranking",
 		"player": "Player",
 		"score_count": "Scores",
-		"joined": "Joined"
+		"joined": "Joined",
+		"search_placeholder": "Search…"
 	},
 	"profile": {
 		"title": "{name}'s profile",

@@ -2,12 +2,7 @@ import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { user } from '$lib/server/database/schemas/auth';
-import { eq, desc, asc, count, inArray, and, sql, type SQL } from 'drizzle-orm';
-import type {
-	GaugeHistoryGroup,
-	HitEvent,
-	ScoreSubmission
-} from '$lib/models/scores';
+import { eq, desc, asc, count, and, sql, type SQL } from 'drizzle-orm';
 
 export interface ScoreRow {
 	id: string;
@@ -394,7 +389,8 @@ export async function getUserList(
 	limit: number,
 	offset: number,
 	sortBy: UserListSortColumn = 'score_count',
-	sortDir: 'asc' | 'desc' = 'desc'
+	sortDir: 'asc' | 'desc' = 'desc',
+	search: string = ''
 ): Promise<UserListRow[]> {
 	const dir = sortDir === 'asc' ? asc : desc;
 	const scoreCountExpr = sql<number>`COUNT(${scores.guid})::int`;
@@ -404,6 +400,8 @@ export async function getUserList(
 			: sortBy === 'joined'
 				? [dir(user.createdAt), asc(user.name)]
 				: [dir(scoreCountExpr), asc(user.name)];
+	const searchFilter = search ? sql`${user.name} ILIKE ${'%' + search + '%'}` : undefined;
+
 	const rows = await db
 		.select({
 			id: user.id,
@@ -414,6 +412,7 @@ export async function getUserList(
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
+		.where(searchFilter)
 		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.orderBy(...orderExprs)
 		.limit(limit)
@@ -421,8 +420,10 @@ export async function getUserList(
 	return rows.map((r) => ({ ...r, scoreCount: Number(r.scoreCount) }));
 }
 
-export async function getUserListCount(): Promise<number> {
-	const result = await db.select({ count: count() }).from(user);
+export async function getUserListCount(search: string = ''): Promise<number> {
+	const searchFilter = search ? sql`${user.name} ILIKE ${'%' + search + '%'}` : undefined;
+
+	const result = await db.select({ count: count() }).from(user).where(searchFilter);
 	return result[0]?.count ?? 0;
 }
 

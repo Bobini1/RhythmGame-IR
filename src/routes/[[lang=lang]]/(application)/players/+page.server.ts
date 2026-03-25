@@ -17,9 +17,14 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 		: 'joined';
 	const sortDir: 'asc' | 'desc' = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
 
-	const [users, total] = await Promise.all([getUserList(pageSize, offset, sortBy, sortDir), getUserListCount()]);
+	const search = url.searchParams.get('search')?.trim() ?? '';
+
+	const [users, total] = await Promise.all([
+		getUserList(pageSize, offset, sortBy, sortDir, search),
+		getUserListCount(search)
+	]);
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	return { users, total, page, pageSize, sortBy, sortDir };
+	return { users, total, page, pageSize, sortBy, sortDir, search };
 };
