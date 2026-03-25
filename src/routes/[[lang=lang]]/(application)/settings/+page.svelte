@@ -8,8 +8,9 @@
 	import authClient from '$lib/client/auth/client';
 	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
-	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
+				import { toast } from 'svelte-sonner';
+				import { onMount } from 'svelte';
+				import { t } from '$lib/i18n';
 	import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 	import { syncScores } from './tachi.remote';
 
@@ -20,6 +21,8 @@
 	const session = authClient.useSession();
 
 	const removeUrl = '/api/integrations/tachi/remove';
+
+	const manageHref = $derived(tachiId ? `https://boku.tachi.ac/u/${tachiId}/integrations` : 'https://boku.tachi.ac');
 
 	onMount(async () => {
 		const res = await fetch(`${PUBLIC_BOKUTACHI_API}/users/${tachiId}`);
@@ -34,7 +37,7 @@
 	function startConnect() {
 		const id = env.PUBLIC_BOKUTACHI_CLIENT_ID;
 		if (!id) {
-			toast.error('Tachi client ID not configured');
+			toast.error($t('integrations.bokutachi.client_id_not_configured'));
 			return;
 		}
 		window.location.href = `https://boku.tachi.ac/oauth/request-auth?clientID=${encodeURIComponent(id)}`;
@@ -43,16 +46,26 @@
 	async function disconnect() {
 		try {
 			const res = await fetch(removeUrl, { method: 'POST' });
+			const redirectTo = manageHref ?? 'https://boku.tachi.ac';
 			if (res.ok) {
-				toast.success('Disconnected');
+				toast.success($t('integrations.bokutachi.disconnect_success'));
+				// Inform user they need to finish disconnecting on the Tachi site and redirect them there shortly
+				toast($t('integrations.bokutachi.disconnect_finish_notice'));
 				user = undefined;
-				tachiId = undefined;
+				// keep tachiId for redirect if available
+				setTimeout(() => {
+					try {
+						window.location.href = redirectTo;
+					} catch (e) {
+						console.warn('Redirect failed', e);
+					}
+				}, 3000);
 			} else {
-				toast.error('Failed to disconnect');
+				toast.error($t('integrations.bokutachi.disconnect_failed'));
 			}
 		} catch (err) {
 			console.error('Disconnect failed', err);
-			toast.error('Failed to disconnect');
+			toast.error($t('integrations.bokutachi.disconnect_failed'));
 		}
 	}
 </script>

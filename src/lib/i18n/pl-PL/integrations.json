@@ -11,5 +11,9 @@
 		"connect": "Połącz",
 		"connect_label": "Połącz konto Bokutachi",
 		"actions_label": "Akcje integracji Bokutachi"
+		,"client_id_not_configured": "ID klienta Bokutachi nie zostało skonfigurowane"
+		,"disconnect_success": "Rozłączono z Bokutachi"
+		,"disconnect_finish_notice": "Dokończ rozłączanie na stronie Bokutachi. Zostaniesz wkrótce przekierowany do strony zarządzania integracjami."
+		,"disconnect_failed": "Nie udało się rozłączyć z Bokutachi"
 	}
 }

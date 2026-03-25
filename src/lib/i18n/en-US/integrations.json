@@ -11,5 +11,9 @@
 		"connect": "Connect",
 		"connect_label": "Connect your Bokutachi account",
 		"actions_label": "Bokutachi integration actions"
+		,"client_id_not_configured": "Bokutachi client ID is not configured"
+		,"disconnect_success": "Disconnected from Bokutachi"
+		,"disconnect_finish_notice": "Please finish disconnecting on Bokutachi. You will be redirected to their integrations page shortly."
+		,"disconnect_failed": "Failed to disconnect from Bokutachi"
 	}
 }
