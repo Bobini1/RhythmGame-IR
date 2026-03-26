@@ -2,6 +2,7 @@
 	import { createAvatar, type Style } from '@dicebear/core';
 	import { adventurer } from '@dicebear/collection';
 	import * as Avatar from '../ui/avatar';
+	import { PUBLIC_AVATAR_SEED_SALT } from '$env/static/public';
 
 	let {
 		id,
@@ -23,7 +24,7 @@
 		src ??
 			createAvatar(collection ?? adventurer, {
 				size: size ?? 128,
-				seed: id ?? crypto.randomUUID()
+				seed: PUBLIC_AVATAR_SEED_SALT + (id ?? crypto.randomUUID())
 			}).toDataUri()
 	);
 </script>
