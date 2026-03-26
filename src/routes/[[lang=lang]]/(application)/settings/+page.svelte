@@ -51,6 +51,7 @@
 				toast.success($t('integrations.bokutachi.disconnect_success'));
 				toast($t('integrations.bokutachi.disconnect_finish_notice'));
 				user = undefined;
+				tachiId = undefined;
 				setTimeout(() => {
 					try {
 						window.open(redirectTo, '_blank', 'noopener,noreferrer');
