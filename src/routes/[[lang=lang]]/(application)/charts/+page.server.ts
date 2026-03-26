@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getChartList, getChartListCount } from '$lib/server/scores/query';
 import type { ChartListSortColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
+import { BaseUrl } from '$lib/api/configurations/common';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartListSortColumn>(['title', 'play_count', 'artist']);
@@ -23,5 +24,18 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	return { chartList, total, page, pageSize, sortBy, sortDir, search };
+	const jsonLd = {
+		'@type': 'ItemList',
+		name: 'Charts',
+		url: `${BaseUrl}/charts`,
+		numberOfItems: total,
+		itemListElement: chartList.map((chart, i) => ({
+			'@type': 'ListItem',
+			position: i + 1 + page * pageSize,
+			name: chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title,
+			url: `${BaseUrl}/charts/${chart.md5}`
+		}))
+	};
+
+	return { chartList, total, page, pageSize, sortBy, sortDir, search, jsonLd };
 };

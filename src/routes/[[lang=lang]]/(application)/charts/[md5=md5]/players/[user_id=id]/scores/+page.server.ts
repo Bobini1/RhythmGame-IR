@@ -8,6 +8,8 @@ import {
 } from '$lib/server/scores/query';
 import type { ChartUserSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
+import { BaseUrl } from '$lib/api/configurations/common';
+import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
@@ -44,7 +46,35 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir };
+	const title = chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title;
+
+	const jsonLd = {
+		'@type': 'ItemList',
+		name: `${profile.name} scores on ${title}`,
+		url: `${BaseUrl}/charts/${chart.md5}/players/${profile.id}/scores`,
+		numberOfItems: total,
+		about: [
+			{
+				'@type': 'MusicComposition',
+				name: title,
+				url: `${BaseUrl}/charts/${chart.md5}`,
+				identifier: chart.md5
+			},
+			{
+				'@type': 'Person',
+				name: profile.name,
+				image: imageUrlFromUserId(profile.id),
+				url: `${BaseUrl}/players/${profile.id}`
+			}
+		],
+		itemListElement: scores.map((score, i) => ({
+			'@type': 'ListItem',
+			position: i + 1 + page * pageSize,
+			name: `${profile.name} - ${score.clearType} - ${score.points}`
+		}))
+	};
+
+	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir, jsonLd };
 };
 
 

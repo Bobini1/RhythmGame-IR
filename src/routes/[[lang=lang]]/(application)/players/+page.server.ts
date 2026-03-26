@@ -2,6 +2,8 @@ import type { PageServerLoad } from './$types';
 import { getUserList, getUserListCount } from '$lib/server/scores/query';
 import type { UserListSortColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
+import { BaseUrl } from '$lib/api/configurations/common';
+import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<UserListSortColumn>(['name', 'score_count', 'joined']);
@@ -25,6 +27,23 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 	]);
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
+
+	const jsonLd = {
+		'@type': 'ItemList',
+		name: 'Players',
+		url: `${BaseUrl}/players`,
+		numberOfItems: total,
+		itemListElement: users.map((user, i) => ({
+			'@type': 'ListItem',
+			position: i + 1 + page * pageSize,
+			item: {
+				'@type': 'Person',
+				name: user.name,
+				image: imageUrlFromUserId(user.id),
+				url: `${BaseUrl}/players/${user.id}`
+			}
+		}))
+	};
 
 	return { users, total, page, pageSize, sortBy, sortDir, search };
 };

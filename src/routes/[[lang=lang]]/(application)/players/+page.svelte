@@ -1,9 +1,9 @@
 <script lang="ts">
-				import { page } from '$app/state';
-				import { t } from '$lib/i18n';
-				import BasePage from '$lib/components/base-page/base-page.svelte';
-				import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
-				import { Input } from '$lib/components/ui/input';
+	import { page } from '$app/state';
+	import { t } from '$lib/i18n';
+	import BasePage from '$lib/components/base-page/base-page.svelte';
+	import AppDataTable from '$lib/components/app-data-table/app-data-table.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import type { UserListRow } from '$lib/server/scores/query';
 	import type { TableConfiguration } from '$lib/models/table';
 	import type { ColumnDef, SortingState } from '@tanstack/table-core';
@@ -11,8 +11,8 @@
 	import PlayerLinkCell from '$lib/components/table-cells/player-link-cell.svelte';
 	import { langGoto } from '$lib/utils';
 
-				let { data } = $props();
-				let { users, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch } = $derived(data);
+	let { data } = $props();
+	let { users, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch } = $derived(data);
 
 	const columns: ColumnDef<UserListRow>[] = [
 		{
@@ -77,9 +77,10 @@
 		});
 	}
 
-				// svelte-ignore state_referenced_locally
-				let searchInput = $state<string>(initialSearch ?? '');
+	// svelte-ignore state_referenced_locally
+	let searchInput = $state<string>(initialSearch ?? '');
 	let debounceTimer: ReturnType<typeof setTimeout>;
+
 	function onSearchInput() {
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {

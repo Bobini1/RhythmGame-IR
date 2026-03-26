@@ -7,6 +7,7 @@ import {
 } from '$lib/server/scores/query';
 import type { ChartSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
+import { BaseUrl } from '$lib/api/configurations/common';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
@@ -49,6 +50,15 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
+	const jsonLd = {
+		'@type': 'MusicComposition',
+		name: chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title,
+		url: `${BaseUrl}/charts/${chart.md5}`,
+		composer: { '@type': 'Person', name: chart.subartist ? `${chart.artist} (${chart.subartist})` : chart.artist },
+		genre: chart.genre ?? undefined,
+		identifier: chart.md5
+	};
+
 	return {
 		chart,
 		scores: chartScores,
@@ -57,7 +67,8 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		pageSize,
 		sortBy,
 		sortDir,
-		search
+		search,
+		jsonLd
 	};
 };
 

@@ -10,9 +10,10 @@
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
 	import { langGoto } from '$lib/utils';
+	import { JsonLd } from 'svelte-meta-tags';
 
 	let { data } = $props();
-	let { profile, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
+	let { profile, scores, total, page: currentPage, pageSize, sortBy, sortDir, jsonLd } = $derived(data);
 	// svelte-ignore state_referenced_locally
 	let search = $state<string>(data.search ?? '');
 
@@ -105,3 +106,4 @@
 	</div>
 </BasePage>
 
+<JsonLd schema={jsonLd} />

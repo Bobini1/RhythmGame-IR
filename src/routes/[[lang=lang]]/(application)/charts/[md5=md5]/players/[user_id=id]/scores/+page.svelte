@@ -9,9 +9,10 @@
 	import type { SortingState } from '@tanstack/table-core';
 	import { columns } from './configurations';
 	import { langGoto, langHref } from '$lib/utils';
+	import { JsonLd } from 'svelte-meta-tags';
 
 	let { data } = $props();
-	let { chart, profile, scores, total, page: currentPage, pageSize, sortBy, sortDir } = $derived(data);
+	let { chart, profile, scores, total, page: currentPage, pageSize, sortBy, sortDir, jsonLd } = $derived(data);
 
 	let configuration = $derived<TableConfiguration<ChartUserScoreRow>>({
 		serverSide: { enabled: true, manualPagination: true, totalItems: total },
@@ -78,3 +79,4 @@
 	</div>
 </BasePage>
 
+<JsonLd schema={jsonLd} />

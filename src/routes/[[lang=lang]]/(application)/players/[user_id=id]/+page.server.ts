@@ -3,9 +3,20 @@ import { error } from '@sveltejs/kit';
 import { getUserProfile, getUserScores, getUserScoreCount } from '$lib/server/scores/query';
 import type { SortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
+import { BaseUrl } from '$lib/api/configurations/common';
+import { page } from '$app/state';
+import { PUBLIC_AVATAR_SEED_SALT } from '$env/static/public';
+import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
 
 const DEFAULT_PAGE_SIZE = 10;
-const VALID_SORT_COLUMNS = new Set<SortableColumn>(['title', 'score_pct', 'grade', 'combo', 'clear_type', 'date']);
+const VALID_SORT_COLUMNS = new Set<SortableColumn>([
+	'title',
+	'score_pct',
+	'grade',
+	'combo',
+	'clear_type',
+	'date'
+]);
 
 export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const id = Number(params.user_id);
@@ -15,7 +26,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	if (!profile) error(404, 'Player not found');
 
 	const page = Math.max(0, Number(url.searchParams.get('page') ?? 0));
-	const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') ?? DEFAULT_PAGE_SIZE)));
+	const pageSize = Math.min(
+		100,
+		Math.max(1, Number(url.searchParams.get('limit') ?? DEFAULT_PAGE_SIZE))
+	);
 	const offset = page * pageSize;
 
 	const rawSortBy = url.searchParams.get('sortBy') ?? '';
@@ -32,5 +46,20 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	return { profile, scores, total, page, pageSize, sortBy, sortDir, search };
+	// url without query params
+	const canonicalUrl = `${BaseUrl}${url.pathname}`;
+
+	const jsonLd = {
+		'@type': 'ProfilePage',
+		name: profile.name,
+		url: canonicalUrl,
+		mainEntity: {
+			'@type': 'Person',
+			name: profile.name,
+			image: imageUrlFromUserId(profile.id),
+			'@id': profile.id.toString()
+		}
+	};
+
+	return { profile, scores, total, page, pageSize, sortBy, sortDir, search, jsonLd };
 };
