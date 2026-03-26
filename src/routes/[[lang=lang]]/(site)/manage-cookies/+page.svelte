@@ -34,9 +34,9 @@
 </script>
 
 <BasePage title="common.manage_cookies" description="seo.pages.manage_cookies.description">
-	<h1 class="text-2xl">{$t('common.manage_cookies_preferences')}</h1>
 	<ResourceMarkdown path="cookies-disclaimer" />
 	<div class="flex flex-col items-center gap-6">
+		<h1 class="text-2xl text-center w-full">{$t('common.manage_cookies_preferences')}</h1>
 		{#each CookieManagerConfiguration['cookies-categories'] as cookieCategory (cookieCategory.name)}
 			<section
 				class="prose prose-xl text-primary prose-headings:text-primary rounded-md border p-2 text-justify"
