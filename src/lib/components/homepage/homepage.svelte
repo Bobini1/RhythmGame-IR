@@ -139,7 +139,7 @@
 									<Icon icon="mdi:arch"  class="text-primary h-7 w-7" />
 									<div>
 										<div class="font-medium">{$t('homepage.download.aur')}</div>
-										<code class="text-muted-foreground text-sm">paru -S rhythm-game-git</code>
+										<code class="text-muted-foreground text-sm">paru -S rhythmgame-git</code>
 									</div>
 								</div>
 							</div>
