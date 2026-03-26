@@ -89,6 +89,9 @@
 	"enter_email": "Wprowadź e-mail",
 	"password": "Hasło",
 	"enter_password": "Wprowadź hasło",
+	"resend_verification": "Wyślij e-mail weryfikacyjny",
+	"resend_failed": "Nie udało się wysłać e-maila weryfikacyjnego",
+	"verification_sent": "E-mail weryfikacyjny został wysłany",
 	"sign_in": "Zaloguj się",
 	"built_by": "Stworzone przez Tomasza Kalisiaka",
 	"email_verified": "E-mail zweryfikowany",
@@ -158,5 +161,7 @@
 	"uploading": "Przesyłanie",
 	"upload": "Prześlij",
 	"select_file": "Wybierz plik",
-	"processing": "Ładowanie..."
+	"processing": "Ładowanie...",
+	"email_verify_required": "Potwierdź swój adres e-mail",
+	"signin_failed": "Logowanie nie powiodło się"
 }

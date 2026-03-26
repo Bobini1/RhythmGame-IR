@@ -20,7 +20,9 @@ export const auth = betterAuth({
 		}
 	}),
 	emailAndPassword: {
+		sendOnSignUp: true,
 		enabled: true,
+		requireEmailVerification: true,
 		sendResetPassword: async ({ user, url }) => {
 			await resend.emails.send({
 				from: 'RhythmGame <noreply@rhythmgame.eu>',
@@ -38,9 +40,10 @@ export const auth = betterAuth({
 				subject: 'Verify your email',
 				html: `<p>Click <a href="${url}">here</a> to verify your email.</p>`
 			});
-		}
+		},
+		sendOnSignUp: true,
+		autoSignInAfterVerification: true
 	},
-	requireEmailVerification: true,
 	baseURL: env.BETTER_AUTH_URL,
 	advanced: {
 		database: {

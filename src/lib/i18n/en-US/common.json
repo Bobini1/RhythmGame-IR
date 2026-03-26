@@ -89,6 +89,9 @@
 	"enter_email": "Enter your email",
 	"password": "Password",
 	"enter_password": "Enter your password",
+	"resend_verification": "Resend verification email",
+	"resend_failed": "Resend failed",
+	"verification_sent": "Verification email sent",
 	"sign_in": "Sign in",
 	"built_by": "Built by Tomasz Kalisiak",
 	"email_verified": "Email verified",
@@ -158,5 +161,7 @@
 	"uploading": "Uploading",
 	"upload": "Upload",
 	"select_file": "Select a file",
-	"processing": "Processing..."
+	"processing": "Processing...",
+	"email_verify_required": "Please verify your email address",
+	"signin_failed": "Sign in failed"
 }
