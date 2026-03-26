@@ -8,15 +8,15 @@
 	import authClient from '$lib/client/auth/client';
 	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
-				import { toast } from 'svelte-sonner';
-				import { onMount } from 'svelte';
-				import { t } from '$lib/i18n';
+	import { toast } from 'svelte-sonner';
+	import { onMount } from 'svelte';
+	import { t } from '$lib/i18n';
 	import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 	import { syncScores } from './tachi.remote';
 
 	let tachiId = $derived(page.data.tachiId);
 
-	let user : string | undefined = $state(undefined);
+	let user: string | undefined = $state(undefined);
 
 	const session = authClient.useSession();
 
@@ -74,7 +74,9 @@
 		<ThemeSettings />
 		{#if $session.data}
 			<ProfilePicture />
-			<BokutachiIntegration syncForm={syncScores} user={user} id={tachiId} manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect} onDisconnect={disconnect} />
+			<BokutachiIntegration syncForm={syncScores} user={user} id={tachiId}
+			                      manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect}
+			                      onDisconnect={disconnect} />
 			<ChangePassword />
 			<DeleteAccount />
 		{/if}
