@@ -11,8 +11,6 @@
 	import { Turnstile } from 'svelte-turnstile';
 	import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 
-	const session = authClient.useSession();
-
 	let name = $state('');
 	let email = $state('');
 	let password = $state('');
