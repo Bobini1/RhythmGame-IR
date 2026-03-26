@@ -1,7 +1,7 @@
 import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { user } from '$lib/server/database/schemas/auth';
-import { asc, count, desc, eq, sql } from 'drizzle-orm';
+import { asc, count, desc, eq, sql, and } from 'drizzle-orm';
 import { integrations } from '$lib/server/database/schemas/integrations';
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,8 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 		.select({
 			id: user.id,
 			name: user.name,
-			image: user.image,
+			// If the user has no uploaded image, return a deterministic DiceBear Adventurer avatar URL (DiceBear 9.x)
+			image: sql<string>`COALESCE(${user.image}, ('https://api.dicebear.com/9.x/adventurer/svg?seed=' || ${user.id}::text))`,
 			createdAt: user.createdAt,
 			scoreCount: sql<number>`COUNT(${scores.guid})::int`,
 			chartCount: sql<number>`COUNT(DISTINCT ${scores.md5})::int`,
@@ -33,7 +34,8 @@ export async function getUserById(id: number): Promise<ApiUser | null> {
 		})
 		.from(user)
 		.leftJoin(scores, eq(scores.userId, user.id))
-		.where(eq(user.id, id))
+		// Only return users who have verified their email
+		.where(and(eq(user.id, id), eq(user.emailVerified, true)))
 		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.limit(1);
 	if (!rows[0]) return null;
@@ -68,7 +70,8 @@ export async function queryUsers(
 		.select({
 			id: user.id,
 			name: user.name,
-			image: user.image,
+			// If no image is set, provide a deterministic DiceBear Adventurer avatar URL (DiceBear 9.x)
+			image: sql<string>`COALESCE(${user.image}, ('https://api.dicebear.com/9.x/adventurer/svg?seed=' || ${user.id}::text))`,
 			createdAt: user.createdAt,
 			scoreCount: scoreCountExpr,
 			chartCount: chartCountExpr,
@@ -77,6 +80,8 @@ export async function queryUsers(
 			>`(SELECT (data->>'userID')::text FROM ${integrations} WHERE ${integrations}.user_id = ${user.id} AND provider = 'tachi' LIMIT 1)`
 		})
 		.from(user)
+		// Only include users who have verified their email
+		.where(eq(user.emailVerified, true))
 		.leftJoin(scores, eq(scores.userId, user.id))
 		.groupBy(user.id, user.name, user.image, user.createdAt)
 		.orderBy(...orderExprs)
@@ -85,7 +90,7 @@ export async function queryUsers(
 }
 
 export async function queryUsersCount(): Promise<number> {
-	const result = await db.select({ count: count() }).from(user);
+	const result = await db.select({ count: count() }).from(user).where(eq(user.emailVerified, true));
 	return result[0]?.count ?? 0;
 }
 

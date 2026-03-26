@@ -1,13 +1,13 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { langGoto } from '$lib/utils';
 
   onMount(async () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     if (!code) {
-      goto('/settings');
+      langGoto('/settings');
       return;
     }
 
@@ -19,7 +19,7 @@
     });
 
     // Redirect back to settings page (will show updated state)
-    goto('/settings');
+    langGoto('/settings');
   });
 </script>
 
