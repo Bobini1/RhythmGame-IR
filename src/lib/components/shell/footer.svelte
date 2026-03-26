@@ -59,7 +59,7 @@
 					</div>
 				</div>
 			</div>
-			<p class="text-muted-foreground text-sm">{$t('common.built_by')}</p>
+			<p class="text-muted-foreground text-sm text-center md:text-left">{$t('common.built_by')}</p>
 		</div>
 	</div>
 </footer>
