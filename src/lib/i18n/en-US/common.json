@@ -124,7 +124,7 @@
 	"confirm_password": "Confirm password",
 	"passwords_do_not_match": "Passwords do not match",
 	"request_new_reset_link": "Request a new reset link",
-	"request_reset_link": "Request a reset link",
+	"request_reset_link": "I don't remember my password",
 	"change_password": "Change password",
 	"change_password_description": "Update your current password.",
 	"password_changed_success": "Password changed successfully.",

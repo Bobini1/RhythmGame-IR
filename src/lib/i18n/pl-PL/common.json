@@ -124,7 +124,7 @@
 	"confirm_password": "Potwierdź hasło",
 	"passwords_do_not_match": "Hasła nie są zgodne",
 	"request_new_reset_link": "Wyślij nowy link resetujący",
-	"request_reset_link": "Wyślij link resetujący",
+	"request_reset_link": "Nie pamiętam hasła",
 	"change_password": "Zmień hasło",
 	"change_password_description": "Zaktualizuj swoje obecne hasło.",
 	"password_changed_success": "Hasło zostało zmienione.",
