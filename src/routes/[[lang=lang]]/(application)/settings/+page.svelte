@@ -49,15 +49,13 @@
 			const redirectTo = manageHref ?? 'https://boku.tachi.ac';
 			if (res.ok) {
 				toast.success($t('integrations.bokutachi.disconnect_success'));
-				// Inform user they need to finish disconnecting on the Tachi site and redirect them there shortly
 				toast($t('integrations.bokutachi.disconnect_finish_notice'));
 				user = undefined;
-				// keep tachiId for redirect if available
 				setTimeout(() => {
 					try {
-						window.location.href = redirectTo;
+						window.open(redirectTo, '_blank', 'noopener,noreferrer');
 					} catch (e) {
-						console.warn('Redirect failed', e);
+						console.warn('Open in new tab failed', e);
 					}
 				}, 3000);
 			} else {
