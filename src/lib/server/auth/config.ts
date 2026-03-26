@@ -40,7 +40,7 @@ export const auth = betterAuth({
 			});
 		}
 	},
-	// requireEmailVerification: true,
+	requireEmailVerification: true,
 	baseURL: env.BETTER_AUTH_URL,
 	advanced: {
 		database: {
