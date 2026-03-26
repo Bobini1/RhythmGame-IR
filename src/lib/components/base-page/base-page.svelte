@@ -7,7 +7,7 @@
 	import type { MetaTagsProps } from 'svelte-meta-tags';
 	import type { Snippet } from 'svelte';
 
-	let { title, description, children }: BasePageProps & { children?: Snippet } = $props();
+	let { title, description, robots, children }: BasePageProps & { children?: Snippet } = $props();
 
 	function setPageMetaTags() {
 		const pageTitle = t.get(title);
@@ -16,6 +16,7 @@
 			title: pageTitle,
 			titleTemplate: title !== 'common.brand.name' ? getTitleTemplate() : undefined,
 			description: pageDescription,
+			robots: robots ? robots : 'index, follow',
 			openGraph: {
 				title: pageTitle,
 				description: pageDescription
@@ -23,6 +24,7 @@
 		}) satisfies MetaTagsProps;
 		metaTags.set(metaTagsObject);
 	}
+	setPageMetaTags();
 
 	onMount(() => {
 		locale.subscribe(setPageMetaTags);

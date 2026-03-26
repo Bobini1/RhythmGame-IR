@@ -3,6 +3,6 @@
 	import ResourceMarkdown from '$lib/components/resource-markdown/resource-markdown.svelte';
 </script>
 
-<BasePage title="common.privacy_policy" description="seo.pages.privacy_policy.description">
+<BasePage title="common.privacy_policy" description="seo.pages.privacy_policy.description" robots="noindex, nofollow">
 	<ResourceMarkdown path="privacy-policy" />
 </BasePage>

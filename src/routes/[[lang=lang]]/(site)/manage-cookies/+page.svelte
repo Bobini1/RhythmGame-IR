@@ -33,7 +33,7 @@
 	}
 </script>
 
-<BasePage title="common.manage_cookies" description="seo.pages.manage_cookies.description">
+<BasePage title="common.manage_cookies" description="seo.pages.manage_cookies.description" robots="noindex, nofollow">
 	<ResourceMarkdown path="cookies-disclaimer" />
 	<div class="flex flex-col items-center gap-6">
 		<h1 class="text-2xl text-center w-full">{$t('common.manage_cookies_preferences')}</h1>
