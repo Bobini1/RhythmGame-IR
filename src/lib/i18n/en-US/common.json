@@ -92,6 +92,8 @@
 	"resend_verification": "Resend verification email",
 	"resend_failed": "Resend failed",
 	"verification_sent": "Verification email sent",
+	"signed_up_successfully": "Signed up successfully",
+	"check_inbox_to_verify": "Check your inbox to verify your email address",
 	"sign_in": "Sign in",
 	"built_by": "Built by Tomasz Kalisiak",
 	"email_verified": "Email verified",

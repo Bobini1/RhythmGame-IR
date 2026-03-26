@@ -92,6 +92,8 @@
 	"resend_verification": "Wyślij e-mail weryfikacyjny",
 	"resend_failed": "Nie udało się wysłać e-maila weryfikacyjnego",
 	"verification_sent": "E-mail weryfikacyjny został wysłany",
+	"signed_up_successfully": "Rejestracja zakończona pomyślnie",
+	"check_inbox_to_verify": "Sprawdź swoją skrzynkę odbiorczą, aby zweryfikować swój adres e-mail",
 	"sign_in": "Zaloguj się",
 	"built_by": "Stworzone przez Tomasza Kalisiaka",
 	"email_verified": "E-mail zweryfikowany",

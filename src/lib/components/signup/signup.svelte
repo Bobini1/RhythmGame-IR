@@ -19,6 +19,7 @@
 	let isLoading = $state(false);
 	let turnstileToken = $state('');
 	let resetTurnstile = $state<() => void>();
+	let signedUp = $state(false);
 
 	async function signup() {
 		if (!turnstileToken) {
@@ -39,6 +40,8 @@
 				toast.error(t.get(`common.auth_errors.${error.code ?? 'UNKNOWN_ERROR'}`));
 				resetTurnstile?.();
 				turnstileToken = '';
+			} else {
+				signedUp = true;
 			}
 		} catch {
 			toast.error(t.get('common.auth_errors.UNKNOWN_ERROR'));
@@ -50,14 +53,10 @@
 </script>
 
 <div class="flex items-center justify-center p-4">
-	{#if $session.data}
+	{#if signedUp}
 		<Alert.Root>
-			<Alert.Title>{$t('common.signed_up_successfuly')}</Alert.Title>
-			<Alert.Description
-				>{$t('common.as_x', {
-					user: $session.data.user.name || $session.data.user.email
-				})}</Alert.Description
-			>
+			<Alert.Title>{$t('common.signed_up_successfully')}</Alert.Title>
+			<Alert.Description>{$t('common.check_inbox_to_verify')}</Alert.Description>
 		</Alert.Root>
 	{:else}
 		<Card.Root>
