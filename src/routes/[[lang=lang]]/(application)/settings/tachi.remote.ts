@@ -11,6 +11,6 @@ export const syncScores = form(async () => {
 	const filters: ScoresCollectionFilters = {};
 	filters.user = Number(userId);
 	const scores = await queryScores(filters);
-	await uploadScoresToTachi(scores, locals.tachi.token);
-	return { synced: true };
+	const result = await uploadScoresToTachi(scores, locals.tachi.token);
+	return { synced: true, result };
 });

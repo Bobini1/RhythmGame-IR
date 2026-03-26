@@ -15,5 +15,7 @@
 		,"disconnect_success": "Rozłączono z Bokutachi"
 		,"disconnect_finish_notice": "Dokończ rozłączanie na stronie Bokutachi. Zostaniesz wkrótce przekierowany do strony zarządzania integracjami."
 		,"disconnect_failed": "Nie udało się rozłączyć z Bokutachi"
+		,"sync_success": "Wyniki przesłane do Bokutachi"
+		,"sync_failed": "Nie udało się przesłać wyników do Bokutachi. Spróbuj odłączyć i połączyć konto ponownie."
 	}
 }

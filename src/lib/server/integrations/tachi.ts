@@ -258,12 +258,15 @@ export async function uploadScoresToTachi(scores: ApiScore[], token: string) {
 		const res = await uploadScoresToTachiForKeymode(k7, token, '7K');
 		if (!res.success) {
 			console.error('[uploadScoresToTachi] 7K upload failed', res);
+			return false;
 		}
 	}
 	if (k14.length > 0) {
 		const res = await uploadScoresToTachiForKeymode(k14, token, '14K');
 		if (!res.success) {
 			console.error('[uploadScoresToTachi] 14K upload failed', res);
+			return false;
 		}
 	}
+	return true;
 }
