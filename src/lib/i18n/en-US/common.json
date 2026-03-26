@@ -105,6 +105,7 @@
 		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists"
 	},
 	"captcha_required": "Please complete the captcha",
+	"reset_password": "Reset Password",
 	"forgot_password": "Forgot password?",
 	"forgot_password_title": "Forgot your password?",
 	"forgot_password_description": "Enter your email and we'll send you a reset link",

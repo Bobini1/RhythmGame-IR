@@ -6,6 +6,7 @@ import {
 	Settings,
 	LogIn,
 	Signature,
+	Key,
 	Users,
 	Music
 } from '@lucide/svelte';
@@ -80,6 +81,12 @@ export const AppRoutes: GroupedRoutes[] = [
 				label: 'common.signup',
 				path: '/signup',
 				icon: Signature,
+				authenticationRequired: false
+			},
+			{
+				label: 'common.reset_password',
+				path: '/forgot-password',
+				icon: Key,
 				authenticationRequired: false
 			}
 		]
