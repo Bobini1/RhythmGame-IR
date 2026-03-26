@@ -10,9 +10,10 @@
 	import { renderComponent } from '$lib/components/ui/data-table';
 	import PlayerLinkCell from '$lib/components/table-cells/player-link-cell.svelte';
 	import { langGoto } from '$lib/utils';
+	import { JsonLd } from 'svelte-meta-tags';
 
 	let { data } = $props();
-	let { users, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch } = $derived(data);
+	let { users, total, page: currentPage, pageSize, sortBy, sortDir, search: initialSearch, jsonLd } = $derived(data);
 
 	const columns: ColumnDef<UserListRow>[] = [
 		{
@@ -110,3 +111,5 @@
 		{/snippet}
 	</AppDataTable>
 </BasePage>
+
+<JsonLd schema={jsonLd} />

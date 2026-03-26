@@ -45,5 +45,5 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 		}))
 	};
 
-	return { users, total, page, pageSize, sortBy, sortDir, search };
+	return { users, total, page, pageSize, sortBy, sortDir, search, jsonLd };
 };
