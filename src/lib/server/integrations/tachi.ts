@@ -156,6 +156,16 @@ function convertRandom(noteOrderAlgorithm: number) {
 	}
 }
 
+enum DpOptions {
+	Off,
+	Flip,
+	Battle
+}
+
+function checkDpOptions(dpOptions: number) {
+	if (dpOptions == DpOptions.Battle) throw new Error('Battle DP is not supported on Tachi');
+}
+
 export function prepareTachiScore(score: ApiScore): TachiScore {
 	const lamp = mapClearToTachiLamp(score.clearType);
 
@@ -165,6 +175,7 @@ export function prepareTachiScore(score: ApiScore): TachiScore {
 	const judgements = convertJudgements(score.judgementCounts);
 	const random = convertRandom(score.noteOrderAlgorithm);
 	const random2 = convertRandom(score.noteOrderAlgorithmP2);
+	checkDpOptions(score.dpOptions);
 
 	return {
 		score: Number(score.points ?? 0),
