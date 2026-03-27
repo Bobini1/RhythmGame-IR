@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	let description = t.get('charts.user_scores.description', { player: profile.name });
 
 	// Provide i18n keys with interpolation vars to createMetaTags
-	const meta = createMetaTags(, title, description, undefined, {
+	const meta = createMetaTags(title, description, undefined, {
 		vars: { player: profile.name, chart: chartTitle },
 		image: ogImage,
 		titleIsKey: false,
