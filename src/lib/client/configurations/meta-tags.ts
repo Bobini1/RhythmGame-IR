@@ -19,7 +19,7 @@ export const getBaseMetaTags = ({ url }: { url: URL }) => {
 			images: [
 				{
 					url: 'https://f003.backblazeb2.com/file/cdn-rhythmgame/static/icon.png',
-					width: 1200,
+					width: 630,
 					height: 630,
 					alt: brandName
 				}
