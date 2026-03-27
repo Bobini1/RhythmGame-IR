@@ -86,6 +86,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
+	if (!locals.user?.id) {
+		return json({ error: 'No valid id' }, { status: 401 });
+	}
+
 	let body: unknown;
 	try {
 		body = parseBigIntJson(await request.text());
