@@ -81,12 +81,15 @@ export const GET: RequestHandler = async ({ url }) => {
 // ---------------------------------------------------------------------------
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	console.log('[POST /api/scores] Received request');
 	const session = locals.session;
 	if (!session) {
+		console.error('[POST /api/scores] No session found');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	if (!locals.user?.id) {
+		console.error('[POST /api/scores] No valid user id found');
 		return json({ error: 'No valid id' }, { status: 401 });
 	}
 
@@ -100,6 +103,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const parsed = scoreSubmissionPayloadSchema.safeParse(body);
 	if (!parsed.success) {
+		console.error('[POST /api/scores] Validation failed', parsed.error.flatten());
 		return json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 });
 	}
 
@@ -108,6 +112,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const tachiToken = locals.tachi?.token;
 		if (tachiToken) {
 			const score = await getScoreById(parsed.data.scoreData.guid);
+			console.log('[POST /api/scores] Score found for GUID', parsed.data.scoreData.guid);
 			if (score) {
 				await uploadScoresToTachi([score], tachiToken);
 			} else {
