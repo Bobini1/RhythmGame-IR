@@ -77,11 +77,15 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	// Use user's profile image if available for OG image
 	const ogImage = profile.image ?? imageUrlFromUserId(profile.id, 'png');
+	let title = t.get('charts.user_scores.title', { player: profile.name, chart: chartTitle });
+	let description = t.get('charts.user_scores.description', { player: profile.name });
 
 	// Provide i18n keys with interpolation vars to createMetaTags
-	const meta = createMetaTags('charts.user_scores.title', 'charts.user_scores.description', undefined, {
+	const meta = createMetaTags(, title, description, undefined, {
 		vars: { player: profile.name, chart: chartTitle },
-		image: ogImage
+		image: ogImage,
+		titleIsKey: false,
+		descriptionIsKey: false
 	});
 
 	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir, jsonLd, meta };

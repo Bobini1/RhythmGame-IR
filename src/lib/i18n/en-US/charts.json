@@ -53,8 +53,8 @@
 		"date": "Date"
 	},
 	"user_scores": {
-		"title": "Scores",
-		"description": "All scores by a player on this chart",
+		"title": "{player}'s scores on {chart}",
+		"description": "All scores by {player} on this chart",
 		"heading": "{player} on {chart}"
 	}
 }

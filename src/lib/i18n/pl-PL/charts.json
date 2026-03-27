@@ -54,8 +54,8 @@
 		"date": "Data"
 	},
 	"user_scores": {
-		"title": "Wyniki",
-		"description": "Wszystkie wyniki gracza na tym utworze",
+		"title": "Wyniki gracza {player} na {chart}",
+		"description": "Wszystkie wyniki gracza {player} na tym utworze",
 		"heading": "{player} na {chart}"
 	}
 }
