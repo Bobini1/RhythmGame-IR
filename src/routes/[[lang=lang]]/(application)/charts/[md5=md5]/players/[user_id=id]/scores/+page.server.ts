@@ -11,6 +11,7 @@ import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
 import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
 import { createMetaTags } from '$lib/client/configurations/meta-tags';
+import { t } from '$lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
