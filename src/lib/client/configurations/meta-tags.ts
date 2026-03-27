@@ -53,9 +53,6 @@ export const createMetaTags = (
 	};
 
 	if (options?.image) {
-		// openGraph.images expects an array of ImageObject-like entries
-		// keep it minimal: provide url
-		// @ts-expect-error - svelte-meta-tags types are narrow; adding images is acceptable here
 		meta.openGraph = { ...meta.openGraph, images: [{ url: options.image }] };
 	}
 
