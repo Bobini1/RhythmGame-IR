@@ -24,7 +24,8 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"db:reset": "drizzle-kit push --force --config scripts/reset-db.js"
+		"db:reset": "drizzle-kit push --force --config scripts/reset-db.js",
+		"db:mark-applied": "bun run scripts/mark-migrations-applied.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.1",

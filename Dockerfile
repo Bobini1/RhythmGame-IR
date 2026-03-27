@@ -15,4 +15,4 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY package.json .
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["sh", "-c", "bun drizzle-kit migrate && bun build/index.js"]
+CMD ["sh", "-c", "bun run scripts/mark-migrations-applied.js && bun drizzle-kit migrate && bun build/index.js"]
