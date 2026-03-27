@@ -36,10 +36,10 @@ export const createMetaTags = (
 	title: string,
 	description: string,
 	robots?: string,
-	options?: { titleIsKey?: boolean; descriptionIsKey?: boolean; image?: string }
+	options?: { titleIsKey?: boolean; descriptionIsKey?: boolean; image?: string; vars?: Record<string, string | number> }
 ): MetaTagsProps => {
-	const titleValue = options?.titleIsKey === false ? title : t.get(title);
-	const descriptionValue = options?.descriptionIsKey === false ? description : t.get(description);
+	const titleValue = options?.titleIsKey === false ? title : t.get(title, options?.vars ?? undefined);
+	const descriptionValue = options?.descriptionIsKey === false ? description : t.get(description, options?.vars ?? undefined);
 
 	const meta: MetaTagsProps = {
 		title: titleValue,

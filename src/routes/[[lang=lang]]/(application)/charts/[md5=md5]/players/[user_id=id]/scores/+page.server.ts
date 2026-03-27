@@ -10,8 +10,7 @@ import type { ChartUserSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
 import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
-import { createMetaTags, getTitleTemplate } from '$lib/client/configurations/meta-tags';
-import { t } from '$lib/i18n';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartUserSortableColumn>([
@@ -48,17 +47,17 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
-	const title = chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title;
+	const chartTitle = chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title;
 
 	const jsonLd = {
 		'@type': 'ItemList',
-		name: `${profile.name} scores on ${title}`,
+		name: `${profile.name} scores on ${chartTitle}`,
 		url: `${BaseUrl}/charts/${chart.md5}/players/${profile.id}/scores`,
 		numberOfItems: total,
 		about: [
 			{
 				'@type': 'MusicComposition',
-				name: title,
+				name: chartTitle,
 				url: `${BaseUrl}/charts/${chart.md5}`,
 				identifier: chart.md5
 			},
@@ -76,7 +75,14 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		}))
 	};
 
-	const meta = createMetaTags('charts.user_scores.title', 'charts.user_scores.description');
+	// Use user's profile image if available for OG image
+	const ogImage = profile.image ?? imageUrlFromUserId(profile.id, 'png');
+
+	// Provide i18n keys with interpolation vars to createMetaTags
+	const meta = createMetaTags('charts.user_scores.title', 'charts.user_scores.description', undefined, {
+		vars: { player: profile.name, chart: chartTitle },
+		image: ogImage
+	});
 
 	return { chart, profile, scores, total, page, pageSize, sortBy, sortDir, jsonLd, meta };
 };
