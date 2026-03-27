@@ -51,16 +51,20 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 
 	setHeaders(pageCollectionHeaders(url, total, pageSize, page));
 
+	const name = chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title;
 	const jsonLd = {
 		'@type': 'MusicComposition',
-		name: chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title,
+		name: name,
 		url: `${BaseUrl}/charts/${chart.md5}`,
-		composer: { '@type': 'Person', name: chart.subartist ? `${chart.artist} (${chart.subartist})` : chart.artist },
+		composer: {
+			'@type': 'Person',
+			name: chart.subartist ? `${chart.artist} (${chart.subartist})` : chart.artist
+		},
 		genre: chart.genre ?? undefined,
 		identifier: chart.md5
 	};
 
-	const meta = createMetaTags("charts.page.title", "charts.page.description");
+	const meta = createMetaTags(name, 'charts.page.description');
 
 	return {
 		chart,
