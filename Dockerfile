@@ -11,9 +11,8 @@ RUN apt-get update && apt-get install -y curl wget && rm -rf /var/lib/apt/lists/
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src/lib/server/database/migrations ./src/lib/server/database/migrations
-COPY --from=builder /app/scripts/ ./scripts/
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY package.json .
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["sh", "-c", "bun run scripts/mark-migrations-applied.js && bun drizzle-kit migrate && bun build/index.js"]
+CMD ["sh", "-c", "bun drizzle-kit migrate && bun build/index.js"]
