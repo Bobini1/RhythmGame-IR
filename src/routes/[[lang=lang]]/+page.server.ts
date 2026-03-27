@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { getLatestScores, getLatestScoreCount } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -68,7 +69,7 @@ export const load: PageServerLoad = async (event) => {
 
 	event.setHeaders(pageCollectionHeaders(event.url, total, pageSize, page));
 
-	let jsonLd = {
+	const jsonLd = {
 		'@graph': [
 			{
 				'@type': 'WebSite',
@@ -102,6 +103,7 @@ export const load: PageServerLoad = async (event) => {
 		page,
 		pageSize,
 		latestRelease,
-		jsonLd
+		jsonLd,
+		meta: createMetaTags('common.brand.name', 'seo.description')
 	};
 };

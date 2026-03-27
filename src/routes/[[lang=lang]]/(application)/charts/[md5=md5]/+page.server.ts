@@ -8,6 +8,7 @@ import {
 import type { ChartSortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VALID_SORT_COLUMNS = new Set<ChartSortableColumn>([
@@ -59,6 +60,8 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		identifier: chart.md5
 	};
 
+	const meta = createMetaTags("charts.page.title", "charts.page.description");
+
 	return {
 		chart,
 		scores: chartScores,
@@ -68,7 +71,8 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		sortBy,
 		sortDir,
 		search,
-		jsonLd
+		jsonLd,
+		meta
 	};
 };
 

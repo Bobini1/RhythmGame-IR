@@ -8,9 +8,10 @@
 	import ResourceMarkdown from '$lib/components/resource-markdown/resource-markdown.svelte';
 
 	const states = $state(page.data);
+
 </script>
 
-<BasePage title="common.server_health" description="seo.description">
+<BasePage>
 	<div class="flex w-full flex-row flex-wrap gap-4">
 		{#each displayStatusConfiguration as item (item)}
 			<Card.Root class="min-w-96 grow">

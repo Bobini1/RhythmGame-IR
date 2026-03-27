@@ -54,7 +54,7 @@
 	}
 </script>
 
-<BasePage title="charts.list.title" description="charts.list.description">
+<BasePage>
 	<h2 class="text-xl font-semibold mb-6">{$t('charts.list.title')}</h2>
 	<AppDataTable
 		{columns}

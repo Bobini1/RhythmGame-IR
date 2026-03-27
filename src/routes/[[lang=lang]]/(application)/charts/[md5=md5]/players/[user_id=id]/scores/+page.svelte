@@ -45,9 +45,10 @@
 	const chartTitle = $derived(chart.subtitle ? `${chart.title} ${chart.subtitle}` : chart.title);
 	const chartHref = $derived(langHref(`/charts/${chart.md5}`));
 	const profileHref = $derived(langHref(`/players/${profile.id}`));
+
 </script>
 
-<BasePage title="charts.user_scores.title" description="charts.user_scores.description">
+<BasePage>
 	<div class="flex flex-col gap-8">
 		<div class="flex flex-col gap-2">
 			<div class="text-muted-foreground flex flex-wrap items-center gap-1 text-sm">

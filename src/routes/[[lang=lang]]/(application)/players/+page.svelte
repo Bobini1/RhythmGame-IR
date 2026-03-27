@@ -88,9 +88,10 @@
 			updateUrl({ page: 0, search: searchInput });
 		}, 300);
 	}
+
 </script>
 
-<BasePage title="players.list.title" description="players.list.description">
+<BasePage>
 	<h2 class="text-xl font-semibold mb-6">{$t('players.list.title')}</h2>
 	<AppDataTable
 		{columns}

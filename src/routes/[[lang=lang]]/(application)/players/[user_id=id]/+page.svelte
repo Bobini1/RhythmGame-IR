@@ -13,7 +13,7 @@
 	import { JsonLd } from 'svelte-meta-tags';
 
 	let { data } = $props();
-	let { profile, scores, total, page: currentPage, pageSize, sortBy, sortDir, jsonLd } = $derived(data);
+	let { profile, scores, total, page: currentPage, pageSize, sortBy, sortDir, jsonLd, ogImage } = $derived(data);
 	// svelte-ignore state_referenced_locally
 	let search = $state<string>(data.search ?? '');
 
@@ -69,9 +69,10 @@
 			sortDir: first ? (first.desc ? 'desc' : 'asc') : 'desc'
 		});
 	}
+
 </script>
 
-<BasePage title={$t("players.profile.title", { name: profile.name })} description={$t("players.profile.description", { name: profile.name })}>
+<BasePage>
 	<div class="flex flex-col gap-8">
 		<!-- Profile header -->
 		<div class="flex flex-col items-center gap-4 sm:flex-row sm:items-start">

@@ -4,6 +4,7 @@ import type { UserListSortColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
 import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<UserListSortColumn>(['name', 'score_count', 'joined']);
@@ -45,5 +46,5 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 		}))
 	};
 
-	return { users, total, page, pageSize, sortBy, sortDir, search, jsonLd };
+	return { users, total, page, pageSize, sortBy, sortDir, search, jsonLd, meta: createMetaTags('players.list.title', 'players.list.description') };
 };

@@ -3,6 +3,7 @@ import { getChartList, getChartListCount } from '$lib/server/scores/query';
 import type { ChartListSortColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
 
 const DEFAULT_PAGE_SIZE = 25;
 const VALID_SORT_COLUMNS = new Set<ChartListSortColumn>(['title', 'play_count', 'artist']);
@@ -37,5 +38,7 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 		}))
 	};
 
-	return { chartList, total, page, pageSize, sortBy, sortDir, search, jsonLd };
+	const meta = createMetaTags("charts.list.title", "charts.list.description");
+
+	return { chartList, total, page, pageSize, sortBy, sortDir, search, jsonLd, meta };
 };

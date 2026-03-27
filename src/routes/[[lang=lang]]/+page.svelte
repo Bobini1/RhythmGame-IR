@@ -17,7 +17,7 @@
 
 </script>
 
-<BasePage title="common.brand.name" description="seo.description">
+<BasePage>
 	<Homepage
 		{latestScores}
 		{total}

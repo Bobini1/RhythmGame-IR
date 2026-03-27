@@ -23,3 +23,34 @@ export const getBaseMetaTags = ({ url }: { url: URL }) => {
 export const getTitleTemplate = () => {
 	return `%s • ${t.get('common.brand.name')}`;
 };
+
+export const createMetaTags = (
+	title: string,
+	description: string,
+	robots?: string,
+	options?: { titleIsKey?: boolean; descriptionIsKey?: boolean; image?: string }
+): MetaTagsProps => {
+	const titleValue = options?.titleIsKey === false ? title : t.get(title);
+	const descriptionValue = options?.descriptionIsKey === false ? description : t.get(description);
+
+	const meta: MetaTagsProps = {
+		title: titleValue,
+		titleTemplate: getTitleTemplate(),
+		robots: robots ?? 'index, follow',
+		description: descriptionValue,
+		openGraph: {
+			title: titleValue,
+			description: descriptionValue
+		}
+	};
+
+	if (options?.image) {
+		// openGraph.images expects an array of ImageObject-like entries
+		// keep it minimal: provide url
+		// @ts-expect-error - svelte-meta-tags types are narrow; adding images is acceptable here
+		meta.openGraph = { ...meta.openGraph, images: [{ url: options.image }] };
+	}
+
+	return meta;
+};
+

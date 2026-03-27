@@ -67,9 +67,10 @@
 			toast.error($t('integrations.bokutachi.disconnect_failed'));
 		}
 	}
+
 </script>
 
-<BasePage title="common.settings" description="seo.pages.settings.description" robots="noindex, follow">
+<BasePage>
 	<div class="flex w-full flex-col gap-8">
 		<ThemeSettings />
 		{#if $session.data}

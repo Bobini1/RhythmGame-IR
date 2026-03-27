@@ -4,9 +4,9 @@ import { getUserProfile, getUserScores, getUserScoreCount } from '$lib/server/sc
 import type { SortableColumn } from '$lib/server/scores/query';
 import { pageCollectionHeaders } from '$lib/server/api/utils';
 import { BaseUrl } from '$lib/api/configurations/common';
-import { page } from '$app/state';
-import { PUBLIC_AVATAR_SEED_SALT } from '$env/static/public';
 import { imageUrlFromUserId } from '$lib/utils/imageUrlFromUserId';
+import { createMetaTags } from '$lib/client/configurations/meta-tags';
+import { t } from '$lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VALID_SORT_COLUMNS = new Set<SortableColumn>([
@@ -61,5 +61,17 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		}
 	};
 
-	return { profile, scores, total, page, pageSize, sortBy, sortDir, search, jsonLd };
+	const ogImage = profile.image ?? imageUrlFromUserId(profile.id, 'png');
+
+	// Resolve localized title/description on server
+	const title = t.get('players.profile.title', { name: profile.name });
+	const description = t.get('players.profile.description', { name: profile.name });
+
+	const meta = createMetaTags(title, description, undefined, {
+		titleIsKey: false,
+		descriptionIsKey: false,
+		image: ogImage
+	});
+
+	return { profile, scores, total, page, pageSize, sortBy, sortDir, search, jsonLd, ogImage, meta };
 };

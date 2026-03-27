@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { locale } from '$lib/i18n';
 	import type { AvailableLocales } from '$lib/enums/available-locales';
-	import { direction, metaTags } from '$lib/stores';
+	import { direction } from '$lib/stores';
 	import { directionMap } from '$lib/api/configurations/common';
 	import SEO from '$lib/components/seo/seo.svelte';
 	import { ModeWatcher } from 'mode-watcher';
@@ -14,7 +14,7 @@
 
 	let { children, data } = $props();
 	let mergedMetaTags = $derived(
-		deepMerge(data.baseMetaTags, deepMerge(page.data.pageMetaTags, $metaTags))
+		deepMerge(data.baseMetaTags, page.data.meta)
 	);
 
 	onMount(() => {

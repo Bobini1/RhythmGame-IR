@@ -72,7 +72,7 @@
 	);
 </script>
 
-<BasePage title="charts.page.title" description="charts.page.description">
+<BasePage>
 	<div class="flex w-full max-w-300 flex-col gap-8">
 
 		<!-- Chart info -->
