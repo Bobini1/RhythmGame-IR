@@ -64,7 +64,9 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		identifier: chart.md5
 	};
 
-	const meta = createMetaTags(name, 'charts.page.description');
+	const meta = createMetaTags(name, 'charts.page.description', undefined, {
+		titleIsKey: false
+	});
 
 	return {
 		chart,
