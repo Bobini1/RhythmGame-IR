@@ -5,23 +5,23 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { cookieSetRequest, hideBanner } from '$lib/manage-cookies/manager';
 	import { toast } from 'svelte-sonner';
-	import ResourceMarkdown from '$lib/components/resource-markdown/resource-markdown.svelte';
 	import { t } from '$lib/i18n';
 	import BasePage from '$lib/components/base-page/base-page.svelte';
 	import { langHref } from '$lib/utils';
-
-	let { data } = $props();
-	const preferences = $derived(data.preferences);
+	import { page } from '$app/state';
+	import { analyticsAllowed } from '$lib/stores';
 
 	function saveChanges() {
 		cookieSetRequest({
 			[CookieManagerConfiguration['user-preference-cookie-name']]: JSON.stringify(preferences)
 		});
 		toast.success(t.get('common.changes_saved'));
+		$analyticsAllowed = preferences['analytics'] === true;
 		hideBanner();
 	}
 
 	function rejectAll() {
+		$analyticsAllowed = false;
 		Object.keys(preferences).forEach((key) => {
 			preferences[key] = false;
 		});
@@ -31,10 +31,11 @@
 		toast.success(t.get('common.optional_cookies_rejected'));
 		hideBanner();
 	}
+
+	const preferences = page.data.preferences;
 </script>
 
 <BasePage>
-	<ResourceMarkdown path="cookies-disclaimer" />
 	<div class="flex flex-col items-center gap-6">
 		<h1 class="text-2xl text-center w-full">{$t('common.manage_cookies_preferences')}</h1>
 		{#each CookieManagerConfiguration['cookies-categories'] as cookieCategory (cookieCategory.name)}

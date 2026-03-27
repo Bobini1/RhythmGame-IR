@@ -1,9 +1,10 @@
-import type { RequestEvent } from '@sveltejs/kit';
+import type { Cookies, RequestEvent } from '@sveltejs/kit';
 import { CookieManagerConfiguration } from './configuration';
 import type { CookieCategory } from '$lib/models/manage-cookies-configuration';
 import { ManageCookies } from '../../routes/api';
+import { browser } from '$app/environment';
 
-export function getUserCookiesPreferences(event: RequestEvent) {
+export function getUserCookiesPreferences(event: { cookies: Cookies }) {
 	const preferencesCookie = event.cookies.get(
 		CookieManagerConfiguration['user-preference-cookie-name']
 	);
@@ -21,6 +22,20 @@ function getDefaultCookiesPreferences() {
 		}
 	});
 	return preferences;
+}
+
+export function isAnalyticsAccepted(cookiePreferences: { [key: string]: boolean }): boolean {
+	return cookiePreferences?.['analytics'] ?? false;
+}
+
+export function revokeAnalyticsCookies() {
+	if (!browser) return;
+	const gaCategories = CookieManagerConfiguration['cookies-categories'].find(
+		(c) => c.name === 'analytics'
+	);
+	gaCategories?.cookies?.forEach((cookieName) => {
+		document.cookie = `${cookieName}=; Max-Age=0; path=/; domain=${location.hostname}`;
+	});
 }
 
 export function setCookie(

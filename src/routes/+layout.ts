@@ -6,7 +6,8 @@ import { loadTranslations, locale, locales } from '$lib/i18n';
 import { direction } from '$lib/stores';
 import { getBaseMetaTags } from '$lib/client/configurations/meta-tags';
 
-export const load: LayoutLoad = async ({ fetch, params, url }) => {
+export const load: LayoutLoad = async (event) => {
+	const { fetch, params, url } = event;
 	const localeRes: { locale: AvailableLocales } = await (await fetch(Locale)).json();
 	const localeFromCookie = localeRes.locale;
 	const localeFromRoute = params['lang'];
@@ -20,6 +21,7 @@ export const load: LayoutLoad = async ({ fetch, params, url }) => {
 	await loadTranslations(choosenLocale);
 	return {
 		locale: choosenLocale,
-		baseMetaTags: getBaseMetaTags({ url })
+		baseMetaTags: getBaseMetaTags({ url }),
+			...event.data
 	};
 };

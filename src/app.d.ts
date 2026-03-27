@@ -4,6 +4,10 @@ import type { TachiUser } from '$lib/models/tachi';
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 declare global {
+	interface Window {
+		dataLayer: any[];
+		gtmLoaded: boolean;
+	}
 	namespace App {
 		// interface Error {}
 		interface Locals {
