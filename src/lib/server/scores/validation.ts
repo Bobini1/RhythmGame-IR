@@ -150,12 +150,14 @@ export const gaugeGroupSchema = z.object({
 export const clearTypeSchema = z.enum([
 	'NOPLAY',
 	'FAILED',
-	'ASSIST_CLEAR',
+	'AEASY',
 	'EASY',
 	'NORMAL',
 	'HARD',
 	'EXHARD',
-	'FC'
+	'FC',
+	'PERFECT',
+	'MAX'
 ]);
 
 export const scoreSubmissionSchema = z.object({

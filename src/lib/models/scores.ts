@@ -27,12 +27,14 @@ export enum HitAction {
 export type ClearType =
 	| 'NOPLAY'
 	| 'FAILED'
-	| 'ASSIST_CLEAR'
+	| 'AEASY'
 	| 'EASY'
 	| 'NORMAL'
 	| 'HARD'
 	| 'EXHARD'
-	| 'FC';
+	| 'FC'
+	| 'PERFECT'
+	| 'MAX'
 
 // ---------------------------------------------------------------------------
 // Sub-types

@@ -9,12 +9,14 @@ import { GRADE_THRESHOLDS, GRADE_LABELS } from '$lib/utils/grades';
 export const CLEAR_TYPE_PRIORITIES: Record<string, number> = {
 	NOPLAY: 0,
 	FAILED: 1,
-	ASSIST_CLEAR: 2,
+	AEASY: 2,
 	EASY: 3,
 	NORMAL: 4,
 	HARD: 5,
 	EXHARD: 6,
-	FC: 7
+	FC: 7,
+	PERFECT: 8,
+	MAX: 9
 };
 
 export function clearTypeCaseExpr() {
