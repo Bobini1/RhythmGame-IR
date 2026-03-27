@@ -10,7 +10,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl wget && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/src/lib/server/database/migrations ./src/lib/server/database/migrations /app/scripts/ ./scripts/
+COPY --from=builder /app/src/lib/server/database/migrations ./src/lib/server/database/migrations
+COPY --from=builder /app/scripts/ ./scripts/
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY package.json .
 EXPOSE 3000
