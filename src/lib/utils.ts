@@ -14,7 +14,32 @@ export function langPrefix(): string {
 
 /** Prepends the current language prefix to a path, e.g. "/signin" → "/pl-PL/signin" */
 export function langHref(path: string): string {
-	return `${langPrefix()}${path}`;
+	// If the path is an absolute URL (has a scheme) or protocol-relative (//),
+	// or other schemes like mailto:, tel:, etc., don't modify it.
+	try {
+		// new URL will succeed for absolute URLs like "https://..." and throw for relative paths
+		new URL(path);
+		return path;
+	} catch {
+		// Not an absolute URL — continue
+	}
+
+	// Protocol-relative URLs ("//example.com") or other schemes ("mailto:") should be left alone
+	if (path.startsWith('//') || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path)) {
+		return path;
+	}
+
+	// Normalize to ensure a leading slash
+	const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+	const prefix = langPrefix();
+
+	// Avoid double-prefixing if path already starts with the language prefix
+	if (prefix && (normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`))) {
+		return normalizedPath;
+	}
+
+	return `${prefix}${normalizedPath}`;
 }
 
 /** Like SvelteKit's goto() but automatically prepends the current language prefix */
