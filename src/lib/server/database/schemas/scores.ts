@@ -14,6 +14,7 @@ interface HitEvent {
 	offsetFromStart: number;
 	points: { value: number; judgement: number; deviation: number } | null;
 	column: number;
+	key?: number;
 	noteIndex: number;
 	action: number; // 0=None 1=Press 2=Release
 	noteRemoved: boolean;

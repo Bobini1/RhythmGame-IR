@@ -116,6 +116,7 @@ export const hitEventSchema = z.object({
 	offsetFromStart: z.int(),
 	points: bmsPointsSchema.nullable(),
 	column: z.int().min(0),
+	key: z.int().min(-1).optional(),
 	noteIndex: z.int().min(-1),
 	/** 0=None 1=Press 2=Release */
 	action: z.union([z.literal(0), z.literal(1), z.literal(2)]),
