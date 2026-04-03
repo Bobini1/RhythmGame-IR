@@ -21,7 +21,7 @@ export const guidSchema = z
 	.string()
 	.refine(
 		(val) =>
-			/^{([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})}$/.test(val),
+			/^{?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})}?$/.test(val),
 		{ message: 'Invalid GUID format' }
 	)
 	.toLowerCase();
