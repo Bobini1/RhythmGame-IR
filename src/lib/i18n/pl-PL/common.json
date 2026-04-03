@@ -104,7 +104,8 @@
 	"enter_name": "Wprowadź imię",
 	"auth_errors": {
 		"PASSWORD_TOO_SHORT": "Hasło jest za krótkie",
-		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Użytkownik z tym adresem e-mail już istnieje"
+		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Użytkownik z tym adresem e-mail już istnieje",
+		"INVALID_PASSWORD": "Nieprawidłowe hasło"
 	},
 	"captcha_required": "Proszę wypełnić captcha",
 	"reset_password": "Resetuj hasło",

@@ -104,7 +104,8 @@
 	"enter_name": "Enter name",
 	"auth_errors": {
 		"PASSWORD_TOO_SHORT": "Password is not long enough",
-		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists"
+		"USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "User with this email already exists",
+		"INVALID_PASSWORD": "Invalid password"
 	},
 	"captcha_required": "Please complete the captcha",
 	"reset_password": "Reset Password",
