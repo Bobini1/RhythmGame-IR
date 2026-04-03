@@ -146,6 +146,7 @@ function convertRandom(noteOrderAlgorithm: number) {
 		case 1:
 			return 'MIRROR';
 		case 2:
+		case 7:
 			return 'RANDOM';
 		case 3:
 			return 'S-RANDOM';
