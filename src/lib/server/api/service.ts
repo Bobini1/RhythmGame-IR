@@ -2,7 +2,7 @@ import { db } from '$lib/server/database/client';
 import { scores } from '$lib/server/database/schemas/scores';
 import { charts } from '$lib/server/database/schemas/charts';
 import { DrizzleQueryError } from 'drizzle-orm';
-import { type ScoreSubmissionPayloadOutput } from '../scores/validation';
+import { type ScoreSubmissionPayloadOutput, packVersion } from '../scores/validation';
 
 /**
  * Persists a full score submission (chart upsert + score insert + extras) in a
@@ -15,6 +15,24 @@ export async function submitScore(userId: number, payload: ScoreSubmissionPayloa
 
 	try {
 		await db.transaction(async (tx) => {
+			const rankToStore =
+				chartData.gameVersion < packVersion(1, 3, 6)
+					? (() => {
+						  switch (chartData.rank) {
+							  case 0:
+								  return 25;
+							  case 1:
+								  return 50;
+							  case 2:
+								  return 75;
+							  case 3:
+								  return 100;
+							  default:
+								  return chartData.rank;
+						  }
+					  })()
+					: chartData.rank;
+
 			await tx
 				.insert(charts)
 				.values({
@@ -25,7 +43,7 @@ export async function submitScore(userId: number, payload: ScoreSubmissionPayloa
 					subtitle: chartData.subtitle,
 					subartist: chartData.subartist,
 					genre: chartData.genre,
-					rank: chartData.rank,
+					rank: rankToStore,
 					total: chartData.total,
 					playLevel: chartData.playLevel,
 					difficulty: chartData.difficulty,
@@ -81,8 +99,10 @@ export async function submitScore(userId: number, payload: ScoreSubmissionPayloa
 		});
 	} catch (error) {
 		if (error instanceof DrizzleQueryError) {
-			const anyError = error.cause as any; // I don't want to deal with a direct dependency on pg
-			if (anyError.code === "23505") {
+			// Keep a lightweight, typed access to the underlying DB error code
+			// without pulling in a pg dependency or using `any`.
+			const anyError = error.cause as { code?: string } | undefined;
+			if (anyError?.code === '23505') {
 				throw new Error('DUPLICATE_SCORE');
 			}
 		}

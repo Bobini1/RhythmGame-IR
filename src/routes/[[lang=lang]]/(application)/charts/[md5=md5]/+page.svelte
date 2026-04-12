@@ -64,7 +64,12 @@
 		});
 	}
 
-	const RANK_NAMES: Record<number, string> = { 0: 'Very Hard', 1: 'Hard', 2: 'Normal', 3: 'Easy' };
+	function rankLabel(r: number) {
+		if (r <= 25) return 'Very Hard';
+		if (r <= 50) return 'Hard';
+		if (r <= 75) return 'Normal';
+		return 'Easy';
+	}
 
 
 	const totalNotes = $derived(
@@ -113,7 +118,7 @@
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.rank')}</dt>
-					<dd class="font-medium">{RANK_NAMES[chart.rank] ?? chart.rank}</dd>
+					<dd class="font-medium">{rankLabel(chart.rank)}</dd>
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.bpm')}</dt>

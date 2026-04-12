@@ -19,7 +19,10 @@ export const charts = pgTable('charts', {
 	subtitle: text('subtitle').notNull().default(''),
 	subartist: text('subartist').notNull().default(''),
 	genre: text('genre').notNull().default(''),
-	rank: integer('rank').notNull().default(2),
+	// Previously an integer. Migrated to real (double precision) and default
+	// adjusted according to new scale: new = 25 + old * 25. Previous default
+	// was 2 => new default = 25 + 2*25 = 75.
+	rank: doublePrecision('rank').notNull().default(75),
 	total: doublePrecision('total').notNull().default(160),
 	playLevel: integer('play_level').notNull(),
 	difficulty: integer('difficulty').notNull(),
