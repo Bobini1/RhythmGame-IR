@@ -27,6 +27,8 @@ export async function submitScore(userId: number, payload: ScoreSubmissionPayloa
 								  return 75;
 							  case 3:
 								  return 100;
+								case 4:
+									return 75;
 							  default:
 								  return chartData.rank;
 						  }
