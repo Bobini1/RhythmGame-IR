@@ -64,11 +64,26 @@
 		});
 	}
 
-	function rankLabel(r: number) {
-		if (r <= 25) return 'Very Hard';
-		if (r <= 50) return 'Hard';
-		if (r <= 75) return 'Normal';
-		return 'Easy';
+	function rankLabel(rank: number) {
+		if (rank < 25) {
+			return 'Over Hard';
+		} else if (rank === 25) {
+			return 'Very Hard';
+		} else if (rank < 50) {
+			return 'More Hard';
+		} else if (rank === 50) {
+			return 'Hard';
+		} else if (rank < 75) {
+			return 'Little Hard';
+		} else if (rank === 75) {
+			return 'Normal';
+		} else if (rank < 100) {
+			return 'Little Easy';
+		} else if (rank === 100) {
+			return 'Easy';
+		} else {
+			return 'Over Easy';
+		}
 	}
 
 
