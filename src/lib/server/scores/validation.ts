@@ -4,13 +4,13 @@ import { z } from 'zod';
 // Primitive helpers
 // ---------------------------------------------------------------------------
 
-const sha256Schema = z
+export const sha256Schema = z
 	.string()
 	.length(64)
 	.regex(/^[0-9A-Fa-f]{64}$/, 'Must be a 64-character hex string')
 	.toUpperCase();
 
-const md5Schema = z
+export const md5Schema = z
 	.string()
 	.length(32)
 	.regex(/^[0-9A-Fa-f]{32}$/, 'Must be a 32-character hex string')

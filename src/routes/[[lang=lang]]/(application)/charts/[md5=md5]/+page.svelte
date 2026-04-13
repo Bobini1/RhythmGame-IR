@@ -12,6 +12,8 @@
 	import { langGoto } from '$lib/utils';
 	import { JsonLd } from 'svelte-meta-tags';
 
+	import { checkLr2Url, checkMochaUrl, checkViewerUrl, resolveTachiUrl } from './exists.remote';
+
 	let { data } = $props();
 	let { chart, scores, total, page: currentPage, pageSize, sortBy, sortDir, jsonLd } = $derived(data);
 	// svelte-ignore state_referenced_locally
@@ -86,6 +88,15 @@
 		}
 	}
 
+	// Availability is determined by client-side HEAD checks; show while awaiting
+	// or when the check returns true; gray out when the check returns false.
+
+	let tachiUrl = $derived(resolveTachiUrl({ keymode: chart.keymode, md5: chart.md5 }));
+	const mochaAvailable = $derived(checkMochaUrl(chart.sha256));
+	const bmsViewerUrl = $derived(`https://bms-score-viewer.pages.dev/view?md5=${chart.md5.toLowerCase()}`);
+	const bmsViewerAvailable = $derived(checkViewerUrl(chart.md5));
+	const lr2Url = $derived(`http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5=${chart.md5}`);
+	const lr2Available = $derived(checkLr2Url(chart.md5));
 
 	const totalNotes = $derived(
 		chart.normalNoteCount + chart.scratchCount + chart.lnCount + chart.bssCount
@@ -125,7 +136,9 @@
 				{/if}
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.play_level')}</dt>
-					<dd><PlayLevelCell playLevel={chart.playLevel} difficulty={chart.difficulty} /></dd>
+					<dd>
+						<PlayLevelCell playLevel={chart.playLevel} difficulty={chart.difficulty} />
+					</dd>
 				</div>
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.keymode')}</dt>
@@ -151,9 +164,11 @@
 						{totalNotes}
 						<span class="text-muted-foreground font-normal">
 							({$t('charts.info.normal')}: {chart.normalNoteCount},
-							{$t('charts.info.scratch')}: {chart.scratchCount}{#if chart.lnCount > 0},
-							{$t('charts.info.ln')}: {chart.lnCount}{/if}{#if chart.bssCount > 0},
-							{$t('charts.info.bss')}: {chart.bssCount}{/if})
+							{$t('charts.info.scratch')}: {chart.scratchCount}
+							{#if chart.lnCount > 0},
+								{$t('charts.info.ln')}: {chart.lnCount}{/if}
+							{#if chart.bssCount > 0},
+								{$t('charts.info.bss')}: {chart.bssCount}{/if})
 						</span>
 					</dd>
 				</div>
@@ -166,6 +181,38 @@
 				<div class="flex flex-col">
 					<dt class="text-muted-foreground">{$t('charts.info.md5')}</dt>
 					<dd class="font-mono text-xs break-all">{chart.md5}</dd>
+				</div>
+				<div class="flex flex-col">
+					<dt class="text-muted-foreground">External links</dt>
+					<dd class="font-medium text-sm">
+						<div class="flex flex-wrap items-center gap-2">
+							{#await lr2Available}
+								<a href={lr2Url} target="_blank" rel="noopener noreferrer" class="underline text-primary"><span class="whitespace-nowrap">LR2IR</span></a>
+							{:then ok}
+								<a href={lr2Url} target="_blank" rel="noopener noreferrer" class={ok ? 'underline text-primary' : 'underline text-muted-foreground'}><span class="whitespace-nowrap">LR2IR</span></a>
+							{/await}
+
+							{#await bmsViewerAvailable}
+								<a href={bmsViewerUrl} target="_blank" rel="noopener noreferrer" class="underline text-primary"><span class="whitespace-nowrap">BMS Score Viewer</span></a>
+							{:then ok}
+								<a href={bmsViewerUrl} target="_blank" rel="noopener noreferrer" class={ok ? 'underline text-primary' : 'underline text-muted-foreground'}><span class="whitespace-nowrap">BMS Score Viewer</span></a>
+							{/await}
+
+							{#await mochaAvailable}
+								<a href={'https://mocha-repository.info/song.php?sha256=' + chart.sha256} target="_blank" rel="noopener noreferrer" class="underline text-primary"><span class="whitespace-nowrap">Mocha Repository</span></a>
+							{:then ok}
+								<a href={'https://mocha-repository.info/song.php?sha256=' + chart.sha256} target="_blank" rel="noopener noreferrer" class={ok ? 'underline text-primary' : 'underline text-muted-foreground'}><span class="whitespace-nowrap">Mocha Repository</span></a>
+							{/await}
+
+							{#await tachiUrl}
+								<!-- keep hidden until resolved to avoid layout shift -->
+							{:then tachiResolved}
+								{#if tachiResolved}
+									<a href={tachiResolved} target="_blank" rel="noopener noreferrer" class="underline text-primary"><span class="whitespace-nowrap">Bokutachi</span></a>
+								{/if}
+							{/await}
+						</div>
+					</dd>
 				</div>
 			</dl>
 		</div>
