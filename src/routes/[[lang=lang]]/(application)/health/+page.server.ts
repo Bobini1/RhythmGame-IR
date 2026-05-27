@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 	const dbHealthStatus = await GET(DbHealth, { fetch }).catch(() => false);
 	return {
 		apiHealthStatus,
-		dbHealthStatus
-		,meta: createMetaTags('common.server_health', 'seo.description')
+		dbHealthStatus,
+		meta: createMetaTags('common.server_health', 'seo.description', 'noindex, follow')
 	};
 };

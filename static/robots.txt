@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://my-brand.com/sitemap.xml
+Sitemap: https://rhythmgame.eu/sitemap.xml

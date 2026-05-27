@@ -47,17 +47,20 @@ export const AppRoutes: GroupedRoutes[] = [
 			{
 				label: 'common.cookies_policy',
 				path: '/policies/cookies',
-				icon: Cookie
+				icon: Cookie,
+				authenticationRequired: false
 			},
 			{
 				label: 'common.privacy_policy',
 				path: '/policies/privacy',
-				icon: BookLock
+				icon: BookLock,
+				authenticationRequired: false
 			},
 			{
 				label: 'common.terms_of_service',
 				path: '/policies/terms',
-				icon: Handshake
+				icon: Handshake,
+				authenticationRequired: false
 			},
 			{
 				label: 'common.manage_cookies',
