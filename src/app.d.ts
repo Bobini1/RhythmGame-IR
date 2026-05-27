@@ -6,6 +6,7 @@ import type { TachiUser } from '$lib/models/tachi';
 declare global {
 	interface Window {
 		dataLayer: any[];
+		gtag: (...args: unknown[]) => void;
 		gtmLoaded: boolean;
 	}
 	namespace App {

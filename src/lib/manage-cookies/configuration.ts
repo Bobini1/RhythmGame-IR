@@ -16,7 +16,7 @@ export const CookieManagerConfiguration: ManageCookiesConfiguration = {
 		{
 			name: 'analytics',
 			optional: true,
-			accepted: true,
+			accepted: false,
 			description: 'common.analytics_cookies_description',
 			cookies: ['_ga', '_gtm']
 		}

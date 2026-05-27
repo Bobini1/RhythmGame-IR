@@ -7,17 +7,18 @@
 	import { Cookie } from '@lucide/svelte';
 	import { t } from '$lib/i18n';
 	import { page } from '$app/state';
-	import { direction } from '$lib/stores';
+	import { analyticsAllowed, direction } from '$lib/stores';
 	import { langGoto, langHref } from '$lib/utils';
 
 	const preferences = page.data.cookiePreferences;
 	let open = page.data.cookieBannerOpen;
 
-	function setCookiesPreferences(acceptAll: boolean) {
+	async function setCookiesPreferences(acceptAll: boolean) {
 		Object.keys(preferences).forEach((key) => {
 			preferences[key] = acceptAll;
 		});
-		cookieSetRequest({
+		$analyticsAllowed = preferences['analytics'] === true;
+		await cookieSetRequest({
 			[CookieManagerConfiguration['user-preference-cookie-name']]: JSON.stringify(preferences)
 		});
 		toast.success('Cookie preferences saved');

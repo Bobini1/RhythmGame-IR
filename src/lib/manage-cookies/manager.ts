@@ -33,7 +33,22 @@ export function revokeAnalyticsCookies() {
 	const gaCategories = CookieManagerConfiguration['cookies-categories'].find(
 		(c) => c.name === 'analytics'
 	);
-	gaCategories?.cookies?.forEach((cookieName) => {
+	const configuredCookieNames = gaCategories?.cookies ?? [];
+
+	document.cookie.split(';').forEach((cookie) => {
+		const [rawCookieName] = cookie.split('=');
+		const cookieName = rawCookieName.trim();
+		const isAnalyticsCookie =
+			configuredCookieNames.includes(cookieName) ||
+			cookieName.startsWith('_ga') ||
+			cookieName.startsWith('_gid') ||
+			cookieName.startsWith('_gat');
+
+		if (!isAnalyticsCookie) {
+			return;
+		}
+
+		document.cookie = `${cookieName}=; Max-Age=0; path=/`;
 		document.cookie = `${cookieName}=; Max-Age=0; path=/; domain=${location.hostname}`;
 	});
 }

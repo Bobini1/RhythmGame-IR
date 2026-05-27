@@ -15,10 +15,10 @@
 	import { browser } from '$app/environment';
 	import type { LayoutProps } from './$types';
 
-	let { children, data } : LayoutProps = $props();
-	let mergedMetaTags = $derived(
-		deepMerge(data.baseMetaTags, page.data.meta)
-	);
+	const googleTagManagerId = 'GTM-NH6TLDJF';
+
+	let { children, data }: LayoutProps = $props();
+	let mergedMetaTags = $derived(deepMerge(data.baseMetaTags, page.data.meta));
 
 	onMount(() => {
 		changeTheme(getTheme());
@@ -38,39 +38,66 @@
 		}
 	}
 
-	$analyticsAllowed = isAnalyticsAccepted(page.data.cookiePreferences);
-
-	if (browser) {
+	function ensureGoogleTag() {
 		window.dataLayer = window.dataLayer || [];
+		window.gtag =
+			window.gtag ||
+			function gtag(...args: unknown[]) {
+				window.dataLayer.push(args);
+			};
 	}
 
-	// Default consent – set before GTM loads
-	if (browser && !window.gtmLoaded) {
-		window.dataLayer.push(['consent', 'default', {
-			analytics_storage: 'denied'
-		}]);
+	function loadGoogleTagManager(analyticsConsent: boolean) {
+		if (!browser || window.gtmLoaded) {
+			return;
+		}
+
+		ensureGoogleTag();
+		window.gtag('consent', 'default', {
+			analytics_storage: analyticsConsent ? 'granted' : 'denied',
+			ad_storage: 'denied',
+			ad_user_data: 'denied',
+			ad_personalization: 'denied'
+		});
+		window.dataLayer.push({
+			'gtm.start': new Date().getTime(),
+			event: 'gtm.js'
+		});
+
 		const script = document.createElement('script');
-		script.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-NH6TLDJF';
+		script.src = `https://www.googletagmanager.com/gtm.js?id=${googleTagManagerId}`;
 		script.async = true;
 		document.head.appendChild(script);
 		window.gtmLoaded = true;
+		updateAnalyticsConsent(analyticsConsent);
+	}
+
+	function updateAnalyticsConsent(allowed: boolean) {
+		if (!browser) {
+			return;
+		}
+
+		ensureGoogleTag();
+		window.gtag('consent', 'update', {
+			analytics_storage: allowed ? 'granted' : 'denied'
+		});
+
+		if (!allowed) {
+			revokeAnalyticsCookies();
+		}
 	}
 
 	$effect(() => {
-		if (browser && $analyticsAllowed !== undefined) {
-			const consentState = $analyticsAllowed ? 'granted' : 'denied';
-			window.dataLayer.push(['consent', 'update', {
-				analytics_storage: consentState
-			}]);
+		$analyticsAllowed = isAnalyticsAccepted(page.data.cookiePreferences);
+	});
 
-			// Optional: clear existing GA cookies when denied
-			if (!consentState) {
-				document.cookie.split(';').forEach(c => {
-					const [name] = c.split('=');
-					if (name.trim().startsWith('_ga')) {
-						document.cookie = `${name}=; Max-Age=0; path=/; domain=${location.hostname}`;
-					}
-				});
+	$effect(() => {
+		if (browser && $analyticsAllowed !== undefined) {
+			if ($analyticsAllowed) {
+				loadGoogleTagManager(true);
+				updateAnalyticsConsent(true);
+			} else {
+				updateAnalyticsConsent(false);
 			}
 		}
 	});
