@@ -14,7 +14,8 @@
 	import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 	import { syncScores } from './tachi.remote';
 
-	let tachiId = $derived(page.data.tachiId);
+	let disconnected = $state(false);
+	let tachiId = $derived(disconnected ? undefined : (page.data.tachiId ?? undefined));
 
 	let user: string | undefined = $state(undefined);
 
@@ -25,10 +26,11 @@
 	const manageHref = $derived(tachiId ? `https://boku.tachi.ac/u/${tachiId}/integrations` : 'https://boku.tachi.ac');
 
 	onMount(async () => {
+		if (!tachiId) return;
 		const res = await fetch(`${PUBLIC_BOKUTACHI_API}/users/${tachiId}`);
 		if (res.ok) {
 			const body = await res.json();
-			user = body?.body?.username ?? null as string | null;
+			user = body?.body?.username ?? undefined;
 		} else {
 			console.warn('Tachi API returned', res.status, await res.text());
 		}
@@ -51,7 +53,7 @@
 				toast.success($t('integrations.bokutachi.disconnect_success'));
 				toast($t('integrations.bokutachi.disconnect_finish_notice'));
 				user = undefined;
-				tachiId = undefined;
+				disconnected = true;
 				setTimeout(() => {
 					try {
 						window.open(redirectTo, '_blank', 'noopener,noreferrer');
@@ -76,7 +78,7 @@
 		{#if $session.data}
 			<ProfilePicture />
 			<BokutachiIntegration syncForm={syncScores} user={user} id={tachiId}
-			                      manageHref={`https://boku.tachi.ac/u/${tachiId}/integrations`} onConnect={startConnect}
+			                      manageHref={manageHref} onConnect={startConnect}
 			                      onDisconnect={disconnect} />
 			<ChangePassword />
 			<DeleteAccount />

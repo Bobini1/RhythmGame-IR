@@ -1,4 +1,5 @@
 import type { HitEvent } from '$lib/models/scores';
+import { PUBLIC_BOKUTACHI_API } from '$env/static/public';
 import type { ApiScore } from '../api/scores.queries';
 
 export interface TachiJudgements {
@@ -207,7 +208,11 @@ interface TachiImport {
 	scores: TachiScore[];
 }
 
-async function uploadScoresToTachiForKeymode(scores: ApiScore[], token: string, keymode: '7K' | '14K') {
+async function uploadScoresToTachiForKeymode(
+	scores: ApiScore[],
+	token: string,
+	keymode: '7K' | '14K'
+) {
 	const payload: TachiImport = {
 		meta: {
 			game: 'bms',
@@ -223,7 +228,7 @@ async function uploadScoresToTachiForKeymode(scores: ApiScore[], token: string, 
 	headers['X-User-Intent'] = 'false';
 	headers['X-Infer-Score-TimeAchieved'] = 'false';
 
-	const url = `https://boku.tachi.ac/ir/direct-manual/import`;
+	const url = `${PUBLIC_BOKUTACHI_API}/ir/direct-manual/import`;
 	try {
 		const res = await fetch(url, {
 			method: 'POST',
@@ -251,8 +256,8 @@ async function uploadScoresToTachiForKeymode(scores: ApiScore[], token: string, 
 }
 
 export async function uploadScoresToTachi(scores: ApiScore[], token: string) {
-	const k7 : ApiScore[] = [];
-	const k14 : ApiScore[] = [];
+	const k7: ApiScore[] = [];
+	const k14: ApiScore[] = [];
 	for (const score of scores) {
 		switch (score.keymode) {
 			case 5:

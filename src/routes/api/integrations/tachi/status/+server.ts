@@ -22,7 +22,7 @@ export const GET: RequestHandler = async (event) => {
 
 		if (!rows || rows.length === 0) return json({ connected: false });
 
-		return json({ connected: true, user: rows[0].data?.user ?? null });
+		return json({ connected: true, user: rows[0].data?.userID ?? null });
 	} catch (err) {
 		console.error(err);
 		return json({ connected: false });
