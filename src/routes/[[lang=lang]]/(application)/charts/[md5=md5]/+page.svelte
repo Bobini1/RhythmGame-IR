@@ -95,7 +95,7 @@
 	const mochaAvailable = $derived(checkMochaUrl(chart.sha256));
 	const bmsViewerUrl = $derived(`https://bms-score-viewer.pages.dev/view?md5=${chart.md5.toLowerCase()}`);
 	const bmsViewerAvailable = $derived(checkViewerUrl(chart.md5));
-	const lr2Url = $derived(`http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5=${chart.md5}`);
+	const lr2Url = $derived(`https://lr2ir.com/charts/${chart.md5.toLowerCase()}`);
 	const lr2Available = $derived(checkLr2Url(chart.md5));
 
 	const totalNotes = $derived(

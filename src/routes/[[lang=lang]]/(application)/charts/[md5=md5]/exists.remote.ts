@@ -30,13 +30,9 @@ export const resolveTachiUrl = query(
 );
 
 export const checkLr2Url = query(md5Schema, async (md5) => {
-	const url = `http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5=${md5}`;
-	// fetch
+	const url = `https://lr2ir.com/api/charts/${md5.toLowerCase()}`;
 	const result = await fetch(url);
-	if (!result.ok) {
-		return false;
-	}
-	return !(await result.text()).includes('この曲は登録されていません。');
+	return result.ok;
 });
 
 export const checkViewerUrl = query(md5Schema, async (md5) => {
