@@ -20,11 +20,12 @@ export type ScoreSummariesOrderBy =
 	| 'play_count';
 
 export interface ScoreSummaryRow {
-	userId: number
+	userId: number;
 	userImage: string | null;
 	userName: string;
 	md5: string;
 	bestPoints: number;
+	bestPointsJudgementCounts: number[];
 	maxPoints: number;
 	bestCombo: number;
 	maxHits: number;
@@ -83,8 +84,10 @@ function buildWhereConditions(filters: ScoreSummaryFilters): SQL[] {
 	const conditions: SQL[] = [];
 	if (filters.md5) conditions.push(eq(charts.md5, filters.md5.toUpperCase()));
 	if (filters.user !== undefined) conditions.push(eq(scores.userId, filters.user));
-	if (filters.dateGte !== undefined) conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
-	if (filters.dateLte !== undefined) conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
+	if (filters.dateGte !== undefined)
+		conditions.push(sql`${scores.unixTimestamp} >= ${filters.dateGte}`);
+	if (filters.dateLte !== undefined)
+		conditions.push(sql`${scores.unixTimestamp} <= ${filters.dateLte}`);
 	return conditions;
 }
 
@@ -133,6 +136,9 @@ export async function queryScoreSummaries(
 			userImage: user.image,
 			md5: charts.md5,
 			bestPoints: sql<number>`(ARRAY_AGG(${scores.points} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
+			bestPointsJudgementCounts: sql<
+				number[]
+			>`(ARRAY_AGG(${scores.judgementCounts} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
 			maxPoints: sql<number>`(ARRAY_AGG(${scores.maxPoints} ORDER BY ${scores.points} DESC, ${scores.unixTimestamp} DESC))[1]`,
 			bestCombo: sql<number>`(ARRAY_AGG(${scores.maxCombo} ORDER BY ${scores.maxCombo} DESC, ${scores.unixTimestamp} DESC))[1]`,
 			maxHits: sql<number>`(ARRAY_AGG(${scores.maxHits} ORDER BY ${scores.maxCombo} DESC, ${scores.unixTimestamp} DESC))[1]`,
