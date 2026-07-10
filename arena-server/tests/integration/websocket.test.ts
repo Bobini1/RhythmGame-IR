@@ -627,7 +627,8 @@ describe('Arena WebSocket gateway', () => {
 				selectionRevision: probe.data.selectionRevision,
 				availabilityRevision: probe.data.availabilityRevision,
 				inventoryRevision: probe.data.inventoryRevision,
-				ok: true
+				ok: true,
+				chartLengthMs: 120_000
 			}
 		});
 		const scheduled = await client.nextMessage('round_start_scheduled');

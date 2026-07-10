@@ -2,8 +2,14 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 import type { ArenaIdentity } from '../auth/identity.ts';
 import type { PackedInventory } from '../inventory/packed-inventory.ts';
-import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
+import type {
+	CompetitionFrozenRound,
+	LiveStandingsSnapshot,
+	RoundResultSnapshot,
+	SelectionSnapshot
+} from '../protocol/messages.ts';
 import { copyFrozenRound, copySelectionSnapshot, type RoundLoadingState } from './round-state.ts';
+import { buildLiveStandings } from './standings.ts';
 import type {
 	ChatMessage,
 	RoomMember,
@@ -58,8 +64,10 @@ export type RoomState = {
 	availabilityBasis: Array<Readonly<{ memberId: string; inventoryRevision: number }>>;
 	commonInventory?: PackedInventory;
 	nextInventoryRevision: number;
-	round?: FrozenRound;
+	round?: CompetitionFrozenRound;
 	roundRuntime?: RoundLoadingState;
+	resultRevision: number;
+	lastRoundResult?: RoundResultSnapshot;
 };
 
 function encodeOpaque(bytes: Uint8Array): string {
@@ -135,7 +143,8 @@ export function createInitialRoom(
 		selectedByMemberId: null,
 		availabilityRevision: 0,
 		availabilityBasis: [],
-		nextInventoryRevision: 1
+		nextInventoryRevision: 1,
+		resultRevision: 0
 	};
 	return {
 		room,
@@ -146,7 +155,7 @@ export function createInitialRoom(
 function memberView(seat: SeatState): RoomMember {
 	return {
 		memberId: seat.seatId,
-		identity: seat.identity,
+		identity: { ...seat.identity },
 		status: seat.status,
 		lobbyWins: seat.lobbyWins,
 		ready: seat.ready,
@@ -159,6 +168,48 @@ function memberView(seat: SeatState): RoomMember {
 
 export function memberFor(seat: SeatState): RoomMember {
 	return memberView(seat);
+}
+
+export function membersForRoom(room: RoomState): readonly RoomMember[] {
+	return [...room.seats.values()].sort((a, b) => a.joinOrder - b.joinOrder).map(memberView);
+}
+
+export function liveStandingsFor(room: RoomState): LiveStandingsSnapshot | null {
+	const runtime = room.roundRuntime;
+	if (room.phase !== 'playing' || runtime?.round.stage !== 'playing') return null;
+	return {
+		roomId: room.roomId,
+		roomGeneration: room.generation,
+		roundId: runtime.round.roundId,
+		launchAttemptId: runtime.round.launchAttemptId,
+		standingsRevision: runtime.standingsRevision,
+		entries: [...buildLiveStandings(runtime.participants)]
+	};
+}
+
+export function copyRoundResult(result: RoundResultSnapshot): RoundResultSnapshot {
+	return {
+		resultRevision: result.resultRevision,
+		roundId: result.roundId,
+		selectionRevision: result.selectionRevision,
+		finalizedAtServerMs: result.finalizedAtServerMs,
+		participantCount: result.participantCount,
+		selection: copySelectionSnapshot(result.selection),
+		winnerMemberIds: [...result.winnerMemberIds],
+		entries: result.entries.map((entry) =>
+			entry.competitionState === 'finished'
+				? {
+						...entry,
+						identity: { ...entry.identity },
+						result: {
+							...entry.result,
+							judgements: { ...entry.result.judgements },
+							finalGauge: { ...entry.result.finalGauge }
+						}
+					}
+				: { ...entry, identity: { ...entry.identity } }
+		)
+	};
 }
 
 export function summaryFor(room: RoomState): RoomSummary {
@@ -260,12 +311,15 @@ export function admissionFor(room: RoomState, seat: SeatState, resumeToken: stri
 			connectionGeneration: seat.connectionGeneration,
 			resumeToken
 		},
-		members: [...room.seats.values()].sort((a, b) => a.joinOrder - b.joinOrder).map(memberView),
+		members: membersForRoom(room),
 		chat: [...room.chat],
 		selection: room.selection === null ? null : copySelectionSnapshot(room.selection),
 		selectionRevision: room.selectionRevision,
 		availabilityRevision: room.availabilityRevision,
-		...(room.round === undefined ? {} : { round: copyFrozenRound(room.round) })
+		...(room.round === undefined ? {} : { round: copyFrozenRound(room.round) }),
+		liveStandings: liveStandingsFor(room),
+		lastRoundResult:
+			room.lastRoundResult === undefined ? null : copyRoundResult(room.lastRoundResult)
 	};
 	return { snapshot, resumeToken, binding };
 }

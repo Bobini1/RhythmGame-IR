@@ -1,8 +1,13 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
 import type { PackedInventory } from '../inventory/packed-inventory.ts';
 import type {
-	FrozenRound,
+	ArenaDnfReason,
+	ArenaFinalResult,
+	ArenaTelemetry,
+	CompetitionFrozenRound,
 	LaunchCancellationReason,
+	LiveStandingsSnapshot,
+	RoundResultSnapshot,
 	SelectionSnapshot
 } from '../protocol/messages.ts';
 
@@ -29,6 +34,8 @@ export type RoomRejectionCode =
 	| 'selection_stale'
 	| 'ready_not_allowed'
 	| 'round_stale'
+	| 'round_already_terminal'
+	| 'result_invalid'
 	| 'launch_stage_stale'
 	| 'room_resume_failed';
 
@@ -85,7 +92,9 @@ export type RoomSnapshot = Readonly<{
 	selection: SelectionSnapshot | null;
 	selectionRevision: number;
 	availabilityRevision: number;
-	round?: FrozenRound;
+	round?: CompetitionFrozenRound;
+	liveStandings: LiveStandingsSnapshot | null;
+	lastRoundResult: RoundResultSnapshot | null;
 }>;
 
 export type SeatConnectionRef = Readonly<{
@@ -160,7 +169,7 @@ export type RoomEffect =
 			targets: readonly string[];
 			roomId: string;
 			roomGeneration: number;
-			round: FrozenRound;
+			round: CompetitionFrozenRound;
 	  }>
 	| Readonly<{
 			type: 'round_probe_requested';
@@ -183,7 +192,7 @@ export type RoomEffect =
 			roomId: string;
 			roomGeneration: number;
 			connectionGeneration: number;
-			round: FrozenRound;
+			round: CompetitionFrozenRound;
 	  }>
 	| Readonly<{
 			type: 'round_start_scheduled';
@@ -195,6 +204,7 @@ export type RoomEffect =
 			launchAttemptId: string;
 			startAtServerMs: number;
 			startAfterMs: number;
+			playDeadlineAtServerMs: number;
 	  }>
 	| Readonly<{
 			type: 'round_started';
@@ -203,6 +213,22 @@ export type RoomEffect =
 			roomGeneration: number;
 			roundId: string;
 			launchAttemptId: string;
+			playDeadlineAtServerMs: number;
+	  }>
+	| Readonly<{
+			type: 'round_standings';
+			targets: readonly string[];
+			snapshot: LiveStandingsSnapshot;
+	  }>
+	| Readonly<{
+			type: 'round_finalized';
+			targets: readonly string[];
+			roomId: string;
+			roomGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+			result: RoundResultSnapshot;
+			members: readonly RoomMember[];
 	  }>
 	| Readonly<{
 			type: 'round_launch_cancelled';
@@ -258,7 +284,12 @@ export type DomainResult<T> =
 			effects: readonly RoomEffect[];
 			directoryChange?: DirectoryChange;
 	  }>
-	| Readonly<{ ok: false; rejection: RoomRejection }>;
+	| Readonly<{
+			ok: false;
+			rejection: RoomRejection;
+			effects?: readonly RoomEffect[];
+			directoryChange?: DirectoryChange;
+	  }>;
 
 export type DirectorySnapshot = Readonly<{
 	revision: number;
@@ -295,7 +326,7 @@ export type ResumeSeatInput = Readonly<{
 
 export type RoomTransition = Readonly<{
 	effects: readonly RoomEffect[];
-	directoryChange: DirectoryChange;
+	directoryChange?: DirectoryChange;
 }>;
 
 export type UploadAdmission = Readonly<{
@@ -318,7 +349,42 @@ export type SelectionCommit = Readonly<{
 
 export type ReadyCommit = Readonly<{
 	ready: boolean;
-	round?: FrozenRound;
+	round?: CompetitionFrozenRound;
+}>;
+
+export type TelemetryInput = Readonly<{
+	roundId: string;
+	launchAttemptId: string;
+	telemetry: ArenaTelemetry;
+}>;
+
+export type RoundResultInput = Readonly<{
+	roundId: string;
+	launchAttemptId: string;
+	result: ArenaFinalResult;
+}>;
+
+export type RoundAbandonInput = Readonly<{
+	roundId: string;
+	launchAttemptId: string;
+	reason: Extract<ArenaDnfReason, 'aborted' | 'result_unavailable'>;
+}>;
+
+export type TelemetryMutation =
+	| Readonly<{
+			status: 'accepted';
+			standingsRevision: number;
+			nextFlushAtMs: number;
+	  }>
+	| Readonly<{ status: 'ignored' }>
+	| Readonly<{ status: 'dropped' }>
+	| Readonly<{ status: 'close'; closeCode: 1008; reason: 'rate_limited' }>;
+
+export type TerminalMutation = Readonly<{
+	status: 'accepted' | 'identical_retry';
+	terminal: 'finished' | 'dnf';
+	standingsRevision: number;
+	finalized?: RoundResultSnapshot;
 }>;
 
 export type FrozenReplyBasis = Readonly<{
@@ -341,7 +407,7 @@ export type ProbeReport = FrozenReplyBasis &
 
 export type LoadReport = FrozenReplyBasis &
 	(
-		| Readonly<{ ok: true }>
+		| Readonly<{ ok: true; chartLengthMs: number }>
 		| Readonly<{
 				ok: false;
 				reason:

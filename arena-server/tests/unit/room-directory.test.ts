@@ -97,7 +97,9 @@ describe('RoomDirectory lifecycle', () => {
 			chat: [],
 			selection: null,
 			selectionRevision: 0,
-			availabilityRevision: 0
+			availabilityRevision: 0,
+			liveStandings: null,
+			lastRoundResult: null
 		});
 		expect(created.effects).toEqual([]);
 		expect(created.directoryChange).toEqual({

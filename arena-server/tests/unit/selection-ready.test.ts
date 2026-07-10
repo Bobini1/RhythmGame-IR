@@ -184,8 +184,8 @@ describe('Arena selection and ready state', () => {
 		expect(frozen.value.round.stage).toBe('probing');
 		expect(frozen.value.round.selection).toEqual(selected.value.selection);
 		expect(frozen.value.round.participants).toEqual([
-			{ memberId: seats[0]!.binding.seatId, inventoryRevision: 1 },
-			{ memberId: seats[1]!.binding.seatId, inventoryRevision: 2 }
+			{ memberId: seats[0]!.binding.seatId, inventoryRevision: 1, identity: alice },
+			{ memberId: seats[1]!.binding.seatId, inventoryRevision: 2, identity: bob }
 		]);
 		const effectTypes = frozen.effects.map((effect) => effect.type);
 		expect(effectTypes).toContain('round_loading_started');

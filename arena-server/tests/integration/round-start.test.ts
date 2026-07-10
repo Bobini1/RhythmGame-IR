@@ -323,7 +323,8 @@ describe('Arena round application integration', () => {
 						selectionRevision,
 						availabilityRevision,
 						inventoryRevision: index + 1,
-						ok: true
+						ok: true,
+						chartLengthMs: 120_000
 					}
 				},
 				NOW + 20
@@ -345,7 +346,7 @@ describe('Arena round application integration', () => {
 				messagesFor(playing, connectionId).some((message) => message.type === 'round_started')
 			).toBe(true);
 		}
-		expect(application.nextDeadlineMs()).toBeUndefined();
+		expect(application.nextDeadlineMs()).toBe(NOW + 242_020);
 	});
 
 	test('maps a probe mismatch to one authoritative cancellation', async () => {

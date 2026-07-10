@@ -15,7 +15,7 @@ import {
 	ROOMS_CAPABILITY,
 	ROUNDS_CAPABILITY,
 	type ClientMessage,
-	type FrozenRound,
+	type CompetitionFrozenRound,
 	type SelectionSnapshot,
 	type ServerMessage
 } from '../protocol/messages.ts';
@@ -296,6 +296,9 @@ export class ArenaApplication {
 			}
 		}
 		for (const transition of this.#roomDirectory.sweep(nowMs)) {
+			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
+		}
+		for (const transition of this.#roomDirectory.flushDueStandings(nowMs)) {
 			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
 		}
 		for (const connection of [...this.#connections.values()]) {
@@ -979,6 +982,14 @@ export class ArenaApplication {
 		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
 		if (preflight !== undefined) return preflight;
 		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		if (message.data.ok && !('chartLengthMs' in message.data)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, 'launch_stage_stale')
+				)
+			];
+		}
 		const reported = this.#roomDirectory.reportLoaded(connection.binding, message.data, nowMs);
 		return reported.ok
 			? this.#mapTransition(reported.effects, reported.directoryChange)
@@ -1298,7 +1309,8 @@ export class ArenaApplication {
 							roundId: effect.roundId,
 							launchAttemptId: effect.launchAttemptId,
 							startAtServerMs: effect.startAtServerMs,
-							startAfterMs: effect.startAfterMs
+							startAfterMs: effect.startAfterMs,
+							playDeadlineAtServerMs: effect.playDeadlineAtServerMs
 						}
 					})
 				];
@@ -1310,7 +1322,29 @@ export class ArenaApplication {
 							roomId: effect.roomId,
 							roomGeneration: effect.roomGeneration,
 							roundId: effect.roundId,
-							launchAttemptId: effect.launchAttemptId
+							launchAttemptId: effect.launchAttemptId,
+							playDeadlineAtServerMs: effect.playDeadlineAtServerMs
+						}
+					})
+				];
+			case 'round_standings':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_standings',
+						data: effect.snapshot
+					})
+				];
+			case 'round_finalized':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_finalized',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							roundId: effect.roundId,
+							launchAttemptId: effect.launchAttemptId,
+							result: effect.result,
+							members: effect.members.map(copyMember)
 						}
 					})
 				];
@@ -1586,11 +1620,14 @@ function copySelection(selection: SelectionSnapshot): SelectionSnapshot {
 	};
 }
 
-function copyRound(round: FrozenRound): FrozenRound {
+function copyRound(round: CompetitionFrozenRound): CompetitionFrozenRound {
 	return {
 		...round,
 		selection: copySelection(round.selection),
-		participants: round.participants.map((participant) => ({ ...participant }))
+		participants: round.participants.map((participant) => ({
+			...participant,
+			identity: { ...participant.identity }
+		}))
 	};
 }
 
@@ -1601,6 +1638,14 @@ function copyRoomSnapshot(snapshot: RoomSnapshot) {
 		members: snapshot.members.map(copyMember),
 		chat: snapshot.chat.map((message) => ({ ...message })),
 		selection: snapshot.selection === null ? null : copySelection(snapshot.selection),
-		...(snapshot.round === undefined ? {} : { round: copyRound(snapshot.round) })
+		...(snapshot.round === undefined ? {} : { round: copyRound(snapshot.round) }),
+		liveStandings:
+			snapshot.liveStandings === null
+				? null
+				: {
+						...snapshot.liveStandings,
+						entries: snapshot.liveStandings.entries.map((entry) => ({ ...entry }))
+					},
+		lastRoundResult: snapshot.lastRoundResult
 	};
 }

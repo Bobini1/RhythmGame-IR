@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { ArenaIdentity } from '../../src/auth/identity.ts';
 import { PackedInventory } from '../../src/inventory/packed-inventory.ts';
-import type { FrozenRound, SelectionSnapshot } from '../../src/protocol/messages.ts';
+import type { CompetitionFrozenRound, SelectionSnapshot } from '../../src/protocol/messages.ts';
 import {
 	createRoomDirectoryWithEntropy,
 	type RoomDirectory
@@ -132,7 +132,7 @@ async function prepareRound(directory: RoomDirectory, includeBob = true) {
 }
 
 function probeInput(
-	round: FrozenRound,
+	round: CompetitionFrozenRound,
 	effect: Extract<RoomEffect, { type: 'round_probe_requested' }>,
 	ok: true | false = true
 ) {
@@ -149,7 +149,12 @@ function probeInput(
 		: ({ ...common, ok: false as const, reason: 'hash_mismatch' as const } as const);
 }
 
-function loadInput(round: FrozenRound, inventoryRevision: number, ok: true | false = true) {
+function loadInput(
+	round: CompetitionFrozenRound,
+	inventoryRevision: number,
+	ok: true | false = true,
+	chartLengthMs = 120_000
+) {
 	const common = {
 		roundId: round.roundId,
 		launchAttemptId: round.launchAttemptId,
@@ -158,7 +163,7 @@ function loadInput(round: FrozenRound, inventoryRevision: number, ok: true | fal
 		inventoryRevision
 	};
 	return ok
-		? ({ ...common, ok: true as const } as const)
+		? ({ ...common, ok: true as const, chartLengthMs } as const)
 		: ({ ...common, ok: false as const, reason: 'resource_failed' as const } as const);
 }
 
@@ -294,13 +299,70 @@ describe('Arena probe and loading barrier', () => {
 		expect(schedules).toHaveLength(2);
 		expect(schedules.map((effect) => effect.startAtServerMs)).toEqual([NOW + 2_320, NOW + 2_320]);
 		expect(schedules.map((effect) => effect.startAfterMs)).toEqual([2_260, 2_150]);
+		expect(schedules.map((effect) => effect.playDeadlineAtServerMs)).toEqual([
+			NOW + 242_320,
+			NOW + 242_320
+		]);
 		expect(directory.nextDeadlineMs()).toBe(NOW + 2_320);
 
 		const started = directory.sweep(NOW + 2_320);
 		expect(started).toHaveLength(1);
 		expect(effectOf(started[0]!.effects, 'round_started')).toHaveLength(1);
-		expect(started[0]!.directoryChange.upserts[0]?.phase).toBe('playing');
-		expect(directory.nextDeadlineMs()).toBeUndefined();
+		expect(started[0]!.directoryChange!.upserts[0]?.phase).toBe('playing');
+		directory.flushDueStandings(NOW + 2_320);
+		expect(directory.nextDeadlineMs()).toBe(NOW + 242_320);
+	});
+
+	test('requires exact chart-length agreement and applies the deadline clamp', async () => {
+		const mismatchDirectory = createDirectory();
+		const mismatch = await prepareRound(mismatchDirectory);
+		const mismatchProbes = effectOf(mismatch.effects, 'round_probe_requested');
+		for (const [index, seat] of mismatch.seats.entries()) {
+			mismatchDirectory.reportProbe(
+				seat.binding,
+				probeInput(mismatch.round, mismatchProbes[index]!),
+				NOW + 10
+			);
+		}
+		mismatchDirectory.reportLoaded(
+			mismatch.seats[0]!.binding,
+			loadInput(mismatch.round, 1, true, 0),
+			NOW + 20
+		);
+		const mismatchResult = mismatchDirectory.reportLoaded(
+			mismatch.seats[1]!.binding,
+			loadInput(mismatch.round, 2, true, 1),
+			NOW + 21
+		);
+		expect(mismatchResult.ok).toBe(true);
+		if (mismatchResult.ok) {
+			expect(effectOf(mismatchResult.effects, 'round_launch_cancelled')[0]).toEqual(
+				expect.objectContaining({ reason: 'chart_length_mismatch', selection: null })
+			);
+		}
+
+		for (const [chartLengthMs, expectedWindowMs] of [
+			[0, 180_000],
+			[21_600_000, 21_720_000]
+		] as const) {
+			const directory = createDirectory();
+			const prepared = await prepareRound(directory, false);
+			const probe = effectOf(prepared.effects, 'round_probe_requested')[0]!;
+			directory.reportProbe(
+				prepared.seats[0]!.binding,
+				probeInput(prepared.round, probe),
+				NOW + 10
+			);
+			const loaded = directory.reportLoaded(
+				prepared.seats[0]!.binding,
+				loadInput(prepared.round, 1, true, chartLengthMs),
+				NOW + 20
+			);
+			expect(loaded.ok).toBe(true);
+			if (!loaded.ok) continue;
+			const scheduled = effectOf(loaded.effects, 'round_start_scheduled')[0]!;
+			expect(scheduled.playDeadlineAtServerMs - scheduled.startAtServerMs).toBe(expectedWindowMs);
+		}
 	});
 
 	test('cancels load failure and the exact load timeout', async () => {

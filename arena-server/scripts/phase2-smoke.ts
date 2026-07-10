@@ -31,11 +31,7 @@ const identities = {
 	bob: { userId: 'phase2-bob', displayName: 'Bob', avatarUrl: null },
 	carol: { userId: 'phase2-carol', displayName: 'Carol', avatarUrl: null }
 } as const satisfies Record<string, ArenaIdentity>;
-const forbiddenPhase3Types = new Set([
-	'round_standings',
-	'round_terminal_accepted',
-	'round_finalized'
-]);
+const forbiddenPhase3Types = new Set(['round_terminal_accepted', 'round_finalized']);
 
 type SmokeContext = Readonly<{
 	application: ArenaApplication;
@@ -534,7 +530,8 @@ async function runSuccessfulRound(): Promise<void> {
 					selectionRevision: frozen.selectionRevision,
 					availabilityRevision: frozen.availabilityRevision,
 					inventoryRevision: index + 1,
-					ok: true
+					ok: true,
+					chartLengthMs: 120_000
 				}
 			},
 			NOW + 10
@@ -931,6 +928,10 @@ async function runSuccessfulWebSocketRound(
 			{ memberId: aliceRoom.self.memberId, inventoryRevision: aliceInventoryRevision },
 			{ memberId: bobRoom.self.memberId, inventoryRevision: bobInventoryRevision }
 		];
+		const expectedFrozenParticipants = [
+			{ ...expectedParticipants[0]!, identity: identities.alice },
+			{ ...expectedParticipants[1]!, identity: identities.bob }
+		];
 		const expectedBasis = [...expectedParticipants].sort((left, right) =>
 			left.memberId.localeCompare(right.memberId)
 		);
@@ -1061,7 +1062,7 @@ async function runSuccessfulWebSocketRound(
 			'shared frozen round'
 		);
 		invariant(
-			JSON.stringify(frozen.participants) === JSON.stringify(expectedParticipants),
+			JSON.stringify(frozen.participants) === JSON.stringify(expectedFrozenParticipants),
 			'exact frozen roster and inventory revisions'
 		);
 		invariant(aliceProbe.data.nonce !== bobProbe.data.nonce, 'unique per-seat probe nonces');
@@ -1149,7 +1150,8 @@ async function runSuccessfulWebSocketRound(
 					selectionRevision: frozen.selectionRevision,
 					availabilityRevision: frozen.availabilityRevision,
 					inventoryRevision: revision,
-					ok: true
+					ok: true,
+					chartLengthMs: 120_000
 				}
 			});
 		}
