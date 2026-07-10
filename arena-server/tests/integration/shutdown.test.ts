@@ -54,6 +54,7 @@ describe('Arena graceful shutdown', () => {
 		await first;
 		expect(shutdownCalls).toBe(1);
 		expect(finalizeCalls).toBe(1);
+		await expect(fetch(`${origin}/healthz`)).rejects.toThrow();
 	});
 
 	test('application shutdown stops new work, aborts uploads, and destroys ephemeral rooms', async () => {

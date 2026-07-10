@@ -841,6 +841,7 @@ describe('Arena WebSocket gateway', () => {
 		async () => {
 			handle = startTestServer();
 			const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);
+			const healthUrl = `http://127.0.0.1:${handle.port}/healthz`;
 			client.send(clientHello());
 			await client.nextMessage('server_hello');
 			const goingAway = client.nextMessage('server_going_away');
@@ -852,6 +853,7 @@ describe('Arena WebSocket gateway', () => {
 			expect((await goingAway).data.displayMessageKey).toBe('arena.serverGoingAway');
 			expect(await closed).toEqual({ code: 1012, reason: 'server_restart' });
 			await first;
+			await expect(fetch(healthUrl)).rejects.toThrow();
 		}
 	);
 

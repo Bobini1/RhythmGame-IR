@@ -24,6 +24,7 @@ import {
 
 const DEFAULT_MAINTENANCE_INTERVAL_MS = 1_000;
 const MAX_QUEUED_FRAMES = 32;
+const SERVER_STOP_TIMEOUT_MS = 1_000;
 export const BACKPRESSURE_LIMIT_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PEER_UPGRADE_POLICY = { maxAttempts: 6_000, windowMs: 60_000 } as const;
 
@@ -577,7 +578,28 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			} catch {
 				safeLog('error', 'application_finalize_shutdown_failed');
 			}
-			await server.stop(true);
+			let stopSettled = false;
+			let stopTimer: ReturnType<typeof setTimeout> | undefined;
+			// Bun 1.3.14 can leave this promise pending after a server-initiated WebSocket close,
+			// even though stop(true) has already closed the listener. Keep process shutdown bounded.
+			const stopPromise = server.stop(true).then(
+				() => {
+					stopSettled = true;
+				},
+				() => safeLog('error', 'server_stop_failed')
+			);
+			await Promise.race([
+				stopPromise,
+				new Promise<void>((resolve) => {
+					stopTimer = setTimeout(resolve, SERVER_STOP_TIMEOUT_MS);
+					stopTimer.unref?.();
+				})
+			]);
+			if (stopTimer !== undefined) clearTimeout(stopTimer);
+			if (!stopSettled) {
+				server.unref();
+				safeLog('warn', 'server_stop_timeout');
+			}
 			safeLog('info', 'server_stopped', { activeConnections: connectionIds.length });
 		})();
 		return shutdownPromise;

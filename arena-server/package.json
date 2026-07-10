@@ -11,6 +11,7 @@
 		"smoke:phase2": "bun run scripts/phase2-smoke.ts",
 		"smoke:phase3": "bun run scripts/phase3-smoke.ts",
 		"smoke:production": "bun run scripts/phase4-production-smoke.ts",
+		"load:phase4": "bun run scripts/phase4-load.ts",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"verify": "bun run check && bun run test && bun run format:check"
