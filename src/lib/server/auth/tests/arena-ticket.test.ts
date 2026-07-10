@@ -1,18 +1,17 @@
 import { betterAuth } from 'better-auth';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { bearer } from 'better-auth/plugins';
-import { decodeJwt, decodeProtectedHeader } from 'jose';
+import { createLocalJWKSet, decodeJwt, jwtVerify, type JSONWebKeySet } from 'jose';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-	ARENA_AUDIENCE,
-	ARENA_ISSUER,
-	arenaTicketNoStoreHook,
-	createArenaJwtPlugin
-} from '../arena-ticket';
+import { jwks } from '../../database/schemas/auth';
+import { authDatabaseSchema } from '../auth-database-schema';
+import { createArenaAuthOptions } from '../arena-ticket';
 
 const BASE_URL = 'http://localhost:3000';
 
 function createTestAuth() {
+	const arenaAuthOptions = createArenaAuthOptions();
+
 	return betterAuth({
 		baseURL: BASE_URL,
 		secret: 'arena-ticket-test-secret-is-long-enough',
@@ -24,8 +23,8 @@ function createTestAuth() {
 			jwks: []
 		}),
 		emailAndPassword: { enabled: true },
-		plugins: [bearer(), createArenaJwtPlugin()],
-		hooks: { after: arenaTicketNoStoreHook }
+		plugins: [bearer(), ...arenaAuthOptions.plugins],
+		hooks: arenaAuthOptions.hooks
 	});
 }
 
@@ -44,8 +43,9 @@ async function signUpAndGetBearerToken(auth: ReturnType<typeof createTestAuth>) 
 
 	expect(response.status).toBe(200);
 	const token = response.headers.get('set-auth-token');
+	const body = (await response.json()) as { user: { id: string } };
 	expect(token).toBeTruthy();
-	return token!;
+	return { bearerToken: token!, userId: String(body.user.id) };
 }
 
 function bearerRequest(path: string, token: string) {
@@ -67,20 +67,31 @@ describe('Arena identity tickets', () => {
 		expect(response.status).toBe(401);
 	});
 
+	it('includes the JWKS table in the production auth database schema', () => {
+		expect(authDatabaseSchema.jwks).toBe(jwks);
+	});
+
 	it('issues a short-lived Ed25519 Arena ticket and publishes its verification key', async () => {
-		const bearerToken = await signUpAndGetBearerToken(auth);
+		const { bearerToken, userId } = await signUpAndGetBearerToken(auth);
 		const response = await auth.handler(bearerRequest('/token', bearerToken));
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('cache-control')).toContain('no-store');
 		const { token } = (await response.json()) as { token: string };
-		const header = decodeProtectedHeader(token);
-		const payload = decodeJwt(token);
 
-		expect(header.alg).toBe('EdDSA');
-		expect(payload.iss).toBe(ARENA_ISSUER);
-		expect(payload.aud).toBe(ARENA_AUDIENCE);
-		expect(payload.sub).toBeTruthy();
+		const jwksResponse = await auth.handler(new Request(`${BASE_URL}/api/auth/jwks`));
+		expect(jwksResponse.status).toBe(200);
+		const publishedJwks = (await jwksResponse.json()) as JSONWebKeySet;
+		const { payload, protectedHeader } = await jwtVerify(token, createLocalJWKSet(publishedJwks), {
+			algorithms: ['EdDSA'],
+			issuer: 'https://rhythmgame.eu',
+			audience: 'https://arena.rhythmgame.eu'
+		});
+
+		expect(protectedHeader.alg).toBe('EdDSA');
+		expect(payload.iss).toBe('https://rhythmgame.eu');
+		expect(payload.aud).toBe('https://arena.rhythmgame.eu');
+		expect(payload.sub).toBe(userId);
 		expect(payload.name).toBe('Arena Player');
 		expect(payload.picture).toBeNull();
 		expect(payload.emailVerified).toBe(false);
@@ -89,24 +100,18 @@ describe('Arena identity tickets', () => {
 		expect(payload.protocolMinor).toBe(0);
 		expect(payload.exp! - payload.iat!).toBe(90);
 		expect(payload.jti).toEqual(expect.any(String));
-
-		const jwksResponse = await auth.handler(new Request(`${BASE_URL}/api/auth/jwks`));
-		expect(jwksResponse.status).toBe(200);
-		const jwks = (await jwksResponse.json()) as {
-			keys: Array<{ alg: string; crv: string; kid: string; kty: string }>;
-		};
-		expect(jwks.keys).toContainEqual(
+		expect(publishedJwks.keys).toContainEqual(
 			expect.objectContaining({
 				alg: 'EdDSA',
 				crv: 'Ed25519',
-				kid: header.kid,
+				kid: protectedHeader.kid,
 				kty: 'OKP'
 			})
 		);
 	});
 
 	it('uses a distinct JWT ID for every ticket', async () => {
-		const bearerToken = await signUpAndGetBearerToken(auth);
+		const { bearerToken } = await signUpAndGetBearerToken(auth);
 		const firstResponse = await auth.handler(bearerRequest('/token', bearerToken));
 		const secondResponse = await auth.handler(bearerRequest('/token', bearerToken));
 		const firstToken = ((await firstResponse.json()) as { token: string }).token;
@@ -116,7 +121,7 @@ describe('Arena identity tickets', () => {
 	});
 
 	it('does not attach an auth JWT header to session responses', async () => {
-		const bearerToken = await signUpAndGetBearerToken(auth);
+		const { bearerToken } = await signUpAndGetBearerToken(auth);
 		const response = await auth.handler(bearerRequest('/get-session', bearerToken));
 
 		expect(response.status).toBe(200);

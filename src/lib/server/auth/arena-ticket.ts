@@ -1,3 +1,4 @@
+import type { BetterAuthOptions } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { jwt } from 'better-auth/plugins';
 
@@ -34,3 +35,10 @@ export const arenaTicketNoStoreHook = createAuthMiddleware(async (ctx) => {
 		ctx.setHeader('Cache-Control', 'no-store');
 	}
 });
+
+export function createArenaAuthOptions() {
+	return {
+		hooks: { after: arenaTicketNoStoreHook },
+		plugins: [createArenaJwtPlugin()]
+	} satisfies Pick<BetterAuthOptions, 'hooks' | 'plugins'>;
+}
