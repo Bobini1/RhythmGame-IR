@@ -2,12 +2,13 @@ import { db } from '$lib/server/database/client';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins/bearer';
-import { account, session, user, verification } from '../database/schemas/auth';
+import { account, jwks, session, user, verification } from '../database/schemas/auth';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { env } from '$env/dynamic/private';
 import { captcha, openAPI } from 'better-auth/plugins';
 import { resend } from '$lib/server/email/resend';
+import { arenaTicketNoStoreHook, createArenaJwtPlugin } from './arena-ticket';
 
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
@@ -16,7 +17,8 @@ export const auth = betterAuth({
 			user,
 			session,
 			account,
-			verification
+			verification,
+			jwks
 		}
 	}),
 	emailAndPassword: {
@@ -50,8 +52,12 @@ export const auth = betterAuth({
 			generateId: 'serial' // "serial" for auto-incrementing numeric IDs
 		}
 	},
+	hooks: {
+		after: arenaTicketNoStoreHook
+	},
 	plugins: [
 		bearer(),
+		createArenaJwtPlugin(),
 		openAPI(),
 		captcha({
 			provider: 'cloudflare-turnstile',

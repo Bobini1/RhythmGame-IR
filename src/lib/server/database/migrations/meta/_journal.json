@@ -15,6 +15,13 @@
       "when": 1776025184428,
       "tag": "0001_odd_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783648045282,
+      "tag": "0002_red_albert_cleary",
+      "breakpoints": true
     }
   ]
 }
