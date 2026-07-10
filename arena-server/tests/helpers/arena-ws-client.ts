@@ -36,7 +36,11 @@ function run(command: ClientCommand): void {
 				socket.addEventListener('open', () => emit({ event: 'opened' }));
 				socket.addEventListener('message', (received) => {
 					if (typeof received.data !== 'string') {
-						emit({ event: 'error', code: 'unexpected_server_binary' });
+						if (!(received.data instanceof ArrayBuffer)) {
+							emit({ event: 'error', code: 'invalid_server_binary' });
+							return;
+						}
+						emit({ event: 'binary', bytes: Array.from(new Uint8Array(received.data)) });
 						return;
 					}
 					try {

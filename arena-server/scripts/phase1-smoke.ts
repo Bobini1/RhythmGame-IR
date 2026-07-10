@@ -17,6 +17,7 @@ import { startArenaServer, type ArenaServerHandle } from '../src/transport/start
 type ClientEvent =
 	| Readonly<{ event: 'opened' }>
 	| Readonly<{ event: 'message'; message: ServerMessage }>
+	| Readonly<{ event: 'binary'; bytes: readonly number[] }>
 	| Readonly<{ event: 'closed'; code: number; reason: string }>
 	| Readonly<{ event: 'error'; code: string }>
 	| Readonly<{ event: 'process_exit' }>;
@@ -26,7 +27,7 @@ type EventWaiter = {
 	readonly reject: (error: Error) => void;
 	readonly timer: ReturnType<typeof setTimeout>;
 };
-type Identity = Readonly<{ userId: string; displayName: string }>;
+export type SmokeIdentity = Readonly<{ userId: string; displayName: string }>;
 
 const ISSUER = 'https://rhythmgame.eu';
 const AUDIENCE = 'https://arena.rhythmgame.eu';
@@ -42,11 +43,12 @@ function phase(number: number, label: string): void {
 	process.stdout.write(`${number}. ${label}\n`);
 }
 
-class SmokeClient {
+export class SmokeClient {
 	readonly #name: string;
 	readonly #process: Bun.Subprocess<'pipe', 'pipe', 'pipe'>;
 	readonly #events: ClientEvent[] = [];
 	readonly #waiters: EventWaiter[] = [];
+	readonly #observedMessages: ServerMessage[] = [];
 	#stopping = false;
 
 	private constructor(name: string, process: Bun.Subprocess<'pipe', 'pipe', 'pipe'>) {
@@ -78,6 +80,10 @@ class SmokeClient {
 		this.#write({ command: 'send', message });
 	}
 
+	sendBinary(bytes: Uint8Array): void {
+		this.#write({ command: 'send_binary', bytes: [...bytes] });
+	}
+
 	close(): void {
 		this.#write({ command: 'close' });
 	}
@@ -85,7 +91,7 @@ class SmokeClient {
 	async nextMessage<T extends ServerMessage['type']>(
 		type: T,
 		accepts: (message: Extract<ServerMessage, { type: T }>) => boolean = () => true,
-		timeoutMs = 3_000
+		timeoutMs = 10_000
 	): Promise<Extract<ServerMessage, { type: T }>> {
 		const event = await this.#next(
 			(candidate) =>
@@ -109,6 +115,20 @@ class SmokeClient {
 		);
 		if (event.event !== 'closed') throw new Error(`${this.#name} did not close.`);
 		return { code: event.code, reason: event.reason };
+	}
+
+	async nextBinary(timeoutMs = 3_000): Promise<Uint8Array> {
+		const event = await this.#next(
+			(candidate) => candidate.event === 'binary',
+			'server binary frame',
+			timeoutMs
+		);
+		if (event.event !== 'binary') throw new Error(`${this.#name} did not receive binary data.`);
+		return Uint8Array.from(event.bytes);
+	}
+
+	observedMessages(): readonly ServerMessage[] {
+		return this.#observedMessages;
 	}
 
 	async stop(): Promise<void> {
@@ -186,6 +206,7 @@ class SmokeClient {
 			}
 			return;
 		}
+		if (event.event === 'message') this.#observedMessages.push(event.message);
 		const waiterIndex = this.#waiters.findIndex((waiter) => waiter.accepts(event));
 		if (waiterIndex < 0) {
 			this.#events.push(event);
@@ -208,7 +229,16 @@ class SmokeClient {
 			const timer = setTimeout(() => {
 				const index = this.#waiters.findIndex((waiter) => waiter.timer === timer);
 				if (index >= 0) this.#waiters.splice(index, 1);
-				reject(new Error(`${this.#name} timed out waiting for ${label}.`));
+				const queuedTypes = this.#events.map((event) => {
+					if (event.event !== 'message') return event.event;
+					if (event.message.type !== 'command_error') return event.message.type;
+					return `${event.message.type}:${event.message.requestId}:${event.message.data.code}`;
+				});
+				reject(
+					new Error(
+						`${this.#name} timed out waiting for ${label}; queued: ${queuedTypes.join(',') || 'none'}.`
+					)
+				);
 			}, timeoutMs);
 			this.#waiters.push({ accepts, resolve, reject, timer });
 		});
@@ -217,15 +247,16 @@ class SmokeClient {
 
 function hello(
 	ticket?: string,
-	resume?: Readonly<{ roomId: string; seatToken: string }>
+	resume?: Readonly<{ roomId: string; seatToken: string }>,
+	protocolMinor: 0 | 1 = ticket === undefined ? 0 : 1
 ): ClientMessage {
 	return {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 0,
+			protocolMinor,
 			clientVersion: 'phase1-smoke',
-			capabilities: ['rooms-v1'],
+			capabilities: protocolMinor === 1 ? ['rooms-v1', 'rounds-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket }),
 			...(resume === undefined ? {} : { resume })
 		}
@@ -283,10 +314,10 @@ async function runAnonymousSmoke(rawUrl: string): Promise<void> {
 	}
 }
 
-async function startLocalIssuer(): Promise<
+export async function startLocalIssuer(protocolMinor = 0): Promise<
 	Readonly<{
 		server: Bun.Server<undefined>;
-		issue(identity: Identity): Promise<string>;
+		issue(identity: SmokeIdentity): Promise<string>;
 	}>
 > {
 	const keyPair = await generateKeyPair('EdDSA', { crv: 'Ed25519', extractable: true });
@@ -318,7 +349,7 @@ async function startLocalIssuer(): Promise<
 	});
 	return {
 		server,
-		async issue(identity: Identity): Promise<string> {
+		async issue(identity: SmokeIdentity): Promise<string> {
 			const nowSeconds = Math.floor(Date.now() / 1_000);
 			return new SignJWT({
 				name: identity.displayName,
@@ -326,7 +357,7 @@ async function startLocalIssuer(): Promise<
 				emailVerified: true,
 				purpose: 'arena-connect',
 				protocolMajor: 1,
-				protocolMinor: 0,
+				protocolMinor,
 				jti: crypto.randomUUID()
 			})
 				.setProtectedHeader({ alg: 'EdDSA', kid: 'phase1-smoke-key', typ: 'JWT' })
@@ -366,7 +397,7 @@ async function runLocalSmoke(): Promise<void> {
 	let arena: ArenaServerHandle | undefined;
 	let arenaStopped = false;
 	try {
-		issuer = await startLocalIssuer();
+		issuer = await startLocalIssuer(1);
 		const jwksPort = issuer.server.port;
 		invariant(jwksPort !== undefined, 'local JWKS port');
 		const config = loadArenaConfig({
@@ -421,7 +452,37 @@ async function runLocalSmoke(): Promise<void> {
 		);
 		invariant(anonymousError.data.code === 'auth_required', 'anonymous mutation gate');
 		await anonymousAlice.stop();
-		phase(1, 'Anonymous browse and gate');
+
+		const legacy = await SmokeClient.connect('Authenticated protocol 1.0', url);
+		clients.push(legacy);
+		legacy.send(
+			hello(
+				await issuer.issue({ userId: 'phase1-legacy', displayName: 'Legacy player' }),
+				undefined,
+				0
+			)
+		);
+		const legacyHello = await legacy.nextMessage('server_hello');
+		invariant(legacyHello.data.protocolMinor === 0, 'authenticated legacy protocol minor');
+		invariant(
+			legacyHello.data.identity?.userId === 'phase1-legacy',
+			'authenticated legacy identity'
+		);
+		legacy.send({
+			type: 'room_create',
+			requestId: 'legacy-create',
+			data: { name: 'Blocked legacy room' }
+		});
+		const legacyError = await legacy.nextMessage(
+			'command_error',
+			(message) => message.requestId === 'legacy-create'
+		);
+		invariant(
+			legacyError.data.code === 'rounds_capability_required',
+			'authenticated protocol 1.0 mutation gate'
+		);
+		await legacy.stop();
+		phase(1, 'Anonymous and authenticated protocol 1.0 browse gates');
 
 		const aliceAdmission = await authenticatedClient(
 			clients,
@@ -805,4 +866,4 @@ async function main(): Promise<void> {
 	throw new Error('Usage: phase1-smoke.ts [--anonymous-url wss://host/ws]');
 }
 
-await main();
+if (import.meta.main) await main();

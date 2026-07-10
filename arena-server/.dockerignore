@@ -5,6 +5,9 @@
 .worktrees
 node_modules
 tests
+scripts
+docs
+fixtures
 coverage
 *.log
 *.pem
@@ -14,3 +17,7 @@ coverage
 .idea
 .vscode
 *.tsbuildinfo
+.env.example
+.prettierrc.json
+README.md
+tsconfig.json

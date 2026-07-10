@@ -8,6 +8,7 @@
 		"check": "tsc --noEmit",
 		"test": "bun test",
 		"smoke:phase1": "bun run scripts/phase1-smoke.ts",
+		"smoke:phase2": "bun run scripts/phase2-smoke.ts",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"verify": "bun run check && bun run test && bun run format:check"
