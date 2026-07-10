@@ -172,7 +172,9 @@ describe('InventoryUploadManager', () => {
 
 		const expiring = begin(manager, 'c3', packedHashes(1), 100);
 		expect(manager.sweep(60_099)).toEqual([]);
-		expect(manager.sweep(60_100)).toEqual([{ connectionId: 'c3', uploadId: expiring.uploadId }]);
+		expect(manager.sweep(60_100)).toEqual([
+			{ connectionId: 'c3', uploadId: expiring.uploadId, libraryGeneration: 1 }
+		]);
 		expect(manager.pendingReservedBytes).toBe(0);
 	});
 

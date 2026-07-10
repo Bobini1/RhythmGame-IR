@@ -26,24 +26,26 @@ export function startProductionArenaServer(
 ): ArenaServerHandle {
 	const config = loadArenaConfig(environment);
 	const ticketVerifier = new JoseTicketVerifier(config);
+	const inventoryUploadManager = new InventoryUploadManager({
+		uploadTimeoutMs: config.inventoryUploadTimeoutMs,
+		maxPendingBytes: config.maxPendingInventoryBytes,
+		maxCommittedBytes: config.maxCommittedInventoryBytes
+	});
 	const roomDirectory = createRoomDirectory(
 		{
 			roomCapacity: config.roomCapacity,
 			reconnectGraceMs: config.reconnectGraceMs,
 			chatBacklog: config.chatBacklog
 		},
-		new BunPasswordHasher()
+		new BunPasswordHasher(),
+		(inventory) => inventoryUploadManager.releaseCommitted(inventory)
 	);
 	const application = new ArenaApplication({
 		ticketVerifier,
 		roomDirectory,
 		now: Date.now,
 		newNonce: () => crypto.randomUUID(),
-		inventoryUploadManager: new InventoryUploadManager({
-			uploadTimeoutMs: config.inventoryUploadTimeoutMs,
-			maxPendingBytes: config.maxPendingInventoryBytes,
-			maxCommittedBytes: config.maxCommittedInventoryBytes
-		})
+		inventoryUploadManager
 	});
 	const handle = startArenaServer({ application, config, logger: structuredLogger });
 	structuredLogger('info', 'server_started', { host: config.host, port: handle.port });

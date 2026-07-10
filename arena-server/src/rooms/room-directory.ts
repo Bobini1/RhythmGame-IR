@@ -1,17 +1,22 @@
 import type { PasswordHasher } from './password-hasher.ts';
+import { PackedInventory } from '../inventory/packed-inventory.ts';
 import type {
+	AvailabilityChangedEffect,
+	AvailabilitySnapshot,
 	ChatMessage,
 	CreateRoomInput,
 	DirectoryChange,
 	DirectorySnapshot,
 	DomainResult,
+	InventoryCommit,
 	JoinRoomInput,
 	ResumeSeatInput,
 	RoomDirectoryConfig,
 	RoomEffect,
 	RoomTransition,
 	SeatAdmission,
-	SeatConnectionRef
+	SeatConnectionRef,
+	UploadAdmission
 } from './models.ts';
 import {
 	addConnectedSeat,
@@ -27,7 +32,8 @@ import {
 	oldestConnectedSeat,
 	summaryFor,
 	type RandomBytes,
-	type RoomState
+	type RoomState,
+	type SeatState
 } from './room.ts';
 
 export interface RoomDirectory {
@@ -39,6 +45,27 @@ export interface RoomDirectory {
 	kick(actor: SeatConnectionRef, targetSeatId: string, nowMs: number): DomainResult<void>;
 	disconnect(actor: SeatConnectionRef, nowMs: number): DomainResult<void>;
 	sendChat(actor: SeatConnectionRef, text: string, nowMs: number): DomainResult<ChatMessage>;
+	markInventorySyncing(
+		actor: SeatConnectionRef,
+		libraryGeneration: number,
+		nowMs: number
+	): DomainResult<UploadAdmission>;
+	abortInventorySync(
+		actor: SeatConnectionRef,
+		libraryGeneration: number,
+		nowMs: number
+	): DomainResult<void>;
+	replaceInventory(
+		actor: SeatConnectionRef,
+		input: Readonly<{ libraryGeneration: number }>,
+		inventory: PackedInventory,
+		nowMs: number
+	): DomainResult<InventoryCommit>;
+	ackAvailability(actor: SeatConnectionRef, revision: number, nowMs: number): DomainResult<void>;
+	requestAvailabilityReset(
+		actor: SeatConnectionRef,
+		nowMs: number
+	): DomainResult<AvailabilitySnapshot>;
 	sweep(nowMs: number): readonly RoomTransition[];
 }
 
@@ -46,6 +73,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 	readonly #config: RoomDirectoryConfig;
 	readonly #passwordHasher: PasswordHasher;
 	readonly #randomBytes: RandomBytes;
+	readonly #releaseInventory: (inventory: PackedInventory) => void;
 	readonly #rooms = new Map<string, RoomState>();
 	readonly #issuedRoomIds = new Set<string>();
 	readonly #connections = new Map<string, SeatConnectionRef>();
@@ -55,11 +83,13 @@ class InMemoryRoomDirectory implements RoomDirectory {
 	constructor(
 		config: RoomDirectoryConfig,
 		passwordHasher: PasswordHasher,
-		randomBytes: RandomBytes
+		randomBytes: RandomBytes,
+		releaseInventory: (inventory: PackedInventory) => void
 	) {
 		this.#config = config;
 		this.#passwordHasher = passwordHasher;
 		this.#randomBytes = randomBytes;
+		this.#releaseInventory = releaseInventory;
 	}
 
 	list(): DirectorySnapshot {
@@ -147,6 +177,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			identity: input.identity,
 			resumeTokenDigest: resumeToken.digest
 		});
+		delete room.commonInventory;
+		room.availabilityBasis = [];
+		for (const existingSeat of room.seats.values()) existingSeat.ready = false;
 		if (room.ownerSeatId === null) {
 			room.ownerSeatId = seat.seatId;
 		}
@@ -214,22 +247,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			...(staleConnectionId === input.connectionId ? {} : { staleConnectionId })
 		};
 		this.#connections.set(input.connectionId, admission.binding);
-		const effects = [] as Array<
-			| {
-					type: 'member_updated';
-					targets: readonly string[];
-					roomId: string;
-					roomGeneration: number;
-					member: ReturnType<typeof memberFor>;
-			  }
-			| {
-					type: 'owner_changed';
-					targets: readonly string[];
-					roomId: string;
-					roomGeneration: number;
-					ownerMemberId: string | null;
-			  }
-		>;
+		const effects: RoomEffect[] = [];
 		if (incumbentTargets.length > 0) {
 			effects.push({
 				type: 'member_updated',
@@ -248,12 +266,137 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				});
 			}
 		}
+		const availabilityReset = this.#availabilityResetEffect(room, seat);
+		if (availabilityReset !== undefined) effects.push(availabilityReset);
 
 		return {
 			ok: true,
 			value: admission,
 			effects,
 			directoryChange: this.#upsert(room)
+		};
+	}
+
+	markInventorySyncing(
+		actor: SeatConnectionRef,
+		libraryGeneration: number,
+		_nowMs: number
+	): DomainResult<UploadAdmission> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (
+			!Number.isSafeInteger(libraryGeneration) ||
+			libraryGeneration <= seat.libraryGeneration ||
+			(seat.pendingLibraryGeneration !== undefined &&
+				libraryGeneration <= seat.pendingLibraryGeneration)
+		) {
+			return { ok: false, rejection: { code: 'inventory_stale' } };
+		}
+		seat.pendingLibraryGeneration = libraryGeneration;
+		seat.inventoryState = 'syncing';
+		seat.ready = false;
+		return {
+			ok: true,
+			value: { libraryGeneration, inventoryState: 'syncing' },
+			effects: this.#memberUpdatedEffects(room, seat)
+		};
+	}
+
+	abortInventorySync(
+		actor: SeatConnectionRef,
+		libraryGeneration: number,
+		_nowMs: number
+	): DomainResult<void> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (seat.pendingLibraryGeneration !== libraryGeneration) {
+			return { ok: false, rejection: { code: 'inventory_stale' } };
+		}
+		delete seat.pendingLibraryGeneration;
+		seat.inventoryState = seat.inventory === undefined ? 'missing' : 'ready';
+		seat.ready = false;
+		return {
+			ok: true,
+			value: undefined,
+			effects: this.#memberUpdatedEffects(room, seat)
+		};
+	}
+
+	replaceInventory(
+		actor: SeatConnectionRef,
+		input: Readonly<{ libraryGeneration: number }>,
+		inventory: PackedInventory,
+		_nowMs: number
+	): DomainResult<InventoryCommit> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (
+			seat.pendingLibraryGeneration !== input.libraryGeneration ||
+			input.libraryGeneration <= seat.libraryGeneration
+		) {
+			return { ok: false, rejection: { code: 'inventory_stale' } };
+		}
+
+		const previousInventory = seat.inventory;
+		seat.inventory = inventory;
+		seat.libraryGeneration = input.libraryGeneration;
+		seat.inventoryRevision = room.nextInventoryRevision++;
+		seat.inventoryState = 'ready';
+		seat.ready = false;
+		delete seat.pendingLibraryGeneration;
+		const availabilityEffect = this.#recomputeAvailability(room);
+		if (previousInventory !== undefined) this.#releaseInventory(previousInventory);
+
+		return {
+			ok: true,
+			value: {
+				libraryGeneration: seat.libraryGeneration,
+				inventoryRevision: seat.inventoryRevision,
+				availabilityRevision: room.commonInventory === undefined ? 0 : room.availabilityRevision
+			},
+			effects: [
+				...this.#memberUpdatedEffects(room, seat),
+				...(availabilityEffect === undefined ? [] : [availabilityEffect])
+			]
+		};
+	}
+
+	ackAvailability(actor: SeatConnectionRef, revision: number, _nowMs: number): DomainResult<void> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (room.commonInventory === undefined || revision !== room.availabilityRevision) {
+			return { ok: false, rejection: { code: 'availability_stale' } };
+		}
+		seat.availabilityAppliedRevision = revision;
+		return {
+			ok: true,
+			value: undefined,
+			effects: this.#memberUpdatedEffects(room, seat)
+		};
+	}
+
+	requestAvailabilityReset(
+		actor: SeatConnectionRef,
+		_nowMs: number
+	): DomainResult<AvailabilitySnapshot> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room } = bound;
+		if (room.commonInventory === undefined || room.availabilityRevision === 0) {
+			return { ok: false, rejection: { code: 'availability_stale' } };
+		}
+		return {
+			ok: true,
+			value: {
+				revision: room.availabilityRevision,
+				basis: room.availabilityBasis.map((entry) => ({ ...entry })),
+				inventory: room.commonInventory
+			},
+			effects: []
 		};
 	}
 
@@ -272,6 +415,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		const targets = connectedTargets(room);
 		const wasOwner = room.ownerSeatId === seat.seatId;
 		room.seats.delete(seat.seatId);
+		if (seat.inventory !== undefined) this.#releaseInventory(seat.inventory);
 		this.#connections.delete(seat.connectionId);
 		const effects: RoomEffect[] = [
 			{
@@ -302,6 +446,8 @@ class InMemoryRoomDirectory implements RoomDirectory {
 					});
 				}
 			}
+			const availabilityEffect = this.#recomputeAvailability(room);
+			if (availabilityEffect !== undefined) effects.push(availabilityEffect);
 			directoryChange = this.#upsert(room);
 		}
 
@@ -349,23 +495,28 @@ class InMemoryRoomDirectory implements RoomDirectory {
 					}
 				: undefined;
 		room.seats.delete(target.seatId);
+		if (target.inventory !== undefined) this.#releaseInventory(target.inventory);
 		room.bannedUserIds.add(target.identity.userId);
 		if (target.status === 'connected') this.#connections.delete(target.connectionId);
+
+		const effects: RoomEffect[] = [
+			{
+				type: 'member_left',
+				targets,
+				roomId: room.roomId,
+				roomGeneration: room.generation,
+				memberId: target.seatId,
+				reason: 'kicked',
+				...(invalidatedBinding === undefined ? {} : { invalidatedBinding })
+			}
+		];
+		const availabilityEffect = this.#recomputeAvailability(room);
+		if (availabilityEffect !== undefined) effects.push(availabilityEffect);
 
 		return {
 			ok: true,
 			value: undefined,
-			effects: [
-				{
-					type: 'member_left',
-					targets,
-					roomId: room.roomId,
-					roomGeneration: room.generation,
-					memberId: target.seatId,
-					reason: 'kicked',
-					...(invalidatedBinding === undefined ? {} : { invalidatedBinding })
-				}
-			],
+			effects,
 			directoryChange: this.#upsert(room)
 		};
 	}
@@ -494,8 +645,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				.sort((left, right) => left.joinOrder - right.joinOrder);
 			for (const seat of expiredSeats) {
 				if (!room.seats.delete(seat.seatId)) continue;
+				if (seat.inventory !== undefined) this.#releaseInventory(seat.inventory);
 				const targets = connectedTargets(room);
-				const effects =
+				const effects: RoomEffect[] =
 					targets.length === 0
 						? []
 						: [
@@ -513,12 +665,116 @@ class InMemoryRoomDirectory implements RoomDirectory {
 					this.#rooms.delete(room.roomId);
 					directoryChange = this.#remove(room.roomId);
 				} else {
+					const availabilityEffect = this.#recomputeAvailability(room);
+					if (availabilityEffect !== undefined) effects.push(availabilityEffect);
 					directoryChange = this.#upsert(room);
 				}
 				transitions.push({ effects, directoryChange });
 			}
 		}
 		return transitions;
+	}
+
+	#boundSeat(actor: SeatConnectionRef):
+		| Readonly<{ ok: true; room: RoomState; seat: SeatState }>
+		| Readonly<{
+				ok: false;
+				rejection: {
+					code: 'room_not_found' | 'room_generation_stale' | 'connection_generation_stale';
+				};
+		  }> {
+		const room = this.#rooms.get(actor.roomId);
+		if (room === undefined) return { ok: false, rejection: { code: 'room_not_found' } };
+		if (room.generation !== actor.roomGeneration) {
+			return { ok: false, rejection: { code: 'room_generation_stale' } };
+		}
+		const seat = exactConnectedSeat(room, actor);
+		if (seat === undefined) {
+			return { ok: false, rejection: { code: 'connection_generation_stale' } };
+		}
+		return { ok: true, room, seat };
+	}
+
+	#memberUpdatedEffects(room: RoomState, seat: SeatState): RoomEffect[] {
+		const targets = connectedTargets(room);
+		return targets.length === 0
+			? []
+			: [
+					{
+						type: 'member_updated',
+						targets,
+						roomId: room.roomId,
+						roomGeneration: room.generation,
+						member: memberFor(seat)
+					}
+				];
+	}
+
+	#recomputeAvailability(room: RoomState): AvailabilityChangedEffect | undefined {
+		const seats = [...room.seats.values()];
+		if (seats.length === 0 || seats.some((seat) => seat.inventory === undefined)) {
+			delete room.commonInventory;
+			room.availabilityBasis = [];
+			return undefined;
+		}
+		const previous = room.commonInventory;
+		const previousRevision = room.availabilityRevision;
+		const current = PackedInventory.intersectAll(
+			seats
+				.map((seat) => seat.inventory)
+				.filter((value): value is PackedInventory => value !== undefined)
+		);
+		const basis = seats
+			.map((seat) => ({ memberId: seat.seatId, inventoryRevision: seat.inventoryRevision }))
+			.sort((left, right) => left.memberId.localeCompare(right.memberId));
+		room.commonInventory = current;
+		room.availabilityBasis = basis;
+		room.availabilityRevision += 1;
+		for (const seat of seats) seat.ready = false;
+		const recipients = seats
+			.filter((seat) => seat.status === 'connected')
+			.map((seat) => ({
+				connectionId: seat.connectionId,
+				baseRevision: seat.availabilityAppliedRevision,
+				forceReset: previous === undefined || seat.availabilityAppliedRevision !== previousRevision
+			}));
+		return {
+			type: 'availability_changed',
+			targets: recipients.map((recipient) => recipient.connectionId),
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			previousRevision,
+			targetRevision: room.availabilityRevision,
+			basis: basis.map((entry) => ({ ...entry })),
+			...(previous === undefined ? {} : { previous }),
+			current,
+			recipients
+		};
+	}
+
+	#availabilityResetEffect(
+		room: RoomState,
+		seat: SeatState
+	): AvailabilityChangedEffect | undefined {
+		if (room.commonInventory === undefined || room.availabilityRevision === 0) return undefined;
+		return {
+			type: 'availability_changed',
+			targets: [seat.connectionId],
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			previousRevision: room.availabilityRevision,
+			targetRevision: room.availabilityRevision,
+			basis: room.availabilityBasis.map((entry) => ({ ...entry })),
+			previous: room.commonInventory,
+			current: room.commonInventory,
+			recipients: [
+				{
+					connectionId: seat.connectionId,
+					baseRevision: seat.availabilityAppliedRevision,
+					forceReset: true
+				}
+			]
+		};
 	}
 
 	#opaqueId(length: number): string {
@@ -558,9 +814,10 @@ function secureRandomBytes(length: number): Uint8Array {
 
 export function createRoomDirectory(
 	config: RoomDirectoryConfig,
-	passwordHasher: PasswordHasher
+	passwordHasher: PasswordHasher,
+	releaseInventory: (inventory: PackedInventory) => void = () => undefined
 ): RoomDirectory {
-	return new InMemoryRoomDirectory(config, passwordHasher, secureRandomBytes);
+	return new InMemoryRoomDirectory(config, passwordHasher, secureRandomBytes, releaseInventory);
 }
 
 // Package-internal construction seam. Tests import this path directly; application code uses the
@@ -568,7 +825,8 @@ export function createRoomDirectory(
 export function createRoomDirectoryWithEntropy(
 	config: RoomDirectoryConfig,
 	passwordHasher: PasswordHasher,
-	randomBytes: RandomBytes
+	randomBytes: RandomBytes,
+	releaseInventory: (inventory: PackedInventory) => void = () => undefined
 ): RoomDirectory {
-	return new InMemoryRoomDirectory(config, passwordHasher, randomBytes);
+	return new InMemoryRoomDirectory(config, passwordHasher, randomBytes, releaseInventory);
 }

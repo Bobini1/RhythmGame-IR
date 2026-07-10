@@ -1,4 +1,5 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
+import type { PackedInventory } from '../inventory/packed-inventory.ts';
 import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
 
 export type RoomRejectionCode =
@@ -16,6 +17,10 @@ export type RoomRejectionCode =
 	| 'chat_empty'
 	| 'chat_too_long'
 	| 'rate_limited'
+	| 'inventory_invalid'
+	| 'inventory_stale'
+	| 'inventory_capacity_exceeded'
+	| 'availability_stale'
 	| 'room_resume_failed';
 
 export type RoomRejection = Readonly<{ code: RoomRejectionCode }>;
@@ -97,8 +102,37 @@ export type MemberLeftEffect = Readonly<{
 	invalidatedBinding?: SeatConnectionRef;
 }>;
 
+export type AvailabilityBasisEntry = Readonly<{
+	memberId: string;
+	inventoryRevision: number;
+}>;
+
+export type AvailabilitySnapshot = Readonly<{
+	revision: number;
+	basis: readonly AvailabilityBasisEntry[];
+	inventory: PackedInventory;
+}>;
+
+export type AvailabilityChangedEffect = Readonly<{
+	type: 'availability_changed';
+	targets: readonly string[];
+	roomId: string;
+	roomGeneration: number;
+	previousRevision: number;
+	targetRevision: number;
+	basis: readonly AvailabilityBasisEntry[];
+	previous?: PackedInventory;
+	current: PackedInventory;
+	recipients: readonly Readonly<{
+		connectionId: string;
+		baseRevision: number;
+		forceReset: boolean;
+	}>[];
+}>;
+
 export type RoomEffect =
 	| MemberLeftEffect
+	| AvailabilityChangedEffect
 	| Readonly<{
 			type: 'member_joined';
 			targets: readonly string[];
@@ -179,4 +213,15 @@ export type ResumeSeatInput = Readonly<{
 export type RoomTransition = Readonly<{
 	effects: readonly RoomEffect[];
 	directoryChange: DirectoryChange;
+}>;
+
+export type UploadAdmission = Readonly<{
+	libraryGeneration: number;
+	inventoryState: 'syncing';
+}>;
+
+export type InventoryCommit = Readonly<{
+	libraryGeneration: number;
+	inventoryRevision: number;
+	availabilityRevision: number;
 }>;

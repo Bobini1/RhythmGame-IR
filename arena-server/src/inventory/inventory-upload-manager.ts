@@ -125,6 +125,10 @@ export class InventoryUploadManager {
 		return this.#committedBytes;
 	}
 
+	activeLibraryGeneration(connectionId: string): number | undefined {
+		return this.#pending.get(connectionId)?.declaration.libraryGeneration;
+	}
+
 	begin(
 		connectionId: string,
 		identityId: string,
@@ -283,11 +287,19 @@ export class InventoryUploadManager {
 		this.abort(connectionId);
 	}
 
-	sweep(nowMs: number): readonly Readonly<{ connectionId: string; uploadId: string }>[] {
-		const expired: Array<Readonly<{ connectionId: string; uploadId: string }>> = [];
+	sweep(
+		nowMs: number
+	): readonly Readonly<{ connectionId: string; uploadId: string; libraryGeneration: number }>[] {
+		const expired: Array<
+			Readonly<{ connectionId: string; uploadId: string; libraryGeneration: number }>
+		> = [];
 		for (const pending of [...this.#pending.values()]) {
 			if (nowMs < pending.deadlineMs) continue;
-			expired.push({ connectionId: pending.connectionId, uploadId: pending.uploadId });
+			expired.push({
+				connectionId: pending.connectionId,
+				uploadId: pending.uploadId,
+				libraryGeneration: pending.declaration.libraryGeneration
+			});
 			this.#discard(pending);
 		}
 		for (const [identityId, timestamps] of this.#beginWindows) {

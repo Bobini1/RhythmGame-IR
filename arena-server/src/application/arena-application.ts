@@ -1,5 +1,6 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
 import { TicketVerificationError, type TicketVerifier } from '../auth/ticket-verifier.ts';
+import { planAvailabilityTransfer } from '../inventory/availability-transfer.ts';
 import { InventoryUploadManager } from '../inventory/inventory-upload-manager.ts';
 import {
 	createCommandError,
@@ -16,6 +17,7 @@ import {
 	type ServerMessage
 } from '../protocol/messages.ts';
 import type {
+	AvailabilitySnapshot,
 	DirectoryChange,
 	RoomEffect,
 	RoomRejectionCode,
@@ -36,6 +38,7 @@ export type ArenaApplicationOptions = Readonly<{
 	roomDirectory: RoomDirectory;
 	now: () => number;
 	newNonce: () => string;
+	newTransferId?: () => Uint8Array;
 	inventoryUploadManager?: InventoryUploadManager;
 	timing?: Partial<ArenaApplicationTiming>;
 }>;
@@ -93,17 +96,21 @@ export class ArenaApplication {
 	readonly #roomDirectory: RoomDirectory;
 	readonly #now: () => number;
 	readonly #newNonce: () => string;
+	readonly #newTransferId: () => Uint8Array;
 	readonly #timing: ArenaApplicationTiming;
 	readonly #inventoryUploads: InventoryUploadManager;
 	readonly #connections = new Map<string, Connection>();
 	readonly #issuedConnectionIds = new Set<string>();
 	readonly #identityMutationWindows = new Map<string, IdentityMutationWindow>();
+	readonly #availabilityResyncWindows = new Map<string, number[]>();
 
 	constructor(options: ArenaApplicationOptions) {
 		this.#ticketVerifier = options.ticketVerifier;
 		this.#roomDirectory = options.roomDirectory;
 		this.#now = options.now;
 		this.#newNonce = options.newNonce;
+		this.#newTransferId =
+			options.newTransferId ?? (() => crypto.getRandomValues(new Uint8Array(16)));
 		this.#timing = { ...DEFAULT_TIMING, ...options.timing };
 		this.#inventoryUploads = options.inventoryUploadManager ?? new InventoryUploadManager();
 	}
@@ -182,10 +189,15 @@ export class ArenaApplication {
 				return [];
 			}
 			case 'inventory_upload_begin':
+				return this.#beginInventoryUpload(postHelloConnection, message, nowMs);
 			case 'inventory_upload_commit':
+				return this.#commitInventoryUpload(postHelloConnection, message, nowMs);
 			case 'inventory_upload_abort':
+				return this.#abortInventoryUpload(postHelloConnection, message, nowMs);
 			case 'availability_applied':
+				return this.#ackAvailability(postHelloConnection, message, nowMs);
 			case 'availability_resync':
+				return this.#resyncAvailability(postHelloConnection, message, nowMs);
 			case 'selection_set':
 			case 'ready_set':
 			case 'round_probe_result':
@@ -204,30 +216,53 @@ export class ArenaApplication {
 		if (connection.phase !== 'room_bound' || !hasRoundsCapability(connection)) {
 			return this.#fatal(connection, 'unexpected_binary', 1003, nowMs);
 		}
+		const libraryGeneration = this.#inventoryUploads.activeLibraryGeneration(connectionId);
 		const appended = this.#inventoryUploads.append(connectionId, frame, nowMs);
 		if (appended.ok) return [];
-		return this.#fatal(
-			connection,
-			appended.code === 'unexpected_binary' ? 'unexpected_binary' : 'malformed_inventory',
-			appended.code === 'unexpected_binary' ? 1003 : 1002,
-			nowMs
-		);
+		const restored =
+			libraryGeneration !== undefined &&
+			this.#inventoryUploads.activeLibraryGeneration(connectionId) === undefined
+				? this.#roomDirectory.abortInventorySync(connection.binding, libraryGeneration, nowMs)
+				: undefined;
+		return [
+			...(restored?.ok ? this.#mapTransition(restored.effects, restored.directoryChange) : []),
+			...this.#fatal(
+				connection,
+				appended.code === 'unexpected_binary' ? 'unexpected_binary' : 'malformed_inventory',
+				appended.code === 'unexpected_binary' ? 1003 : 1002,
+				nowMs
+			)
+		];
 	}
 
 	disconnect(connectionId: string, nowMs: number): readonly Delivery[] {
 		const connection = this.#connections.get(connectionId);
 		if (connection === undefined) return [];
-		this.#inventoryUploads.abortConnection(connectionId);
+		const aborted = this.#abortPendingInventory(connection, nowMs);
 		this.#connections.delete(connectionId);
-		if (connection.phase !== 'room_bound') return [];
+		if (connection.phase !== 'room_bound') return aborted;
 		const result = this.#roomDirectory.disconnect(connection.binding, nowMs);
-		return result.ok ? this.#mapTransition(result.effects, result.directoryChange) : [];
+		return [
+			...aborted,
+			...(result.ok ? this.#mapTransition(result.effects, result.directoryChange) : [])
+		];
 	}
 
 	sweep(nowMs: number): readonly Delivery[] {
 		this.#sweepIdentityMutationWindows(nowMs);
-		this.#inventoryUploads.sweep(nowMs);
 		const deliveries: Delivery[] = [];
+		for (const expired of this.#inventoryUploads.sweep(nowMs)) {
+			const connection = this.#connections.get(expired.connectionId);
+			if (connection?.phase !== 'room_bound') continue;
+			const aborted = this.#roomDirectory.abortInventorySync(
+				connection.binding,
+				expired.libraryGeneration,
+				nowMs
+			);
+			if (aborted.ok) {
+				deliveries.push(...this.#mapTransition(aborted.effects, aborted.directoryChange));
+			}
+		}
 		for (const transition of this.#roomDirectory.sweep(nowMs)) {
 			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
 		}
@@ -238,6 +273,7 @@ export class ArenaApplication {
 			}
 			if (connection.phase === 'awaiting_hello') continue;
 			if (connection.pendingHeartbeat !== null && nowMs >= connection.pendingHeartbeat.deadlineMs) {
+				deliveries.push(...this.#abortPendingInventory(connection, nowMs));
 				this.#connections.delete(connection.connectionId);
 				if (connection.phase === 'room_bound') {
 					const transition = this.#roomDirectory.disconnect(connection.binding, nowMs);
@@ -544,6 +580,7 @@ export class ArenaApplication {
 				)
 			];
 		}
+		this.#inventoryUploads.abortConnection(connection.connectionId);
 		this.#replaceConnection<AuthenticatedConnection>(connection, {
 			phase: 'authenticated',
 			identity: connection.identity
@@ -593,6 +630,204 @@ export class ArenaApplication {
 		return this.#mapTransition(result.effects, result.directoryChange);
 	}
 
+	#beginInventoryUpload(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'inventory_upload_begin' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const marked = this.#roomDirectory.markInventorySyncing(
+			connection.binding,
+			message.data.libraryGeneration,
+			nowMs
+		);
+		if (!marked.ok) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, toCommandCode(marked.rejection.code))
+				)
+			];
+		}
+		const declaration = inventoryDeclarationFrom(message.data);
+		const begun = this.#inventoryUploads.begin(
+			connection.connectionId,
+			connection.identity.userId,
+			declaration,
+			nowMs
+		);
+		if (!begun.ok) {
+			this.#inventoryUploads.abortConnection(connection.connectionId);
+			const restored = this.#roomDirectory.abortInventorySync(
+				connection.binding,
+				message.data.libraryGeneration,
+				nowMs
+			);
+			return [
+				...(restored.ok ? this.#mapTransition(restored.effects, restored.directoryChange) : []),
+				this.#send(connection.connectionId, createCommandError(message.requestId, begun.code))
+			];
+		}
+		return [
+			...this.#mapTransition(marked.effects, marked.directoryChange),
+			this.#send(connection.connectionId, {
+				type: 'inventory_upload_ready',
+				requestId: message.requestId,
+				data: {
+					...message.data,
+					uploadId: begun.uploadId,
+					deadlineMs: begun.deadlineMs
+				}
+			})
+		];
+	}
+
+	#commitInventoryUpload(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'inventory_upload_commit' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const committed = this.#inventoryUploads.commit(
+			connection.connectionId,
+			message.data.uploadId,
+			inventoryDeclarationFrom(message.data),
+			nowMs
+		);
+		if (!committed.ok) {
+			const restored =
+				this.#inventoryUploads.activeLibraryGeneration(connection.connectionId) === undefined
+					? this.#roomDirectory.abortInventorySync(
+							connection.binding,
+							message.data.libraryGeneration,
+							nowMs
+						)
+					: undefined;
+			return [
+				...(restored?.ok ? this.#mapTransition(restored.effects, restored.directoryChange) : []),
+				this.#send(connection.connectionId, createCommandError(message.requestId, committed.code))
+			];
+		}
+		const replaced = this.#roomDirectory.replaceInventory(
+			connection.binding,
+			{ libraryGeneration: message.data.libraryGeneration },
+			committed.inventory,
+			nowMs
+		);
+		if (!replaced.ok) {
+			this.#inventoryUploads.releaseCommitted(committed.inventory);
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, toCommandCode(replaced.rejection.code))
+				)
+			];
+		}
+		return [
+			this.#send(connection.connectionId, {
+				type: 'inventory_committed',
+				requestId: message.requestId,
+				data: {
+					roomId: message.data.roomId,
+					roomGeneration: message.data.roomGeneration,
+					connectionGeneration: message.data.connectionGeneration,
+					libraryGeneration: replaced.value.libraryGeneration,
+					inventoryRevision: replaced.value.inventoryRevision,
+					inventoryState: 'ready'
+				}
+			}),
+			...this.#mapTransition(replaced.effects, replaced.directoryChange)
+		];
+	}
+
+	#abortInventoryUpload(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'inventory_upload_abort' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		if (!this.#inventoryUploads.abort(connection.connectionId, message.data.uploadId)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, 'inventory_stale')
+				)
+			];
+		}
+		const aborted = this.#roomDirectory.abortInventorySync(
+			connection.binding,
+			message.data.libraryGeneration,
+			nowMs
+		);
+		return aborted.ok
+			? this.#mapTransition(aborted.effects, aborted.directoryChange)
+			: [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(aborted.rejection.code))
+					)
+				];
+	}
+
+	#ackAvailability(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'availability_applied' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const acknowledged = this.#roomDirectory.ackAvailability(
+			connection.binding,
+			message.data.availabilityRevision,
+			nowMs
+		);
+		return acknowledged.ok
+			? this.#mapTransition(acknowledged.effects, acknowledged.directoryChange)
+			: [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(acknowledged.rejection.code))
+					)
+				];
+	}
+
+	#resyncAvailability(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'availability_resync' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		if (!this.#consumeAvailabilityResync(connection.identity.userId, nowMs)) {
+			return [
+				this.#send(connection.connectionId, createCommandError(message.requestId, 'rate_limited'))
+			];
+		}
+		const snapshot = this.#roomDirectory.requestAvailabilityReset(connection.binding, nowMs);
+		if (!snapshot.ok) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, toCommandCode(snapshot.rejection.code))
+				)
+			];
+		}
+		return this.#availabilityResetDeliveries(
+			connection.connectionId,
+			message.data.roomId,
+			message.data.roomGeneration,
+			snapshot.value
+		);
+	}
+
 	#roomCommandPreflight(
 		connection: PostHelloConnection,
 		requestId: string,
@@ -612,6 +847,64 @@ export class ArenaApplication {
 		return mismatch === undefined
 			? undefined
 			: [this.#send(connection.connectionId, createCommandError(requestId, mismatch))];
+	}
+
+	#roundCommandPreflight(
+		connection: PostHelloConnection,
+		requestId: string,
+		data: Readonly<{
+			roomId: string;
+			roomGeneration: number;
+			connectionGeneration: number;
+		}>
+	): readonly Delivery[] | undefined {
+		if (!hasRoundsCapability(connection)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(requestId, 'rounds_capability_required')
+				)
+			];
+		}
+		return this.#roomCommandPreflight(connection, requestId, data);
+	}
+
+	#availabilityResetDeliveries(
+		connectionId: string,
+		roomId: string,
+		roomGeneration: number,
+		snapshot: AvailabilitySnapshot
+	): readonly Delivery[] {
+		const plan = planAvailabilityTransfer({
+			roomId,
+			roomGeneration,
+			transferId: this.#newTransferId(),
+			targetRevision: snapshot.revision,
+			basis: snapshot.basis,
+			next: snapshot.inventory,
+			forceReset: true
+		});
+		return [
+			this.#send(connectionId, plan.begin),
+			...plan.frames.map(
+				(bytes): Delivery => ({
+					kind: 'send_binary',
+					connectionIds: [connectionId],
+					bytes
+				})
+			),
+			this.#send(connectionId, plan.commit)
+		];
+	}
+
+	#consumeAvailabilityResync(userId: string, nowMs: number): boolean {
+		const active = (this.#availabilityResyncWindows.get(userId) ?? []).filter(
+			(timestamp) => timestamp > nowMs - IDENTITY_LIMIT_WINDOW_MS
+		);
+		if (active.length >= 12) return false;
+		active.push(nowMs);
+		this.#availabilityResyncWindows.set(userId, active);
+		return true;
 	}
 
 	#phase2Placeholder(connection: PostHelloConnection, requestId: string): readonly Delivery[] {
@@ -641,7 +934,7 @@ export class ArenaApplication {
 		nowMs: number
 	): readonly Delivery[] {
 		if (this.#connections.get(connection.connectionId) !== connection) return [];
-		this.#inventoryUploads.abortConnection(connection.connectionId);
+		const aborted = this.#abortPendingInventory(connection, nowMs);
 		this.#connections.delete(connection.connectionId);
 		const transition =
 			connection.phase === 'room_bound'
@@ -649,11 +942,26 @@ export class ArenaApplication {
 				: undefined;
 		return [
 			this.#send(connection.connectionId, createFatalError(code)),
+			...aborted,
 			...(transition?.ok
 				? this.#mapTransition(transition.effects, transition.directoryChange)
 				: []),
 			{ kind: 'close', connectionId: connection.connectionId, code: closeCode, reason: code }
 		];
+	}
+
+	#abortPendingInventory(connection: Connection, nowMs: number): readonly Delivery[] {
+		const libraryGeneration = this.#inventoryUploads.activeLibraryGeneration(
+			connection.connectionId
+		);
+		this.#inventoryUploads.abortConnection(connection.connectionId);
+		if (connection.phase !== 'room_bound' || libraryGeneration === undefined) return [];
+		const aborted = this.#roomDirectory.abortInventorySync(
+			connection.binding,
+			libraryGeneration,
+			nowMs
+		);
+		return aborted.ok ? this.#mapTransition(aborted.effects, aborted.directoryChange) : [];
 	}
 
 	#mapTransition(
@@ -663,6 +971,7 @@ export class ArenaApplication {
 		for (const effect of effects) {
 			if (effect.type !== 'member_left' || effect.invalidatedBinding === undefined) continue;
 			const invalidated = effect.invalidatedBinding;
+			this.#inventoryUploads.abortConnection(invalidated.connectionId);
 			const target = this.#connections.get(invalidated.connectionId);
 			if (target?.phase === 'room_bound' && sameBinding(target.binding, invalidated)) {
 				this.#replaceConnection<AuthenticatedConnection>(target, {
@@ -671,9 +980,7 @@ export class ArenaApplication {
 				});
 			}
 		}
-		const deliveries = effects
-			.map((effect) => this.#mapEffect(effect))
-			.filter((delivery): delivery is Delivery => delivery !== undefined);
+		const deliveries = effects.flatMap((effect) => this.#mapEffect(effect));
 		if (directoryChange !== undefined) {
 			const subscribers = [...this.#connections.values()]
 				.filter(
@@ -696,55 +1003,91 @@ export class ArenaApplication {
 		return deliveries;
 	}
 
-	#mapEffect(effect: RoomEffect): Delivery | undefined {
+	#mapEffect(effect: RoomEffect): readonly Delivery[] {
 		const connectionIds = effect.targets.filter((id) => this.#connections.has(id));
-		if (connectionIds.length === 0) return undefined;
+		if (connectionIds.length === 0) return [];
 		switch (effect.type) {
 			case 'member_joined':
-				return this.#sendMany(connectionIds, {
-					type: 'room_member_joined',
-					data: {
-						roomId: effect.roomId,
-						roomGeneration: effect.roomGeneration,
-						member: copyMember(effect.member)
-					}
-				});
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'room_member_joined',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							member: copyMember(effect.member)
+						}
+					})
+				];
 			case 'member_updated':
-				return this.#sendMany(connectionIds, {
-					type: 'room_member_updated',
-					data: {
-						roomId: effect.roomId,
-						roomGeneration: effect.roomGeneration,
-						member: copyMember(effect.member)
-					}
-				});
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'room_member_updated',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							member: copyMember(effect.member)
+						}
+					})
+				];
 			case 'member_left':
-				return this.#sendMany(connectionIds, {
-					type: 'room_member_left',
-					data: {
-						roomId: effect.roomId,
-						roomGeneration: effect.roomGeneration,
-						memberId: effect.memberId,
-						reason: effect.reason
-					}
-				});
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'room_member_left',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							memberId: effect.memberId,
+							reason: effect.reason
+						}
+					})
+				];
 			case 'owner_changed':
-				return this.#sendMany(connectionIds, {
-					type: 'room_owner_changed',
-					data: {
-						roomId: effect.roomId,
-						roomGeneration: effect.roomGeneration,
-						ownerMemberId: effect.ownerMemberId
-					}
-				});
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'room_owner_changed',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							ownerMemberId: effect.ownerMemberId
+						}
+					})
+				];
 			case 'chat_message':
-				return this.#sendMany(connectionIds, {
-					type: 'chat_message',
-					data: {
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'chat_message',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							message: { ...effect.message }
+						}
+					})
+				];
+			case 'availability_changed':
+				return effect.recipients.flatMap((recipient) => {
+					if (!this.#connections.has(recipient.connectionId)) return [];
+					const plan = planAvailabilityTransfer({
 						roomId: effect.roomId,
 						roomGeneration: effect.roomGeneration,
-						message: { ...effect.message }
-					}
+						transferId: this.#newTransferId(),
+						...(recipient.forceReset ? {} : { baseRevision: recipient.baseRevision }),
+						targetRevision: effect.targetRevision,
+						basis: effect.basis,
+						...(effect.previous === undefined ? {} : { previous: effect.previous }),
+						next: effect.current,
+						forceReset: recipient.forceReset
+					});
+					return [
+						this.#send(recipient.connectionId, plan.begin),
+						...plan.frames.map(
+							(bytes): Delivery => ({
+								kind: 'send_binary',
+								connectionIds: [recipient.connectionId],
+								bytes
+							})
+						),
+						this.#send(recipient.connectionId, plan.commit)
+					];
 				});
 		}
 		return assertNever(effect);
@@ -813,6 +1156,11 @@ export class ArenaApplication {
 			if (window.roomCreates.length === 0 && window.passwordAttempts.length === 0) {
 				this.#identityMutationWindows.delete(userId);
 			}
+		}
+		for (const [userId, timestamps] of this.#availabilityResyncWindows) {
+			const active = timestamps.filter((timestamp) => timestamp > nowMs - IDENTITY_LIMIT_WINDOW_MS);
+			if (active.length === 0) this.#availabilityResyncWindows.delete(userId);
+			else this.#availabilityResyncWindows.set(userId, active);
 		}
 	}
 
@@ -910,6 +1258,24 @@ function bindingMismatch(
 	if (input.connectionGeneration !== binding.connectionGeneration)
 		return 'connection_generation_stale';
 	return undefined;
+}
+
+function inventoryDeclarationFrom(
+	data: Readonly<{
+		libraryGeneration: number;
+		hashCount: number;
+		byteCount: number;
+		chunkCount: number;
+		vectorDigest: string;
+	}>
+) {
+	return {
+		libraryGeneration: data.libraryGeneration,
+		hashCount: data.hashCount,
+		byteCount: data.byteCount,
+		chunkCount: data.chunkCount,
+		vectorDigest: data.vectorDigest
+	};
 }
 
 function sameBinding(left: SeatConnectionRef, right: SeatConnectionRef): boolean {

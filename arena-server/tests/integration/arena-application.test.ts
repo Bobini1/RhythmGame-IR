@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
 
 import { ArenaApplication } from '../../src/application/arena-application.ts';
 import type { ArenaIdentity, VerifiedArenaTicket } from '../../src/auth/identity.ts';
 import { TicketVerificationError, type TicketVerifier } from '../../src/auth/ticket-verifier.ts';
 import type { ClientMessage, RoomSnapshot, ServerMessage } from '../../src/protocol/messages.ts';
+import { encodeHashChunk } from '../../src/protocol/binary.ts';
 import {
 	createRoomDirectoryWithEntropy,
 	type RoomDirectory
@@ -139,6 +141,24 @@ function snapshotFrom(
 		throw new Error('Expected a Phase 2 room_snapshot delivery.');
 	}
 	return message.message.data;
+}
+
+function inventoryBytes(values: readonly number[]): Uint8Array {
+	const bytes = new Uint8Array(values.length * 32);
+	for (let index = 0; index < values.length; ++index) {
+		new DataView(bytes.buffer, index * 32, 32).setUint32(28, values[index]!, false);
+	}
+	return bytes;
+}
+
+function inventoryDeclaration(bytes: Uint8Array, libraryGeneration: number) {
+	return {
+		libraryGeneration,
+		hashCount: bytes.byteLength / 32,
+		byteCount: bytes.byteLength,
+		chunkCount: bytes.byteLength === 0 ? 0 : 1,
+		vectorDigest: createHash('sha256').update(bytes).digest('hex')
+	};
 }
 
 describe('ArenaApplication connection protocol', () => {
@@ -376,6 +396,190 @@ describe('ArenaApplication connection protocol', () => {
 });
 
 describe('ArenaApplication room orchestration', () => {
+	test('restores inventory state after a terminal upload validation failure', async () => {
+		const { application } = createApplication();
+		await authenticate(application, 'alice');
+		const created = await application.receive(
+			'alice',
+			{ type: 'room_create', requestId: 'create-invalid-upload', data: { name: 'Upload' } },
+			NOW
+		);
+		const room = snapshotFrom(created);
+		const bytes = inventoryBytes([1]);
+		const declaration = inventoryDeclaration(bytes, 1);
+		const begun = await application.receive(
+			'alice',
+			{
+				type: 'inventory_upload_begin',
+				requestId: 'begin-invalid-upload',
+				data: {
+					roomId: room.roomId,
+					roomGeneration: room.roomGeneration,
+					connectionGeneration: room.self.connectionGeneration,
+					...declaration
+				}
+			},
+			NOW
+		);
+		const ready = messagesFor(begun, 'alice').find(
+			(message) => message.type === 'inventory_upload_ready'
+		);
+		if (ready?.type !== 'inventory_upload_ready') throw new Error('upload not ready');
+		await application.receiveBinary(
+			'alice',
+			encodeHashChunk({
+				kind: 1,
+				transferId: Uint8Array.from(Buffer.from(ready.data.uploadId, 'base64url')),
+				chunkIndex: 0,
+				hashes: bytes
+			}),
+			NOW + 1
+		);
+		const rejected = await application.receive(
+			'alice',
+			{
+				type: 'inventory_upload_commit',
+				requestId: 'commit-invalid-upload',
+				data: {
+					roomId: room.roomId,
+					roomGeneration: room.roomGeneration,
+					connectionGeneration: room.self.connectionGeneration,
+					uploadId: ready.data.uploadId,
+					...declaration,
+					vectorDigest: '00'.repeat(32)
+				}
+			},
+			NOW + 2
+		);
+		expect(messagesFor(rejected, 'alice')).toContainEqual(
+			expect.objectContaining({
+				type: 'command_error',
+				data: expect.objectContaining({ code: 'inventory_invalid' })
+			})
+		);
+
+		application.disconnect('alice', NOW + 3);
+		application.connect('alice-resumed');
+		const resumeHello = hello('alice-fresh') as Extract<ClientMessage, { type: 'client_hello' }>;
+		const resumed = await application.receive(
+			'alice-resumed',
+			{
+				type: 'client_hello',
+				data: {
+					...resumeHello.data,
+					resume: { roomId: room.roomId, seatToken: room.self.resumeToken }
+				}
+			} as Extract<ClientMessage, { type: 'client_hello' }>,
+			NOW + 4
+		);
+		const serverHello = messagesFor(resumed, 'alice-resumed')[0];
+		if (serverHello?.type !== 'server_hello' || serverHello.data.resume.status !== 'succeeded') {
+			throw new Error('resume failed');
+		}
+		const resumedMember = serverHello.data.resume.room.members[0];
+		if (resumedMember === undefined || !('inventoryState' in resumedMember)) {
+			throw new Error('expected Phase 2 member state');
+		}
+		expect(resumedMember.inventoryState).toBe('missing');
+	});
+
+	test('publishes two exact inventories and sends one atomic common reset per seat', async () => {
+		const { application } = createApplication();
+		await authenticate(application, 'alice');
+		await authenticate(application, 'bob', 'bob-ticket');
+		const created = await application.receive(
+			'alice',
+			{ type: 'room_create', requestId: 'create-inventory', data: { name: 'Inventory' } },
+			NOW
+		);
+		const aliceRoom = snapshotFrom(created);
+		const joined = await application.receive(
+			'bob',
+			{ type: 'room_join', requestId: 'join-inventory', data: { roomId: aliceRoom.roomId } },
+			NOW
+		);
+		const bobRoom = snapshotFrom(joined);
+
+		const upload = async (
+			connectionId: string,
+			room: RoomSnapshot,
+			values: readonly number[],
+			requestSuffix: string
+		) => {
+			const bytes = inventoryBytes(values);
+			const declaration = inventoryDeclaration(bytes, 1);
+			const begun = await application.receive(
+				connectionId,
+				{
+					type: 'inventory_upload_begin',
+					requestId: `begin-${requestSuffix}`,
+					data: {
+						roomId: room.roomId,
+						roomGeneration: room.roomGeneration,
+						connectionGeneration: room.self.connectionGeneration,
+						...declaration
+					}
+				},
+				NOW
+			);
+			const ready = messagesFor(begun, connectionId).find(
+				(message) => message.type === 'inventory_upload_ready'
+			);
+			if (ready?.type !== 'inventory_upload_ready') throw new Error('upload not ready');
+			if (bytes.byteLength > 0) {
+				expect(
+					await application.receiveBinary(
+						connectionId,
+						encodeHashChunk({
+							kind: 1,
+							transferId: Uint8Array.from(Buffer.from(ready.data.uploadId, 'base64url')),
+							chunkIndex: 0,
+							hashes: bytes
+						}),
+						NOW + 1
+					)
+				).toEqual([]);
+			}
+			return application.receive(
+				connectionId,
+				{
+					type: 'inventory_upload_commit',
+					requestId: `commit-${requestSuffix}`,
+					data: {
+						roomId: room.roomId,
+						roomGeneration: room.roomGeneration,
+						connectionGeneration: room.self.connectionGeneration,
+						uploadId: ready.data.uploadId,
+						...declaration
+					}
+				},
+				NOW + 2
+			);
+		};
+
+		const firstCommit = await upload('alice', aliceRoom, [1, 2, 3], 'alice');
+		expect(
+			messagesFor(firstCommit, 'alice').some(
+				(message) => message.type === 'availability_transfer_begin'
+			)
+		).toBe(false);
+		const secondCommit = await upload('bob', bobRoom, [2, 3, 4], 'bob');
+		for (const connectionId of ['alice', 'bob']) {
+			const messages = messagesFor(secondCommit, connectionId);
+			expect(messages.some((message) => message.type === 'availability_transfer_begin')).toBe(true);
+			expect(messages.some((message) => message.type === 'availability_transfer_commit')).toBe(
+				true
+			);
+		}
+		const binary = secondCommit.filter((delivery) => delivery.kind === 'send_binary');
+		expect(binary).toHaveLength(2);
+		expect(
+			binary.every(
+				(delivery) => delivery.kind === 'send_binary' && delivery.bytes.byteLength === 96
+			)
+		).toBe(true);
+	});
+
 	test('correlates password join, broadcasts revisions, and keeps resume token private', async () => {
 		const directory = createRoomDirectoryWithEntropy(
 			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },

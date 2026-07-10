@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 import type { ArenaIdentity } from '../auth/identity.ts';
+import type { PackedInventory } from '../inventory/packed-inventory.ts';
 import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
 import type {
 	ChatMessage,
@@ -25,6 +26,9 @@ export type SeatState = {
 	ready: boolean;
 	inventoryState: 'missing' | 'syncing' | 'ready';
 	inventoryRevision: number;
+	libraryGeneration: number;
+	pendingLibraryGeneration?: number;
+	inventory?: PackedInventory;
 	availabilityAppliedRevision: number;
 	roundState: 'eligible' | 'waiting' | 'probing' | 'loading' | 'loaded' | 'playing';
 	reservedUntilMs?: number;
@@ -48,6 +52,9 @@ export type RoomState = {
 	selection: SelectionSnapshot | null;
 	selectionRevision: number;
 	availabilityRevision: number;
+	availabilityBasis: Array<Readonly<{ memberId: string; inventoryRevision: number }>>;
+	commonInventory?: PackedInventory;
+	nextInventoryRevision: number;
 	round?: FrozenRound;
 };
 
@@ -99,6 +106,7 @@ export function createInitialRoom(
 		ready: false,
 		inventoryState: 'missing',
 		inventoryRevision: 0,
+		libraryGeneration: 0,
 		availabilityAppliedRevision: 0,
 		roundState: 'eligible',
 		acceptedChatTimes: []
@@ -119,7 +127,9 @@ export function createInitialRoom(
 		phase: 'selecting',
 		selection: null,
 		selectionRevision: 0,
-		availabilityRevision: 0
+		availabilityRevision: 0,
+		availabilityBasis: [],
+		nextInventoryRevision: 1
 	};
 	return {
 		room,
@@ -198,6 +208,7 @@ export function addConnectedSeat(
 		ready: false,
 		inventoryState: 'missing',
 		inventoryRevision: 0,
+		libraryGeneration: 0,
 		availabilityAppliedRevision: 0,
 		roundState: room.phase === 'selecting' ? 'eligible' : 'waiting',
 		acceptedChatTimes: []
