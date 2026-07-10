@@ -78,7 +78,7 @@ describe('Arena protocol 1.1 negotiation', () => {
 				expect.objectContaining({ data: expect.objectContaining({ protocolMinor, capabilities }) })
 			);
 		}
-		expect(PROTOCOL_MINOR).toBe(1);
+		expect(PROTOCOL_MINOR).toBe(2);
 	});
 
 	test('rejects unsupported versions and duplicate capabilities', () => {
@@ -91,7 +91,7 @@ describe('Arena protocol 1.1 negotiation', () => {
 			},
 			{
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 3,
 				clientVersion: 'test',
 				capabilities: [ROOMS_CAPABILITY, ROUNDS_CAPABILITY]
 			}

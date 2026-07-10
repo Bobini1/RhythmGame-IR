@@ -248,7 +248,7 @@ export class SmokeClient {
 function hello(
 	ticket?: string,
 	resume?: Readonly<{ roomId: string; seatToken: string }>,
-	protocolMinor: 0 | 1 = ticket === undefined ? 0 : 1
+	protocolMinor: 0 | 1 | 2 = ticket === undefined ? 0 : 2
 ): ClientMessage {
 	return {
 		type: 'client_hello',
@@ -256,7 +256,12 @@ function hello(
 			protocolMajor: 1,
 			protocolMinor,
 			clientVersion: 'phase1-smoke',
-			capabilities: protocolMinor === 1 ? ['rooms-v1', 'rounds-v1'] : ['rooms-v1'],
+			capabilities:
+				protocolMinor === 2
+					? ['rooms-v1', 'rounds-v1', 'competition-v1']
+					: protocolMinor === 1
+						? ['rooms-v1', 'rounds-v1']
+						: ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket }),
 			...(resume === undefined ? {} : { resume })
 		}
@@ -397,7 +402,7 @@ async function runLocalSmoke(): Promise<void> {
 	let arena: ArenaServerHandle | undefined;
 	let arenaStopped = false;
 	try {
-		issuer = await startLocalIssuer(1);
+		issuer = await startLocalIssuer(2);
 		const jwksPort = issuer.server.port;
 		invariant(jwksPort !== undefined, 'local JWKS port');
 		const config = loadArenaConfig({
@@ -478,7 +483,7 @@ async function runLocalSmoke(): Promise<void> {
 			(message) => message.requestId === 'legacy-create'
 		);
 		invariant(
-			legacyError.data.code === 'rounds_capability_required',
+			legacyError.data.code === 'competition_capability_required',
 			'authenticated protocol 1.0 mutation gate'
 		);
 		await legacy.stop();

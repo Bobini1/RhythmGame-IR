@@ -93,7 +93,7 @@ describe('Arena HTTP surface', () => {
 		expect(await response.json()).toEqual({
 			status: 'ok',
 			protocolMajor: 1,
-			protocolMinor: 1
+			protocolMinor: 2
 		});
 		expect(verificationCalls).toBe(0);
 	});

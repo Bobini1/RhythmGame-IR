@@ -54,7 +54,7 @@ class SmokeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 90_000),
 			protocolMajor: 1,
-			protocolMinor: 1
+			protocolMinor: 2
 		};
 	}
 }
@@ -175,17 +175,20 @@ async function authenticate(
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 1,
+				protocolMinor: 2,
 				clientVersion: 'phase2-smoke',
-				capabilities: ['rooms-v1', 'rounds-v1'],
+				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: connectionId
 			}
 		},
 		NOW
 	);
 	const hello = messageFor(deliveries, connectionId, 'server_hello');
-	invariant(hello.data.protocolMinor === 1, `${connectionId} negotiates protocol 1.1`);
-	invariant(hello.data.capabilities.includes('rounds-v1'), `${connectionId} negotiates rounds-v1`);
+	invariant(hello.data.protocolMinor === 2, `${connectionId} negotiates protocol 1.2`);
+	invariant(
+		hello.data.capabilities.includes('competition-v1'),
+		`${connectionId} negotiates competition-v1`
+	);
 	invariant(
 		hello.data.identity?.userId === identities[connectionId].userId,
 		`${connectionId} identity`
@@ -725,15 +728,18 @@ async function authenticatedWebSocketClient(
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 1,
+			protocolMinor: 2,
 			clientVersion: 'phase2-smoke',
-			capabilities: ['rooms-v1', 'rounds-v1'],
+			capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 			ticket
 		}
 	});
 	const hello = await client.nextMessage('server_hello');
-	invariant(hello.data.protocolMinor === 1, `${name} negotiates protocol 1.1`);
-	invariant(hello.data.capabilities.includes('rounds-v1'), `${name} negotiates rounds-v1`);
+	invariant(hello.data.protocolMinor === 2, `${name} negotiates protocol 1.2`);
+	invariant(
+		hello.data.capabilities.includes('competition-v1'),
+		`${name} negotiates competition-v1`
+	);
 	invariant(hello.data.identity !== undefined, `${name} receives authenticated identity`);
 	return client;
 }
@@ -1298,7 +1304,7 @@ async function runCancellationWebSocketRound(
 }
 
 async function runLocalWebSocketSmoke(): Promise<void> {
-	const issuer = await startLocalIssuer(1);
+	const issuer = await startLocalIssuer(2);
 	try {
 		await runSuccessfulWebSocketRound(issuer);
 		await runCancellationWebSocketRound(issuer);

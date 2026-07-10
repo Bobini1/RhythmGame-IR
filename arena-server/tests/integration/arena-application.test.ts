@@ -31,7 +31,7 @@ class FakeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 89_000),
 			protocolMajor: 1,
-			protocolMinor: 1
+			protocolMinor: 2
 		};
 	}
 }
@@ -81,9 +81,9 @@ function hello(ticket?: string): ClientMessage {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: authenticated ? 1 : 0,
+			protocolMinor: authenticated ? 2 : 0,
 			clientVersion: 'test',
-			capabilities: authenticated ? ['rooms-v1', 'rounds-v1'] : ['rooms-v1'],
+			capabilities: authenticated ? ['rooms-v1', 'rounds-v1', 'competition-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket })
 		}
 	};
@@ -309,8 +309,8 @@ describe('ArenaApplication connection protocol', () => {
 				type: 'command_error',
 				requestId: 'legacy-create',
 				data: {
-					code: 'rounds_capability_required',
-					displayMessageKey: 'arena.error.roundsCapabilityRequired'
+					code: 'competition_capability_required',
+					displayMessageKey: 'arena.error.competitionCapabilityRequired'
 				}
 			}
 		]);
@@ -338,6 +338,79 @@ describe('ArenaApplication connection protocol', () => {
 					capabilities: ['rooms-v1', 'rounds-v1']
 				})
 			})
+		]);
+		expect(
+			messagesFor(
+				await application.receive(
+					'modern-auth',
+					{ type: 'room_create', requestId: 'modern-create', data: { name: 'No' } },
+					NOW
+				),
+				'modern-auth'
+			)
+		).toEqual([
+			{
+				type: 'command_error',
+				requestId: 'modern-create',
+				data: {
+					code: 'competition_capability_required',
+					displayMessageKey: 'arena.error.competitionCapabilityRequired'
+				}
+			}
+		]);
+
+		application.connect('competition-auth');
+		const competitionHello = await application.receive(
+			'competition-auth',
+			{
+				type: 'client_hello',
+				data: {
+					protocolMajor: 1,
+					protocolMinor: 2,
+					clientVersion: 'competition',
+					capabilities: ['competition-v1', 'rooms-v1', 'rounds-v1'],
+					ticket: 'competition-ticket'
+				}
+			},
+			NOW
+		);
+		expect(messagesFor(competitionHello, 'competition-auth')).toEqual([
+			expect.objectContaining({
+				type: 'server_hello',
+				data: expect.objectContaining({
+					protocolMinor: 2,
+					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1']
+				})
+			})
+		]);
+		const competitionCreated = await application.receive(
+			'competition-auth',
+			{ type: 'room_create', requestId: 'competition-create', data: { name: 'Competition' } },
+			NOW
+		);
+		const competitionRoom = snapshotFrom(competitionCreated);
+		expect(
+			messagesFor(
+				await application.receive(
+					'modern-auth',
+					{
+						type: 'room_join',
+						requestId: 'modern-join',
+						data: { roomId: competitionRoom.roomId }
+					},
+					NOW
+				),
+				'modern-auth'
+			)
+		).toEqual([
+			{
+				type: 'command_error',
+				requestId: 'modern-join',
+				data: {
+					code: 'competition_capability_required',
+					displayMessageKey: 'arena.error.competitionCapabilityRequired'
+				}
+			}
 		]);
 	});
 
@@ -800,6 +873,36 @@ describe('ArenaApplication resume and liveness', () => {
 		const room = snapshotFrom(created);
 		application.disconnect('alice-1', NOW);
 
+		application.connect('alice-legacy-resume');
+		const legacyResume = await application.receive(
+			'alice-legacy-resume',
+			{
+				type: 'client_hello',
+				data: {
+					protocolMajor: 1,
+					protocolMinor: 1,
+					clientVersion: 'legacy-resume',
+					capabilities: ['rooms-v1', 'rounds-v1'],
+					ticket: 'alice-legacy-fresh',
+					resume: { roomId: room.roomId, seatToken: room.self.resumeToken }
+				}
+			},
+			NOW + 1
+		);
+		expect(messagesFor(legacyResume, 'alice-legacy-resume')).toEqual([
+			expect.objectContaining({
+				type: 'server_hello',
+				data: expect.objectContaining({
+					protocolMinor: 1,
+					resume: {
+						status: 'failed',
+						code: 'competition_capability_required',
+						displayMessageKey: 'arena.error.competitionCapabilityRequired'
+					}
+				})
+			})
+		]);
+
 		application.connect('alice-2');
 		const resumed = await application.receive(
 			'alice-2',
@@ -850,8 +953,8 @@ describe('ArenaApplication resume and liveness', () => {
 				type: 'server_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 1,
-					capabilities: ['rooms-v1', 'rounds-v1'],
+					protocolMinor: 2,
+					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 					identity: alice,
 					resume: {
 						status: 'failed',

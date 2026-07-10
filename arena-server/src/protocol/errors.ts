@@ -18,6 +18,7 @@ export const commandErrorCodes = [
 	'chat_too_long',
 	'rate_limited',
 	'rounds_capability_required',
+	'competition_capability_required',
 	'inventory_busy',
 	'inventory_invalid',
 	'inventory_stale',
@@ -27,7 +28,10 @@ export const commandErrorCodes = [
 	'selection_stale',
 	'ready_not_allowed',
 	'round_stale',
-	'launch_stage_stale'
+	'launch_stage_stale',
+	'result_invalid',
+	'round_already_terminal',
+	'server_capacity'
 ] as const;
 
 export const fatalErrorCodes = [
@@ -68,6 +72,7 @@ const commandDisplayMessageKeys = {
 	chat_too_long: 'arena.error.chatTooLong',
 	rate_limited: 'arena.error.rateLimited',
 	rounds_capability_required: 'arena.error.roundsCapabilityRequired',
+	competition_capability_required: 'arena.error.competitionCapabilityRequired',
 	inventory_busy: 'arena.error.inventoryBusy',
 	inventory_invalid: 'arena.error.inventoryInvalid',
 	inventory_stale: 'arena.error.inventoryStale',
@@ -77,7 +82,10 @@ const commandDisplayMessageKeys = {
 	selection_stale: 'arena.error.selectionStale',
 	ready_not_allowed: 'arena.error.readyNotAllowed',
 	round_stale: 'arena.error.roundStale',
-	launch_stage_stale: 'arena.error.launchStageStale'
+	launch_stage_stale: 'arena.error.launchStageStale',
+	result_invalid: 'arena.error.resultInvalid',
+	round_already_terminal: 'arena.error.roundAlreadyTerminal',
+	server_capacity: 'arena.error.serverCapacity'
 } as const satisfies Record<CommandErrorCode, string>;
 
 const fatalDisplayMessageKeys = {

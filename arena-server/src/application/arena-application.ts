@@ -9,6 +9,7 @@ import {
 	type FatalErrorCode
 } from '../protocol/errors.ts';
 import {
+	COMPETITION_CAPABILITY,
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
 	ROOMS_CAPABILITY,
@@ -51,8 +52,12 @@ type ConnectionCommon = {
 	directorySubscribed: boolean;
 	nextHeartbeatAtMs: number | null;
 	pendingHeartbeat: Readonly<{ nonce: string; sentAtMs: number; deadlineMs: number }> | null;
-	protocolMinor: 0 | 1;
-	capabilities: readonly (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[];
+	protocolMinor: 0 | 1 | 2;
+	capabilities: readonly (
+		| typeof ROOMS_CAPABILITY
+		| typeof ROUNDS_CAPABILITY
+		| typeof COMPETITION_CAPABILITY
+	)[];
 };
 
 type AwaitingHelloConnection = ConnectionCommon & {
@@ -215,6 +220,21 @@ export class ArenaApplication {
 				return this.#reportProbe(postHelloConnection, message, nowMs);
 			case 'round_load_result':
 				return this.#reportLoaded(postHelloConnection, message, nowMs);
+			case 'round_telemetry':
+				return [];
+			case 'round_result_submit':
+			case 'round_abandon':
+				return [
+					this.#send(
+						postHelloConnection.connectionId,
+						createCommandError(
+							message.requestId,
+							hasCompetitionCapability(postHelloConnection)
+								? 'round_stale'
+								: 'competition_capability_required'
+						)
+					)
+				];
 		}
 	}
 
@@ -373,13 +393,18 @@ export class ArenaApplication {
 			return [this.#send(authenticated.connectionId, serverHello(authenticated, identity))];
 		}
 
-		if (!negotiation.capabilities.includes(ROUNDS_CAPABILITY)) {
+		if (!negotiation.capabilities.includes(COMPETITION_CAPABILITY)) {
 			const authenticated = this.#replaceConnection<AuthenticatedConnection>(
 				connection,
 				{ phase: 'authenticated', identity, ...negotiation },
 				nowMs
 			);
-			return [this.#send(authenticated.connectionId, failedResumeHello(authenticated, identity))];
+			return [
+				this.#send(
+					authenticated.connectionId,
+					failedResumeHello(authenticated, identity, 'competition_capability_required')
+				)
+			];
 		}
 
 		const resumed = this.#roomDirectory.resume({
@@ -446,11 +471,11 @@ export class ArenaApplication {
 				)
 			];
 		}
-		if (!hasRoundsCapability(connection)) {
+		if (!hasCompetitionCapability(connection)) {
 			return [
 				this.#send(
 					connection.connectionId,
-					createCommandError(message.requestId, 'rounds_capability_required')
+					createCommandError(message.requestId, 'competition_capability_required')
 				)
 			];
 		}
@@ -519,11 +544,11 @@ export class ArenaApplication {
 				)
 			];
 		}
-		if (!hasRoundsCapability(connection)) {
+		if (!hasCompetitionCapability(connection)) {
 			return [
 				this.#send(
 					connection.connectionId,
-					createCommandError(message.requestId, 'rounds_capability_required')
+					createCommandError(message.requestId, 'competition_capability_required')
 				)
 			];
 		}
@@ -1404,7 +1429,8 @@ function serverHello(connection: PostHelloConnection, identity?: ArenaIdentity):
 
 function failedResumeHello(
 	connection: PostHelloConnection,
-	identity: ArenaIdentity
+	identity: ArenaIdentity,
+	code: 'room_resume_failed' | 'competition_capability_required' = 'room_resume_failed'
 ): ServerMessage {
 	return {
 		type: 'server_hello',
@@ -1413,11 +1439,18 @@ function failedResumeHello(
 			protocolMinor: connection.protocolMinor,
 			capabilities: [...connection.capabilities],
 			identity,
-			resume: {
-				status: 'failed',
-				code: 'room_resume_failed',
-				displayMessageKey: 'arena.error.resumeFailed'
-			}
+			resume:
+				code === 'room_resume_failed'
+					? {
+							status: 'failed',
+							code,
+							displayMessageKey: 'arena.error.resumeFailed'
+						}
+					: {
+							status: 'failed',
+							code,
+							displayMessageKey: 'arena.error.competitionCapabilityRequired'
+						}
 		}
 	};
 }
@@ -1440,25 +1473,41 @@ function resumedServerHello(
 }
 
 function negotiate(
-	clientMinor: 0 | 1,
+	clientMinor: 0 | 1 | 2,
 	clientCapabilities: readonly string[]
 ): Readonly<{
-	protocolMinor: 0 | 1;
-	capabilities: readonly (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[];
+	protocolMinor: 0 | 1 | 2;
+	capabilities: readonly (
+		| typeof ROOMS_CAPABILITY
+		| typeof ROUNDS_CAPABILITY
+		| typeof COMPETITION_CAPABILITY
+	)[];
 }> {
-	const protocolMinor = Math.min(clientMinor, PROTOCOL_MINOR) as 0 | 1;
-	const capabilities: (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[] = [ROOMS_CAPABILITY];
-	if (protocolMinor === PROTOCOL_MINOR && clientCapabilities.includes(ROUNDS_CAPABILITY)) {
+	const protocolMinor = Math.min(clientMinor, PROTOCOL_MINOR) as 0 | 1 | 2;
+	const capabilities: (
+		| typeof ROOMS_CAPABILITY
+		| typeof ROUNDS_CAPABILITY
+		| typeof COMPETITION_CAPABILITY
+	)[] = [ROOMS_CAPABILITY];
+	if (protocolMinor >= 1 && clientCapabilities.includes(ROUNDS_CAPABILITY)) {
 		capabilities.push(ROUNDS_CAPABILITY);
+	}
+	if (
+		protocolMinor >= 2 &&
+		capabilities.includes(ROUNDS_CAPABILITY) &&
+		clientCapabilities.includes(COMPETITION_CAPABILITY)
+	) {
+		capabilities.push(COMPETITION_CAPABILITY);
 	}
 	return { protocolMinor, capabilities };
 }
 
 function hasRoundsCapability(connection: PostHelloConnection): boolean {
-	return (
-		connection.protocolMinor === PROTOCOL_MINOR &&
-		connection.capabilities.includes(ROUNDS_CAPABILITY)
-	);
+	return connection.protocolMinor >= 1 && connection.capabilities.includes(ROUNDS_CAPABILITY);
+}
+
+function hasCompetitionCapability(connection: PostHelloConnection): boolean {
+	return connection.protocolMinor >= 2 && connection.capabilities.includes(COMPETITION_CAPABILITY);
 }
 
 function bindingMismatch(

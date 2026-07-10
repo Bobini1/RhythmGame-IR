@@ -269,7 +269,7 @@ describe('decodeClientMessage', () => {
 	test('rejects an incompatible protocol version with a stable code', () => {
 		for (const [protocolMajor, protocolMinor] of [
 			[2, 0],
-			[1, 2]
+			[1, 3]
 		]) {
 			expectProtocolError(
 				() =>

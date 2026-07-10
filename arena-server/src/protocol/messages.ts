@@ -3,13 +3,17 @@ import { z } from 'zod';
 import { commandErrorCodeSchema, fatalErrorCodeSchema } from './errors.ts';
 
 export const PROTOCOL_MAJOR = 1 as const;
-export const PROTOCOL_MINOR = 1 as const;
+export const PROTOCOL_MINOR = 2 as const;
 export const ROOMS_CAPABILITY = 'rooms-v1' as const;
 export const ROUNDS_CAPABILITY = 'rounds-v1' as const;
+export const COMPETITION_CAPABILITY = 'competition-v1' as const;
 /** @deprecated Prefer the capability-specific name. */
 export const REQUIRED_CAPABILITY = ROOMS_CAPABILITY;
 export const MAX_CLIENT_MESSAGE_BYTES = 64 * 1024;
 export const MAX_SERVER_MESSAGE_BYTES = 4 * 1024 * 1024;
+export const MAX_STANDINGS_MESSAGE_BYTES = 64 * 1024;
+export const MAX_RESULT_SNAPSHOT_BYTES = 256 * 1024;
+export const MAX_FINALIZATION_MESSAGE_BYTES = 512 * 1024;
 
 const MAX_CAPABILITIES = 16;
 const MAX_CLIENT_VERSION_CODE_POINTS = 64;
@@ -25,6 +29,9 @@ const MAX_INVENTORY_HASHES = 250_000;
 const MAX_INVENTORY_BYTES = MAX_INVENTORY_HASHES * 32;
 const MAX_HASHES_PER_CHUNK = 2_047;
 const MAX_RANDOM_SEQUENCE = 4_096;
+const MAX_SCORE_COUNTER = 100_000_000;
+const MAX_CHART_LENGTH_MS = 21_600_000;
+const MAX_UINT32 = 0xffff_ffff;
 
 const utf8Encoder = new TextEncoder();
 const safeIdentifierPattern = /^[A-Za-z0-9._:-]+$/;
@@ -67,7 +74,15 @@ const capabilitiesSchema = z
 	.min(1)
 	.max(MAX_CAPABILITIES)
 	.refine((capabilities) => new Set(capabilities).size === capabilities.length)
-	.refine((capabilities) => capabilities.includes(ROOMS_CAPABILITY));
+	.refine((capabilities) => capabilities.includes(ROOMS_CAPABILITY))
+	.refine(
+		(capabilities) =>
+			!capabilities.includes(ROUNDS_CAPABILITY) || capabilities.includes(ROOMS_CAPABILITY)
+	)
+	.refine(
+		(capabilities) =>
+			!capabilities.includes(COMPETITION_CAPABILITY) || capabilities.includes(ROUNDS_CAPABILITY)
+	);
 
 const roomNameSchema = z
 	.string()
@@ -98,7 +113,7 @@ const resumeRequestSchema = z
 const clientHelloDataSchema = z
 	.object({
 		protocolMajor: z.literal(PROTOCOL_MAJOR),
-		protocolMinor: z.union([z.literal(0), z.literal(PROTOCOL_MINOR)]),
+		protocolMinor: z.union([z.literal(0), z.literal(1), z.literal(PROTOCOL_MINOR)]),
 		clientVersion: clientVersionSchema,
 		capabilities: capabilitiesSchema,
 		ticket: ticketSchema.optional(),
@@ -255,6 +270,92 @@ export const selectionSnapshotSchema = z
 	.strict();
 export type SelectionSnapshot = z.infer<typeof selectionSnapshotSchema>;
 
+const scoreCounterSchema = safeIntegerSchema.min(0).max(MAX_SCORE_COUNTER);
+const uint32Schema = safeIntegerSchema.min(0).max(MAX_UINT32);
+const competitionRankSchema = safeIntegerSchema.min(1).max(MAX_MEMBERS);
+
+export const arenaJudgementsSchema = z
+	.object({
+		perfect: scoreCounterSchema,
+		great: scoreCounterSchema,
+		good: scoreCounterSchema,
+		bad: scoreCounterSchema,
+		poor: scoreCounterSchema,
+		emptyPoor: scoreCounterSchema
+	})
+	.strict();
+export type ArenaJudgements = z.infer<typeof arenaJudgementsSchema>;
+
+export const gaugeSnapshotSchema = z
+	.object({
+		type: z.enum(['fc', 'exhard', 'hard', 'normal', 'easy', 'aeasy']),
+		valueMilli: safeIntegerSchema.min(0).max(100_000)
+	})
+	.strict();
+export type GaugeSnapshot = z.infer<typeof gaugeSnapshotSchema>;
+
+function hasConsistentCompetitionScore(value: {
+	exScore: number;
+	badPoorCount: number;
+	judgements: ArenaJudgements;
+}): boolean {
+	return (
+		value.exScore === 2 * value.judgements.perfect + value.judgements.great &&
+		value.badPoorCount === value.judgements.bad + value.judgements.poor + value.judgements.emptyPoor
+	);
+}
+
+export const arenaTelemetrySchema = z
+	.object({
+		sequence: safeIntegerSchema.min(1).max(MAX_UINT32),
+		exScore: scoreCounterSchema,
+		progressPermille: safeIntegerSchema.min(0).max(1_000),
+		maxCombo: scoreCounterSchema,
+		badPoorCount: scoreCounterSchema,
+		judgements: arenaJudgementsSchema,
+		gauge: gaugeSnapshotSchema,
+		playStatus: z.literal('playing')
+	})
+	.strict()
+	.refine(hasConsistentCompetitionScore);
+export type ArenaTelemetry = z.infer<typeof arenaTelemetrySchema>;
+
+export const clearTypeSchema = z.enum([
+	'max',
+	'perfect',
+	'fc',
+	'exhard',
+	'hard',
+	'normal',
+	'easy',
+	'aeasy',
+	'failed'
+]);
+export type ClearType = z.infer<typeof clearTypeSchema>;
+
+export const arenaFinalResultSchema = z
+	.object({
+		exScore: scoreCounterSchema,
+		maxCombo: scoreCounterSchema,
+		badPoorCount: scoreCounterSchema,
+		judgements: arenaJudgementsSchema,
+		clearType: clearTypeSchema,
+		finalGauge: gaugeSnapshotSchema
+	})
+	.strict()
+	.refine(hasConsistentCompetitionScore);
+export type ArenaFinalResult = z.infer<typeof arenaFinalResultSchema>;
+
+export const arenaDnfReasonSchema = z.enum([
+	'aborted',
+	'result_unavailable',
+	'left',
+	'kicked',
+	'grace_expired',
+	'play_deadline'
+]);
+export type ArenaDnfReason = z.infer<typeof arenaDnfReasonSchema>;
+
 export const inventoryDeclarationSchema = z
 	.object({
 		libraryGeneration: positiveGenerationSchema,
@@ -396,7 +497,14 @@ const roundLoadResultMessageSchema = z
 	.object({
 		type: z.literal('round_load_result'),
 		requestId: requestIdSchema,
-		data: z.discriminatedUnion('ok', [
+		data: z.union([
+			z
+				.object({
+					...frozenResponseFields,
+					ok: z.literal(true),
+					chartLengthMs: safeIntegerSchema.min(0).max(MAX_CHART_LENGTH_MS)
+				})
+				.strict(),
 			z.object({ ...frozenResponseFields, ok: z.literal(true) }).strict(),
 			z
 				.object({
@@ -413,6 +521,40 @@ const roundLoadResultMessageSchema = z
 				})
 				.strict()
 		])
+	})
+	.strict();
+
+const competitionBindingFields = {
+	...roomBindingSchema.shape,
+	roundId: opaqueIdSchema,
+	launchAttemptId: opaqueIdSchema
+};
+
+const roundTelemetryMessageSchema = z
+	.object({
+		type: z.literal('round_telemetry'),
+		data: z.object({ ...competitionBindingFields, telemetry: arenaTelemetrySchema }).strict()
+	})
+	.strict();
+
+const roundResultSubmitMessageSchema = z
+	.object({
+		type: z.literal('round_result_submit'),
+		requestId: requestIdSchema,
+		data: z.object({ ...competitionBindingFields, result: arenaFinalResultSchema }).strict()
+	})
+	.strict();
+
+const roundAbandonMessageSchema = z
+	.object({
+		type: z.literal('round_abandon'),
+		requestId: requestIdSchema,
+		data: z
+			.object({
+				...competitionBindingFields,
+				reason: z.enum(['aborted', 'result_unavailable'])
+			})
+			.strict()
 	})
 	.strict();
 
@@ -433,7 +575,10 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
 	selectionSetMessageSchema,
 	readySetMessageSchema,
 	roundProbeResultMessageSchema,
-	roundLoadResultMessageSchema
+	roundLoadResultMessageSchema,
+	roundTelemetryMessageSchema,
+	roundResultSubmitMessageSchema,
+	roundAbandonMessageSchema
 ]);
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
@@ -455,7 +600,7 @@ export const memberSchema = z
 		memberId: opaqueIdSchema,
 		identity: publicIdentitySchema,
 		status: z.enum(['connected', 'reserved']),
-		lobbyWins: nonnegativeRevisionSchema,
+		lobbyWins: uint32Schema,
 		ready: z.boolean(),
 		inventoryState: z.enum(['missing', 'syncing', 'ready']),
 		inventoryRevision: nonnegativeRevisionSchema,
@@ -471,7 +616,7 @@ const legacyMemberSchema = z
 		memberId: opaqueIdSchema,
 		identity: publicIdentitySchema,
 		status: z.enum(['connected', 'reserved']),
-		lobbyWins: nonnegativeRevisionSchema
+		lobbyWins: uint32Schema
 	})
 	.strict();
 
@@ -486,6 +631,129 @@ const legacyMemberArraySchema = z
 	.array(legacyMemberSchema)
 	.max(MAX_MEMBERS)
 	.refine((members) => hasUniqueKeys(members, (member) => member.memberId));
+
+const liveStandingBase = {
+	memberId: opaqueIdSchema,
+	connectionStatus: z.enum(['connected', 'reserved'])
+};
+
+export const liveStandingEntrySchema = z
+	.discriminatedUnion('competitionState', [
+		z
+			.object({
+				...liveStandingBase,
+				competitionState: z.literal('loading'),
+				rank: competitionRankSchema.nullable(),
+				telemetry: arenaTelemetrySchema.nullable()
+			})
+			.strict(),
+		z
+			.object({
+				...liveStandingBase,
+				competitionState: z.literal('playing'),
+				rank: competitionRankSchema.nullable(),
+				telemetry: arenaTelemetrySchema.nullable()
+			})
+			.strict(),
+		z
+			.object({
+				...liveStandingBase,
+				competitionState: z.literal('finished'),
+				rank: competitionRankSchema,
+				result: arenaFinalResultSchema
+			})
+			.strict(),
+		z
+			.object({
+				...liveStandingBase,
+				competitionState: z.literal('dnf'),
+				rank: z.null(),
+				dnfReason: arenaDnfReasonSchema
+			})
+			.strict()
+	])
+	.refine((entry) => {
+		if (entry.competitionState !== 'loading' && entry.competitionState !== 'playing') return true;
+		return entry.telemetry === null ? entry.rank === null : entry.rank !== null;
+	});
+export type LiveStandingEntry = z.infer<typeof liveStandingEntrySchema>;
+
+const liveStandingArraySchema = z
+	.array(liveStandingEntrySchema)
+	.min(1)
+	.max(MAX_MEMBERS)
+	.refine((entries) => hasUniqueKeys(entries, (entry) => entry.memberId));
+
+export const liveStandingsSnapshotSchema = z
+	.object({
+		roomId: opaqueIdSchema,
+		roomGeneration: positiveGenerationSchema,
+		roundId: opaqueIdSchema,
+		launchAttemptId: opaqueIdSchema,
+		standingsRevision: positiveRevisionSchema,
+		entries: liveStandingArraySchema
+	})
+	.strict();
+export type LiveStandingsSnapshot = z.infer<typeof liveStandingsSnapshotSchema>;
+
+const finalStandingBase = {
+	memberId: opaqueIdSchema,
+	identity: publicIdentitySchema,
+	lobbyWinsAfter: uint32Schema.nullable()
+};
+
+export const finalStandingEntrySchema = z.discriminatedUnion('competitionState', [
+	z
+		.object({
+			...finalStandingBase,
+			competitionState: z.literal('finished'),
+			rank: competitionRankSchema,
+			result: arenaFinalResultSchema
+		})
+		.strict(),
+	z
+		.object({
+			...finalStandingBase,
+			competitionState: z.literal('dnf'),
+			rank: z.null(),
+			dnfReason: arenaDnfReasonSchema
+		})
+		.strict()
+]);
+export type FinalStandingEntry = z.infer<typeof finalStandingEntrySchema>;
+
+const finalStandingArraySchema = z
+	.array(finalStandingEntrySchema)
+	.min(1)
+	.max(MAX_MEMBERS)
+	.refine((entries) => hasUniqueKeys(entries, (entry) => entry.memberId));
+
+export const roundResultSnapshotSchema = z
+	.object({
+		resultRevision: positiveRevisionSchema,
+		roundId: opaqueIdSchema,
+		selectionRevision: positiveRevisionSchema,
+		finalizedAtServerMs: epochMillisecondsSchema,
+		participantCount: safeIntegerSchema.min(1).max(MAX_MEMBERS),
+		selection: selectionSnapshotSchema,
+		winnerMemberIds: z
+			.array(opaqueIdSchema)
+			.max(MAX_MEMBERS)
+			.refine((ids) => hasUniqueKeys(ids, (id) => id)),
+		entries: finalStandingArraySchema
+	})
+	.strict()
+	.refine((result) => result.participantCount === result.entries.length)
+	.refine((result) => {
+		const winners = result.entries
+			.filter((entry) => entry.competitionState === 'finished' && entry.rank === 1)
+			.map((entry) => entry.memberId);
+		return (
+			winners.length === result.winnerMemberIds.length &&
+			result.winnerMemberIds.every((memberId, index) => memberId === winners[index])
+		);
+	});
+export type RoundResultSnapshot = z.infer<typeof roundResultSnapshotSchema>;
 
 export const chatMessageSchema = z
 	.object({
@@ -548,6 +816,15 @@ export const frozenParticipantSchema = z
 	})
 	.strict();
 
+export const competitionFrozenParticipantSchema = z
+	.object({
+		memberId: opaqueIdSchema,
+		inventoryRevision: positiveRevisionSchema,
+		identity: publicIdentitySchema
+	})
+	.strict();
+export type CompetitionFrozenParticipant = z.infer<typeof competitionFrozenParticipantSchema>;
+
 const frozenParticipantArraySchema = z
 	.array(frozenParticipantSchema)
 	.min(1)
@@ -566,6 +843,38 @@ export const frozenRoundSchema = z
 	})
 	.strict();
 export type FrozenRound = z.infer<typeof frozenRoundSchema>;
+
+const competitionFrozenRoundBase = {
+	roundId: opaqueIdSchema,
+	launchAttemptId: opaqueIdSchema,
+	selectionRevision: positiveRevisionSchema,
+	availabilityRevision: positiveRevisionSchema,
+	selection: selectionSnapshotSchema,
+	participants: z
+		.array(competitionFrozenParticipantSchema)
+		.min(1)
+		.max(MAX_MEMBERS)
+		.refine((participants) => hasUniqueKeys(participants, (participant) => participant.memberId))
+};
+
+export const competitionFrozenRoundSchema = z.union([
+	z
+		.object({
+			...competitionFrozenRoundBase,
+			stage: z.enum(['probing', 'loading'])
+		})
+		.strict(),
+	z
+		.object({
+			...competitionFrozenRoundBase,
+			stage: z.enum(['scheduled', 'playing']),
+			playDeadlineAtServerMs: epochMillisecondsSchema
+		})
+		.strict()
+]);
+export type CompetitionFrozenRound = z.infer<typeof competitionFrozenRoundSchema>;
+
+const wireFrozenRoundSchema = z.union([competitionFrozenRoundSchema, frozenRoundSchema]);
 
 export const roomSnapshotSchema = z
 	.object({
@@ -588,6 +897,39 @@ export const roomSnapshotSchema = z
 
 export type RoomSnapshot = z.infer<typeof roomSnapshotSchema>;
 
+export const competitionRoomSnapshotSchema = z
+	.object({
+		roomId: opaqueIdSchema,
+		roomGeneration: positiveGenerationSchema,
+		name: roomNameSchema,
+		phase: z.enum(['selecting', 'loading', 'playing']),
+		hasPassword: z.boolean(),
+		maxCount: z.literal(MAX_MEMBERS),
+		ownerMemberId: opaqueIdSchema.nullable(),
+		self: selfSeatSchema,
+		members: memberArraySchema,
+		chat: chatMessageArraySchema,
+		selection: selectionSnapshotSchema.nullable(),
+		selectionRevision: nonnegativeRevisionSchema,
+		availabilityRevision: nonnegativeRevisionSchema,
+		round: competitionFrozenRoundSchema.optional(),
+		liveStandings: liveStandingsSnapshotSchema.nullable(),
+		lastRoundResult: roundResultSnapshotSchema.nullable()
+	})
+	.strict()
+	.superRefine((room, context) => {
+		if (room.phase === 'selecting' && (room.round !== undefined || room.liveStandings !== null)) {
+			context.addIssue({ code: 'custom', message: 'Selecting room has no active competition.' });
+		}
+		if (room.phase === 'loading' && (room.round === undefined || room.liveStandings !== null)) {
+			context.addIssue({ code: 'custom', message: 'Loading room requires only an active round.' });
+		}
+		if (room.phase === 'playing' && (room.round === undefined || room.liveStandings === null)) {
+			context.addIssue({ code: 'custom', message: 'Playing room requires active standings.' });
+		}
+	});
+export type CompetitionRoomSnapshot = z.infer<typeof competitionRoomSnapshotSchema>;
+
 const legacyRoomSnapshotSchema = z
 	.object({
 		roomId: opaqueIdSchema,
@@ -603,16 +945,27 @@ const legacyRoomSnapshotSchema = z
 	})
 	.strict();
 
-const wireRoomSnapshotSchema = z.union([roomSnapshotSchema, legacyRoomSnapshotSchema]);
+const wireRoomSnapshotSchema = z.union([
+	competitionRoomSnapshotSchema,
+	roomSnapshotSchema,
+	legacyRoomSnapshotSchema
+]);
 
 const serverCapabilitiesSchema = z
-	.array(z.union([z.literal(ROOMS_CAPABILITY), z.literal(ROUNDS_CAPABILITY)]))
+	.array(
+		z.union([
+			z.literal(ROOMS_CAPABILITY),
+			z.literal(ROUNDS_CAPABILITY),
+			z.literal(COMPETITION_CAPABILITY)
+		])
+	)
 	.min(1)
-	.max(2)
+	.max(3)
 	.refine(
 		(capabilities) =>
 			capabilities[0] === ROOMS_CAPABILITY &&
-			(capabilities.length === 1 || capabilities[1] === ROUNDS_CAPABILITY)
+			(capabilities.length === 1 || capabilities[1] === ROUNDS_CAPABILITY) &&
+			(capabilities.length < 3 || capabilities[2] === COMPETITION_CAPABILITY)
 	);
 const displayMessageKeySchema = z
 	.string()
@@ -623,13 +976,22 @@ const displayMessageKeySchema = z
 const resumeResultSchema = z.discriminatedUnion('status', [
 	z.object({ status: z.literal('not_requested') }).strict(),
 	z.object({ status: z.literal('succeeded'), room: wireRoomSnapshotSchema }).strict(),
-	z
-		.object({
-			status: z.literal('failed'),
-			code: z.literal('room_resume_failed'),
-			displayMessageKey: z.literal('arena.error.resumeFailed')
-		})
-		.strict()
+	z.discriminatedUnion('code', [
+		z
+			.object({
+				status: z.literal('failed'),
+				code: z.literal('room_resume_failed'),
+				displayMessageKey: z.literal('arena.error.resumeFailed')
+			})
+			.strict(),
+		z
+			.object({
+				status: z.literal('failed'),
+				code: z.literal('competition_capability_required'),
+				displayMessageKey: z.literal('arena.error.competitionCapabilityRequired')
+			})
+			.strict()
+	])
 ]);
 
 const serverHelloMessageSchema = z
@@ -638,7 +1000,7 @@ const serverHelloMessageSchema = z
 		data: z
 			.object({
 				protocolMajor: z.literal(PROTOCOL_MAJOR),
-				protocolMinor: z.union([z.literal(0), z.literal(PROTOCOL_MINOR)]),
+				protocolMinor: z.union([z.literal(0), z.literal(1), z.literal(PROTOCOL_MINOR)]),
 				capabilities: serverCapabilitiesSchema,
 				identity: publicIdentitySchema.optional(),
 				resume: resumeResultSchema
@@ -646,11 +1008,13 @@ const serverHelloMessageSchema = z
 			.strict()
 	})
 	.strict()
-	.refine(
-		(message) =>
-			message.data.protocolMinor === PROTOCOL_MINOR ||
-			!message.data.capabilities.includes(ROUNDS_CAPABILITY)
-	);
+	.refine((message) => {
+		if (message.data.protocolMinor === 0) return message.data.capabilities.length === 1;
+		if (message.data.protocolMinor === 1) {
+			return !message.data.capabilities.includes(COMPETITION_CAPABILITY);
+		}
+		return true;
+	});
 
 const fatalErrorMessageSchema = z
 	.object({
@@ -941,7 +1305,7 @@ const selectionRejectedMessageSchema = z
 const roundLoadingStartedMessageSchema = z
 	.object({
 		type: z.literal('round_loading_started'),
-		data: roomIdentitySchema.extend({ round: frozenRoundSchema }).strict()
+		data: roomIdentitySchema.extend({ round: wireFrozenRoundSchema }).strict()
 	})
 	.strict();
 
@@ -966,30 +1330,87 @@ const roundProbeRequestedMessageSchema = z
 const roundLoadRequestedMessageSchema = z
 	.object({
 		type: z.literal('round_load_requested'),
-		data: roomBindingSchema.extend({ round: frozenRoundSchema }).strict()
+		data: roomBindingSchema.extend({ round: wireFrozenRoundSchema }).strict()
 	})
 	.strict();
 
 const roundStartScheduledMessageSchema = z
 	.object({
 		type: z.literal('round_start_scheduled'),
-		data: roomBindingSchema
-			.extend({
-				roundId: opaqueIdSchema,
-				launchAttemptId: opaqueIdSchema,
-				startAtServerMs: epochMillisecondsSchema,
-				startAfterMs: safeIntegerSchema.min(250).max(5_000)
-			})
-			.strict()
+		data: z.union([
+			roomBindingSchema
+				.extend({
+					roundId: opaqueIdSchema,
+					launchAttemptId: opaqueIdSchema,
+					startAtServerMs: epochMillisecondsSchema,
+					startAfterMs: safeIntegerSchema.min(250).max(5_000),
+					playDeadlineAtServerMs: epochMillisecondsSchema
+				})
+				.strict()
+				.refine((data) => data.playDeadlineAtServerMs >= data.startAtServerMs),
+			roomBindingSchema
+				.extend({
+					roundId: opaqueIdSchema,
+					launchAttemptId: opaqueIdSchema,
+					startAtServerMs: epochMillisecondsSchema,
+					startAfterMs: safeIntegerSchema.min(250).max(5_000)
+				})
+				.strict()
+		])
 	})
 	.strict();
 
 const roundStartedMessageSchema = z
 	.object({
 		type: z.literal('round_started'),
+		data: z.union([
+			roomIdentitySchema
+				.extend({
+					roundId: opaqueIdSchema,
+					launchAttemptId: opaqueIdSchema,
+					playDeadlineAtServerMs: epochMillisecondsSchema
+				})
+				.strict(),
+			roomIdentitySchema
+				.extend({ roundId: opaqueIdSchema, launchAttemptId: opaqueIdSchema })
+				.strict()
+		])
+	})
+	.strict();
+
+const roundStandingsMessageSchema = z
+	.object({
+		type: z.literal('round_standings'),
+		data: liveStandingsSnapshotSchema
+	})
+	.strict();
+
+const roundTerminalAcceptedMessageSchema = z
+	.object({
+		type: z.literal('round_terminal_accepted'),
+		requestId: requestIdSchema,
 		data: roomIdentitySchema
-			.extend({ roundId: opaqueIdSchema, launchAttemptId: opaqueIdSchema })
+			.extend({
+				roundId: opaqueIdSchema,
+				launchAttemptId: opaqueIdSchema,
+				terminal: z.enum(['finished', 'dnf'])
+			})
 			.strict()
+	})
+	.strict();
+
+const roundFinalizedMessageSchema = z
+	.object({
+		type: z.literal('round_finalized'),
+		data: roomIdentitySchema
+			.extend({
+				roundId: opaqueIdSchema,
+				launchAttemptId: opaqueIdSchema,
+				result: roundResultSnapshotSchema,
+				members: memberArraySchema
+			})
+			.strict()
+			.refine((data) => data.result.roundId === data.roundId)
 	})
 	.strict();
 
@@ -1004,6 +1425,7 @@ export const launchCancellationReasonSchema = z.enum([
 	'load_timeout',
 	'participant_left',
 	'participant_kicked',
+	'chart_length_mismatch',
 	'server_shutdown',
 	'cancelled'
 ]);
@@ -1050,7 +1472,10 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
 	roundLoadRequestedMessageSchema,
 	roundStartScheduledMessageSchema,
 	roundStartedMessageSchema,
-	roundLaunchCancelledMessageSchema
+	roundLaunchCancelledMessageSchema,
+	roundStandingsMessageSchema,
+	roundTerminalAcceptedMessageSchema,
+	roundFinalizedMessageSchema
 ]);
 
 export type ServerMessage = z.infer<typeof serverMessageSchema>;

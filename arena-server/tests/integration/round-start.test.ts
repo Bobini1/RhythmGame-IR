@@ -27,7 +27,7 @@ class RoundTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 90_000),
 			protocolMajor: 1,
-			protocolMinor: 1
+			protocolMinor: 2
 		};
 	}
 }
@@ -55,9 +55,9 @@ async function authenticate(application: ArenaApplication, connectionId: string)
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 1,
+				protocolMinor: 2,
 				clientVersion: 'round-test',
-				capabilities: ['rooms-v1', 'rounds-v1'],
+				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: `${connectionId}-ticket`
 			}
 		},

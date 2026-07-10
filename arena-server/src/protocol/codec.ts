@@ -2,7 +2,10 @@ import { ProtocolError } from './errors.ts';
 import {
 	clientMessageSchema,
 	MAX_CLIENT_MESSAGE_BYTES,
+	MAX_FINALIZATION_MESSAGE_BYTES,
+	MAX_RESULT_SNAPSHOT_BYTES,
 	MAX_SERVER_MESSAGE_BYTES,
+	MAX_STANDINGS_MESSAGE_BYTES,
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
 	ROOMS_CAPABILITY,
@@ -69,8 +72,34 @@ export function encodeServerMessage(message: ServerMessage): string {
 	}
 
 	const encoded = JSON.stringify(result.data);
-	if (utf8Encoder.encode(encoded).byteLength > MAX_SERVER_MESSAGE_BYTES) {
+	const encodedBytes = utf8Encoder.encode(encoded).byteLength;
+	if (
+		(result.data.type === 'round_standings' && encodedBytes > MAX_STANDINGS_MESSAGE_BYTES) ||
+		(result.data.type === 'round_finalized' && encodedBytes > MAX_FINALIZATION_MESSAGE_BYTES) ||
+		encodedBytes > MAX_SERVER_MESSAGE_BYTES
+	) {
 		throw new ProtocolError('frame_too_large');
+	}
+
+	const snapshots: unknown[] = [];
+	if (result.data.type === 'round_finalized') snapshots.push(result.data.data.result);
+	if (result.data.type === 'room_snapshot' && 'lastRoundResult' in result.data.data) {
+		snapshots.push(result.data.data.lastRoundResult);
+	}
+	if (
+		result.data.type === 'server_hello' &&
+		result.data.data.resume.status === 'succeeded' &&
+		'lastRoundResult' in result.data.data.resume.room
+	) {
+		snapshots.push(result.data.data.resume.room.lastRoundResult);
+	}
+	for (const snapshot of snapshots) {
+		if (
+			snapshot !== null &&
+			utf8Encoder.encode(JSON.stringify(snapshot)).byteLength > MAX_RESULT_SNAPSHOT_BYTES
+		) {
+			throw new ProtocolError('frame_too_large');
+		}
 	}
 
 	return encoded;
