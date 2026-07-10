@@ -9,7 +9,8 @@ import {
 import {
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
-	REQUIRED_CAPABILITY,
+	ROOMS_CAPABILITY,
+	ROUNDS_CAPABILITY,
 	type ClientMessage,
 	type ServerMessage
 } from '../protocol/messages.ts';
@@ -43,6 +44,8 @@ type ConnectionCommon = {
 	directorySubscribed: boolean;
 	nextHeartbeatAtMs: number | null;
 	pendingHeartbeat: Readonly<{ nonce: string; deadlineMs: number }> | null;
+	protocolMinor: 0 | 1;
+	capabilities: readonly (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[];
 };
 
 type AwaitingHelloConnection = ConnectionCommon & {
@@ -114,6 +117,8 @@ export class ArenaApplication {
 			directorySubscribed: false,
 			nextHeartbeatAtMs: null,
 			pendingHeartbeat: null,
+			protocolMinor: 0,
+			capabilities: [],
 			helloDeadlineMs: nowMs + this.#timing.helloTimeoutMs
 		});
 		return [];
@@ -172,6 +177,16 @@ export class ArenaApplication {
 				postHelloConnection.nextHeartbeatAtMs = nowMs + this.#timing.heartbeatIntervalMs;
 				return [];
 			}
+			case 'inventory_upload_begin':
+			case 'inventory_upload_commit':
+			case 'inventory_upload_abort':
+			case 'availability_applied':
+			case 'availability_resync':
+			case 'selection_set':
+			case 'ready_set':
+			case 'round_probe_result':
+			case 'round_load_result':
+				return this.#phase2Placeholder(postHelloConnection, message.requestId);
 		}
 	}
 
@@ -239,13 +254,14 @@ export class ArenaApplication {
 		message: Extract<ClientMessage, { type: 'client_hello' }>,
 		nowMs: number
 	): Promise<readonly Delivery[]> {
+		const negotiation = negotiate(message.data.protocolMinor, message.data.capabilities);
 		if (message.data.ticket === undefined) {
 			const anonymous = this.#replaceConnection<AnonymousConnection>(
 				connection,
-				{ phase: 'anonymous' },
+				{ phase: 'anonymous', ...negotiation },
 				nowMs
 			);
-			return [this.#send(anonymous.connectionId, serverHello())];
+			return [this.#send(anonymous.connectionId, serverHello(anonymous))];
 		}
 
 		const capturedVersion = connection.stateVersion;
@@ -264,11 +280,21 @@ export class ArenaApplication {
 				connection,
 				{
 					phase: 'authenticated',
-					identity
+					identity,
+					...negotiation
 				},
 				nowMs
 			);
-			return [this.#send(authenticated.connectionId, serverHello(identity))];
+			return [this.#send(authenticated.connectionId, serverHello(authenticated, identity))];
+		}
+
+		if (!negotiation.capabilities.includes(ROUNDS_CAPABILITY)) {
+			const authenticated = this.#replaceConnection<AuthenticatedConnection>(
+				connection,
+				{ phase: 'authenticated', identity, ...negotiation },
+				nowMs
+			);
+			return [this.#send(authenticated.connectionId, failedResumeHello(authenticated, identity))];
 		}
 
 		const resumed = this.#roomDirectory.resume({
@@ -281,19 +307,19 @@ export class ArenaApplication {
 		if (!resumed.ok) {
 			const authenticated = this.#replaceConnection<AuthenticatedConnection>(
 				connection,
-				{ phase: 'authenticated', identity },
+				{ phase: 'authenticated', identity, ...negotiation },
 				nowMs
 			);
-			return [this.#send(authenticated.connectionId, failedResumeHello(identity))];
+			return [this.#send(authenticated.connectionId, failedResumeHello(authenticated, identity))];
 		}
 
 		const bound = this.#replaceConnection<RoomBoundConnection>(
 			connection,
-			{ phase: 'room_bound', identity, binding: resumed.value.binding },
+			{ phase: 'room_bound', identity, binding: resumed.value.binding, ...negotiation },
 			nowMs
 		);
 		const deliveries: Delivery[] = [
-			this.#send(bound.connectionId, resumedServerHello(identity, resumed.value.snapshot))
+			this.#send(bound.connectionId, resumedServerHello(bound, identity, resumed.value.snapshot))
 		];
 		const staleConnectionId = resumed.value.staleConnectionId;
 		if (staleConnectionId !== undefined) {
@@ -332,6 +358,14 @@ export class ArenaApplication {
 				this.#send(
 					connection.connectionId,
 					createCommandError(message.requestId, 'already_in_room')
+				)
+			];
+		}
+		if (!hasRoundsCapability(connection)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, 'rounds_capability_required')
 				)
 			];
 		}
@@ -397,6 +431,14 @@ export class ArenaApplication {
 				this.#send(
 					connection.connectionId,
 					createCommandError(message.requestId, 'already_in_room')
+				)
+			];
+		}
+		if (!hasRoundsCapability(connection)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(message.requestId, 'rounds_capability_required')
 				)
 			];
 		}
@@ -546,6 +588,26 @@ export class ArenaApplication {
 			: [this.#send(connection.connectionId, createCommandError(requestId, mismatch))];
 	}
 
+	#phase2Placeholder(connection: PostHelloConnection, requestId: string): readonly Delivery[] {
+		if (!hasRoundsCapability(connection)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(requestId, 'rounds_capability_required')
+				)
+			];
+		}
+		if (connection.phase === 'anonymous') {
+			return [this.#send(connection.connectionId, createCommandError(requestId, 'auth_required'))];
+		}
+		if (connection.phase === 'authenticated') {
+			return [this.#send(connection.connectionId, createCommandError(requestId, 'not_in_room'))];
+		}
+		return [
+			this.#send(connection.connectionId, createCommandError(requestId, 'launch_stage_stale'))
+		];
+	}
+
 	#fatal(
 		connection: Connection,
 		code: FatalErrorCode,
@@ -675,6 +737,8 @@ export class ArenaApplication {
 				? (heartbeatStartMs ?? this.#now()) + this.#timing.heartbeatIntervalMs
 				: current.nextHeartbeatAtMs,
 			pendingHeartbeat: startsHeartbeat ? null : current.pendingHeartbeat,
+			protocolMinor: current.protocolMinor,
+			capabilities: current.capabilities,
 			...extra
 		} as T;
 		this.#connections.set(current.connectionId, next);
@@ -734,26 +798,29 @@ export class ArenaApplication {
 	}
 }
 
-function serverHello(identity?: ArenaIdentity): ServerMessage {
+function serverHello(connection: PostHelloConnection, identity?: ArenaIdentity): ServerMessage {
 	return {
 		type: 'server_hello',
 		data: {
 			protocolMajor: PROTOCOL_MAJOR,
-			protocolMinor: PROTOCOL_MINOR,
-			capabilities: [REQUIRED_CAPABILITY],
+			protocolMinor: connection.protocolMinor,
+			capabilities: [...connection.capabilities],
 			...(identity === undefined ? {} : { identity }),
 			resume: { status: 'not_requested' }
 		}
 	};
 }
 
-function failedResumeHello(identity: ArenaIdentity): ServerMessage {
+function failedResumeHello(
+	connection: PostHelloConnection,
+	identity: ArenaIdentity
+): ServerMessage {
 	return {
 		type: 'server_hello',
 		data: {
 			protocolMajor: PROTOCOL_MAJOR,
-			protocolMinor: PROTOCOL_MINOR,
-			capabilities: [REQUIRED_CAPABILITY],
+			protocolMinor: connection.protocolMinor,
+			capabilities: [...connection.capabilities],
 			identity,
 			resume: {
 				status: 'failed',
@@ -764,17 +831,43 @@ function failedResumeHello(identity: ArenaIdentity): ServerMessage {
 	};
 }
 
-function resumedServerHello(identity: ArenaIdentity, room: RoomSnapshot): ServerMessage {
+function resumedServerHello(
+	connection: PostHelloConnection,
+	identity: ArenaIdentity,
+	room: RoomSnapshot
+): ServerMessage {
 	return {
 		type: 'server_hello',
 		data: {
 			protocolMajor: PROTOCOL_MAJOR,
-			protocolMinor: PROTOCOL_MINOR,
-			capabilities: [REQUIRED_CAPABILITY],
+			protocolMinor: connection.protocolMinor,
+			capabilities: [...connection.capabilities],
 			identity,
 			resume: { status: 'succeeded', room: copyRoomSnapshot(room) }
 		}
 	};
+}
+
+function negotiate(
+	clientMinor: 0 | 1,
+	clientCapabilities: readonly string[]
+): Readonly<{
+	protocolMinor: 0 | 1;
+	capabilities: readonly (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[];
+}> {
+	const protocolMinor = Math.min(clientMinor, PROTOCOL_MINOR) as 0 | 1;
+	const capabilities: (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[] = [ROOMS_CAPABILITY];
+	if (protocolMinor === PROTOCOL_MINOR && clientCapabilities.includes(ROUNDS_CAPABILITY)) {
+		capabilities.push(ROUNDS_CAPABILITY);
+	}
+	return { protocolMinor, capabilities };
+}
+
+function hasRoundsCapability(connection: PostHelloConnection): boolean {
+	return (
+		connection.protocolMinor === PROTOCOL_MINOR &&
+		connection.capabilities.includes(ROUNDS_CAPABILITY)
+	);
 }
 
 function bindingMismatch(
@@ -815,7 +908,7 @@ function assertNever(_value: never): never {
 function copyRoomSummary(summary: {
 	roomId: string;
 	name: string;
-	phase: 'selecting';
+	phase: 'selecting' | 'loading' | 'playing';
 	hasPassword: boolean;
 	connectedCount: number;
 	reservedCount: number;

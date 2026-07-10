@@ -97,7 +97,7 @@ describe('Arena identity tickets', () => {
 		expect(payload.emailVerified).toBe(false);
 		expect(payload.purpose).toBe('arena-connect');
 		expect(payload.protocolMajor).toBe(1);
-		expect(payload.protocolMinor).toBe(0);
+		expect(payload.protocolMinor).toBe(1);
 		expect(payload.exp! - payload.iat!).toBe(90);
 		expect(payload.jti).toEqual(expect.any(String));
 		expect(publishedJwks.keys).toContainEqual(

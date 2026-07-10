@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 import type { ArenaIdentity } from '../auth/identity.ts';
+import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
 import type {
 	ChatMessage,
 	RoomMember,
@@ -21,6 +22,11 @@ export type SeatState = {
 	resumeTokenDigest: Uint8Array;
 	lobbyWins: number;
 	status: 'connected' | 'reserved';
+	ready: boolean;
+	inventoryState: 'missing' | 'syncing' | 'ready';
+	inventoryRevision: number;
+	availabilityAppliedRevision: number;
+	roundState: 'eligible' | 'waiting' | 'probing' | 'loading' | 'loaded' | 'playing';
 	reservedUntilMs?: number;
 	acceptedChatTimes: number[];
 };
@@ -38,6 +44,11 @@ export type RoomState = {
 	readonly issuedMessageIds: Set<string>;
 	nextJoinOrder: number;
 	readonly chat: ChatMessage[];
+	phase: 'selecting' | 'loading' | 'playing';
+	selection: SelectionSnapshot | null;
+	selectionRevision: number;
+	availabilityRevision: number;
+	round?: FrozenRound;
 };
 
 function encodeOpaque(bytes: Uint8Array): string {
@@ -85,6 +96,11 @@ export function createInitialRoom(
 		resumeTokenDigest: input.resumeToken.digest,
 		lobbyWins: 0,
 		status: 'connected',
+		ready: false,
+		inventoryState: 'missing',
+		inventoryRevision: 0,
+		availabilityAppliedRevision: 0,
+		roundState: 'eligible',
 		acceptedChatTimes: []
 	};
 	const room: RoomState = {
@@ -99,7 +115,11 @@ export function createInitialRoom(
 		bannedUserIds: new Set(),
 		issuedMessageIds: new Set(),
 		nextJoinOrder: 2,
-		chat: []
+		chat: [],
+		phase: 'selecting',
+		selection: null,
+		selectionRevision: 0,
+		availabilityRevision: 0
 	};
 	return {
 		room,
@@ -112,7 +132,12 @@ function memberView(seat: SeatState): RoomMember {
 		memberId: seat.seatId,
 		identity: seat.identity,
 		status: seat.status,
-		lobbyWins: seat.lobbyWins
+		lobbyWins: seat.lobbyWins,
+		ready: seat.ready,
+		inventoryState: seat.inventoryState,
+		inventoryRevision: seat.inventoryRevision,
+		availabilityAppliedRevision: seat.availabilityAppliedRevision,
+		roundState: seat.roundState
 	};
 }
 
@@ -124,7 +149,7 @@ export function summaryFor(room: RoomState): RoomSummary {
 	return {
 		roomId: room.roomId,
 		name: room.name,
-		phase: 'selecting',
+		phase: room.phase,
 		hasPassword: room.passwordDigest !== undefined,
 		connectedCount: [...room.seats.values()].filter((seat) => seat.status === 'connected').length,
 		reservedCount: [...room.seats.values()].filter((seat) => seat.status === 'reserved').length,
@@ -170,6 +195,11 @@ export function addConnectedSeat(
 		resumeTokenDigest: input.resumeTokenDigest,
 		lobbyWins: 0,
 		status: 'connected',
+		ready: false,
+		inventoryState: 'missing',
+		inventoryRevision: 0,
+		availabilityAppliedRevision: 0,
+		roundState: room.phase === 'selecting' ? 'eligible' : 'waiting',
 		acceptedChatTimes: []
 	};
 	room.seats.set(seat.seatId, seat);
@@ -203,7 +233,7 @@ export function admissionFor(room: RoomState, seat: SeatState, resumeToken: stri
 		roomId: room.roomId,
 		roomGeneration: room.generation,
 		name: room.name,
-		phase: 'selecting',
+		phase: room.phase,
 		hasPassword: room.passwordDigest !== undefined,
 		maxCount: room.maxCount,
 		ownerMemberId: room.ownerSeatId,
@@ -213,7 +243,11 @@ export function admissionFor(room: RoomState, seat: SeatState, resumeToken: stri
 			resumeToken
 		},
 		members: [...room.seats.values()].sort((a, b) => a.joinOrder - b.joinOrder).map(memberView),
-		chat: [...room.chat]
+		chat: [...room.chat],
+		selection: room.selection,
+		selectionRevision: room.selectionRevision,
+		availabilityRevision: room.availabilityRevision,
+		...(room.round === undefined ? {} : { round: room.round })
 	};
 	return { snapshot, resumeToken, binding };
 }

@@ -23,7 +23,7 @@ export function createArenaJwtPlugin() {
 				emailVerified: user.emailVerified,
 				purpose: 'arena-connect',
 				protocolMajor: 1,
-				protocolMinor: 0,
+				protocolMinor: 1,
 				jti: crypto.randomUUID()
 			})
 		}

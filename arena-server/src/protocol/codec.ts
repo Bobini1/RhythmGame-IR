@@ -5,7 +5,7 @@ import {
 	MAX_SERVER_MESSAGE_BYTES,
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
-	REQUIRED_CAPABILITY,
+	ROOMS_CAPABILITY,
 	serverMessageSchema,
 	type ClientMessage,
 	type ServerMessage
@@ -25,7 +25,8 @@ function rejectKnownNegotiationMismatch(value: unknown): void {
 	const { protocolMajor, protocolMinor, capabilities } = value.data;
 	if (
 		(typeof protocolMajor === 'number' && protocolMajor !== PROTOCOL_MAJOR) ||
-		(typeof protocolMinor === 'number' && protocolMinor !== PROTOCOL_MINOR)
+		(typeof protocolMinor === 'number' &&
+			(!Number.isInteger(protocolMinor) || protocolMinor < 0 || protocolMinor > PROTOCOL_MINOR))
 	) {
 		throw new ProtocolError('protocol_incompatible');
 	}
@@ -33,7 +34,7 @@ function rejectKnownNegotiationMismatch(value: unknown): void {
 	if (
 		Array.isArray(capabilities) &&
 		capabilities.every((capability) => typeof capability === 'string') &&
-		!capabilities.includes(REQUIRED_CAPABILITY)
+		!capabilities.includes(ROOMS_CAPABILITY)
 	) {
 		throw new ProtocolError('capability_required');
 	}

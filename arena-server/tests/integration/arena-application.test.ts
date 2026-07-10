@@ -29,7 +29,7 @@ class FakeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 89_000),
 			protocolMajor: 1,
-			protocolMinor: 0
+			protocolMinor: 1
 		};
 	}
 }
@@ -74,13 +74,14 @@ function createDirectory(): RoomDirectory {
 }
 
 function hello(ticket?: string): ClientMessage {
+	const authenticated = ticket !== undefined;
 	return {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 0,
+			protocolMinor: authenticated ? 1 : 0,
 			clientVersion: 'test',
-			capabilities: ['rooms-v1'],
+			capabilities: authenticated ? ['rooms-v1', 'rounds-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket })
 		}
 	};
@@ -133,6 +134,9 @@ function snapshotFrom(
 	);
 	if (message?.kind !== 'send' || message.message.type !== 'room_snapshot') {
 		throw new Error('Expected a room_snapshot delivery.');
+	}
+	if (!('selection' in message.message.data)) {
+		throw new Error('Expected a Phase 2 room_snapshot delivery.');
 	}
 	return message.message.data;
 }
@@ -218,6 +222,75 @@ describe('ArenaApplication connection protocol', () => {
 					data: { code: 'auth_required', displayMessageKey: 'arena.error.authRequired' }
 				}
 			}
+		]);
+	});
+
+	test('negotiates capabilities in server order and gates playable-room admission', async () => {
+		const { application } = createApplication();
+		application.connect('legacy-auth');
+		const legacyHello = await application.receive(
+			'legacy-auth',
+			{
+				type: 'client_hello',
+				data: {
+					protocolMajor: 1,
+					protocolMinor: 0,
+					clientVersion: 'legacy',
+					capabilities: ['rooms-v1'],
+					ticket: 'legacy-ticket'
+				}
+			},
+			NOW
+		);
+		expect(messagesFor(legacyHello, 'legacy-auth')).toEqual([
+			expect.objectContaining({
+				type: 'server_hello',
+				data: expect.objectContaining({ protocolMinor: 0, capabilities: ['rooms-v1'] })
+			})
+		]);
+		expect(
+			messagesFor(
+				await application.receive(
+					'legacy-auth',
+					{ type: 'room_create', requestId: 'legacy-create', data: { name: 'No' } },
+					NOW
+				),
+				'legacy-auth'
+			)
+		).toEqual([
+			{
+				type: 'command_error',
+				requestId: 'legacy-create',
+				data: {
+					code: 'rounds_capability_required',
+					displayMessageKey: 'arena.error.roundsCapabilityRequired'
+				}
+			}
+		]);
+
+		application.connect('modern-auth');
+		const modernHello = await application.receive(
+			'modern-auth',
+			{
+				type: 'client_hello',
+				data: {
+					protocolMajor: 1,
+					protocolMinor: 1,
+					clientVersion: 'modern',
+					capabilities: ['rounds-v1', 'rooms-v1'],
+					ticket: 'modern-ticket'
+				}
+			},
+			NOW
+		);
+		expect(messagesFor(modernHello, 'modern-auth')).toEqual([
+			expect.objectContaining({
+				type: 'server_hello',
+				data: expect.objectContaining({
+					protocolMinor: 1,
+					capabilities: ['rooms-v1', 'rounds-v1']
+				})
+			})
 		]);
 	});
 
@@ -546,8 +619,8 @@ describe('ArenaApplication resume and liveness', () => {
 				type: 'server_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 0,
-					capabilities: ['rooms-v1'],
+					protocolMinor: 1,
+					capabilities: ['rooms-v1', 'rounds-v1'],
 					identity: alice,
 					resume: {
 						status: 'failed',

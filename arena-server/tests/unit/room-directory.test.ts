@@ -86,10 +86,18 @@ describe('RoomDirectory lifecycle', () => {
 					memberId: created.value.binding.seatId,
 					identity,
 					status: 'connected',
-					lobbyWins: 0
+					lobbyWins: 0,
+					ready: false,
+					inventoryState: 'missing',
+					inventoryRevision: 0,
+					availabilityAppliedRevision: 0,
+					roundState: 'eligible'
 				}
 			],
-			chat: []
+			chat: [],
+			selection: null,
+			selectionRevision: 0,
+			availabilityRevision: 0
 		});
 		expect(created.effects).toEqual([]);
 		expect(created.directoryChange).toEqual({

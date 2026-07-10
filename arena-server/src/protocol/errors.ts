@@ -16,13 +16,25 @@ export const commandErrorCodes = [
 	'cannot_kick_self',
 	'chat_empty',
 	'chat_too_long',
-	'rate_limited'
+	'rate_limited',
+	'rounds_capability_required',
+	'inventory_busy',
+	'inventory_invalid',
+	'inventory_stale',
+	'inventory_capacity_exceeded',
+	'availability_stale',
+	'selection_not_common',
+	'selection_stale',
+	'ready_not_allowed',
+	'round_stale',
+	'launch_stage_stale'
 ] as const;
 
 export const fatalErrorCodes = [
 	'malformed_message',
 	'frame_too_large',
 	'unexpected_binary',
+	'malformed_inventory',
 	'hello_required',
 	'hello_repeated',
 	'protocol_incompatible',
@@ -54,13 +66,25 @@ const commandDisplayMessageKeys = {
 	cannot_kick_self: 'arena.error.cannotKickSelf',
 	chat_empty: 'arena.error.chatEmpty',
 	chat_too_long: 'arena.error.chatTooLong',
-	rate_limited: 'arena.error.rateLimited'
+	rate_limited: 'arena.error.rateLimited',
+	rounds_capability_required: 'arena.error.roundsCapabilityRequired',
+	inventory_busy: 'arena.error.inventoryBusy',
+	inventory_invalid: 'arena.error.inventoryInvalid',
+	inventory_stale: 'arena.error.inventoryStale',
+	inventory_capacity_exceeded: 'arena.error.inventoryCapacityExceeded',
+	availability_stale: 'arena.error.availabilityStale',
+	selection_not_common: 'arena.error.selectionNotCommon',
+	selection_stale: 'arena.error.selectionStale',
+	ready_not_allowed: 'arena.error.readyNotAllowed',
+	round_stale: 'arena.error.roundStale',
+	launch_stage_stale: 'arena.error.launchStageStale'
 } as const satisfies Record<CommandErrorCode, string>;
 
 const fatalDisplayMessageKeys = {
 	malformed_message: 'arena.error.malformedMessage',
 	frame_too_large: 'arena.error.frameTooLarge',
 	unexpected_binary: 'arena.error.unexpectedBinary',
+	malformed_inventory: 'arena.error.malformedInventory',
 	hello_required: 'arena.error.helloRequired',
 	hello_repeated: 'arena.error.helloRepeated',
 	protocol_incompatible: 'arena.error.protocolIncompatible',
@@ -73,7 +97,8 @@ const fatalDisplayMessageKeys = {
 const protocolErrorMessages = {
 	malformed_message: 'The Arena protocol message is malformed.',
 	frame_too_large: 'The Arena protocol frame exceeds the size limit.',
-	unexpected_binary: 'Binary Arena protocol frames are not supported.',
+	unexpected_binary: 'The Arena binary frame was not expected.',
+	malformed_inventory: 'The Arena inventory transfer is malformed.',
 	hello_required: 'The Arena protocol requires a client hello first.',
 	hello_repeated: 'The Arena client hello may only be sent once.',
 	protocol_incompatible: 'The Arena protocol version is incompatible.',

@@ -1,4 +1,5 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
+import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
 
 export type RoomRejectionCode =
 	| 'already_in_room'
@@ -24,6 +25,11 @@ export type RoomMember = Readonly<{
 	identity: ArenaIdentity;
 	status: 'connected' | 'reserved';
 	lobbyWins: number;
+	ready: boolean;
+	inventoryState: 'missing' | 'syncing' | 'ready';
+	inventoryRevision: number;
+	availabilityAppliedRevision: number;
+	roundState: 'eligible' | 'waiting' | 'probing' | 'loading' | 'loaded' | 'playing';
 }>;
 
 export type ChatMessage = Readonly<{
@@ -37,7 +43,7 @@ export type ChatMessage = Readonly<{
 export type RoomSummary = Readonly<{
 	roomId: string;
 	name: string;
-	phase: 'selecting';
+	phase: 'selecting' | 'loading' | 'playing';
 	hasPassword: boolean;
 	connectedCount: number;
 	reservedCount: number;
@@ -48,7 +54,7 @@ export type RoomSnapshot = Readonly<{
 	roomId: string;
 	roomGeneration: number;
 	name: string;
-	phase: 'selecting';
+	phase: 'selecting' | 'loading' | 'playing';
 	hasPassword: boolean;
 	maxCount: 16;
 	ownerMemberId: string | null;
@@ -59,6 +65,10 @@ export type RoomSnapshot = Readonly<{
 	}>;
 	members: readonly RoomMember[];
 	chat: readonly ChatMessage[];
+	selection: SelectionSnapshot | null;
+	selectionRevision: number;
+	availabilityRevision: number;
+	round?: FrozenRound;
 }>;
 
 export type SeatConnectionRef = Readonly<{

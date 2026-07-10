@@ -259,13 +259,14 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
 }
 
 function clientHello(ticket?: string): ClientMessage {
+	const authenticated = ticket !== undefined;
 	return {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 0,
+			protocolMinor: authenticated ? 1 : 0,
 			clientVersion: 'test',
-			capabilities: ['rooms-v1'],
+			capabilities: authenticated ? ['rooms-v1', 'rounds-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket })
 		}
 	};
@@ -467,9 +468,9 @@ describe('Arena WebSocket gateway', () => {
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 0,
+				protocolMinor: 1,
 				clientVersion: 'test',
-				capabilities: ['rooms-v1'],
+				capabilities: ['rooms-v1', 'rounds-v1'],
 				ticket: 'alice-ticket-2',
 				resume: { roomId: room.data.roomId, seatToken: room.data.self.resumeToken }
 			}

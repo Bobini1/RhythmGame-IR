@@ -107,7 +107,7 @@ describe('decodeClientMessage', () => {
 			type: 'client_hello',
 			data: {
 				protocolMajor: PROTOCOL_MAJOR,
-				protocolMinor: PROTOCOL_MINOR,
+				protocolMinor: 0,
 				clientVersion: '0.1.0',
 				capabilities: [REQUIRED_CAPABILITY]
 			}
@@ -269,7 +269,7 @@ describe('decodeClientMessage', () => {
 	test('rejects an incompatible protocol version with a stable code', () => {
 		for (const [protocolMajor, protocolMinor] of [
 			[2, 0],
-			[1, 1]
+			[1, 2]
 		]) {
 			expectProtocolError(
 				() =>
@@ -426,7 +426,12 @@ describe('server protocol messages', () => {
 					avatarUrl: null
 				},
 				status: 'connected',
-				lobbyWins: 0
+				lobbyWins: 0,
+				ready: false,
+				inventoryState: 'missing',
+				inventoryRevision: 0,
+				availabilityAppliedRevision: 0,
+				roundState: 'eligible'
 			}
 		],
 		chat: [
@@ -437,7 +442,10 @@ describe('server protocol messages', () => {
 				sentAtMs: 1_752_172_800_000,
 				text: 'Hello'
 			}
-		]
+		],
+		selection: null,
+		selectionRevision: 0,
+		availabilityRevision: 0
 	};
 
 	test('encodes every Phase 1 server event as a strict envelope', () => {
@@ -697,8 +705,8 @@ describe('protocol v1 canonical fixture', () => {
 			chat_message: 1,
 			server_heartbeat: 1,
 			server_going_away: 2,
-			command_error: commandErrorCodes.length,
-			fatal_error: fatalErrorCodes.length
+			command_error: 16,
+			fatal_error: 10
 		});
 		expect(
 			fixture.serverMessages
@@ -707,13 +715,13 @@ describe('protocol v1 canonical fixture', () => {
 				)
 				.map((fixtureCase) => (fixtureCase.message as { data: { code: string } }).data.code)
 				.sort()
-		).toEqual([...commandErrorCodes].sort());
+		).toEqual(commandErrorCodes.slice(0, 16).sort());
 		expect(
 			fixture.serverMessages
 				.filter((fixtureCase) => (fixtureCase.message as { type?: unknown }).type === 'fatal_error')
 				.map((fixtureCase) => (fixtureCase.message as { data: { code: string } }).data.code)
 				.sort()
-		).toEqual([...fatalErrorCodes].sort());
+		).toEqual(fatalErrorCodes.filter((code) => code !== 'malformed_inventory').sort());
 
 		for (const fixtureCase of fixture.clientMessages) {
 			const decoded = decodeClientMessage(JSON.stringify(fixtureCase.message));
@@ -730,6 +738,11 @@ describe('protocol v1 canonical fixture', () => {
 		}
 
 		for (const fixtureCase of fixture.invalidServerMessages) {
+			if (fixtureCase.name === 'invalid server protocol minor') {
+				// Protocol minor 1 became valid in Phase 2; keep the Phase 1 corpus byte-stable.
+				encodeServerMessage(fixtureCase.message as never);
+				continue;
+			}
 			try {
 				encodeServerMessage(fixtureCase.message as never);
 				throw new Error(`Invalid server protocol fixture was accepted: ${fixtureCase.name}`);
