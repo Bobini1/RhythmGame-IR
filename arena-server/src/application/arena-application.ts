@@ -1,5 +1,6 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
 import { TicketVerificationError, type TicketVerifier } from '../auth/ticket-verifier.ts';
+import { InventoryUploadManager } from '../inventory/inventory-upload-manager.ts';
 import {
 	createCommandError,
 	createFatalError,
@@ -35,6 +36,7 @@ export type ArenaApplicationOptions = Readonly<{
 	roomDirectory: RoomDirectory;
 	now: () => number;
 	newNonce: () => string;
+	inventoryUploadManager?: InventoryUploadManager;
 	timing?: Partial<ArenaApplicationTiming>;
 }>;
 
@@ -92,6 +94,7 @@ export class ArenaApplication {
 	readonly #now: () => number;
 	readonly #newNonce: () => string;
 	readonly #timing: ArenaApplicationTiming;
+	readonly #inventoryUploads: InventoryUploadManager;
 	readonly #connections = new Map<string, Connection>();
 	readonly #issuedConnectionIds = new Set<string>();
 	readonly #identityMutationWindows = new Map<string, IdentityMutationWindow>();
@@ -102,6 +105,7 @@ export class ArenaApplication {
 		this.#now = options.now;
 		this.#newNonce = options.newNonce;
 		this.#timing = { ...DEFAULT_TIMING, ...options.timing };
+		this.#inventoryUploads = options.inventoryUploadManager ?? new InventoryUploadManager();
 	}
 
 	connect(connectionId: string): readonly Delivery[] {
@@ -190,9 +194,30 @@ export class ArenaApplication {
 		}
 	}
 
+	async receiveBinary(
+		connectionId: string,
+		frame: Uint8Array,
+		nowMs: number
+	): Promise<readonly Delivery[]> {
+		const connection = this.#connections.get(connectionId);
+		if (connection === undefined) return [];
+		if (connection.phase !== 'room_bound' || !hasRoundsCapability(connection)) {
+			return this.#fatal(connection, 'unexpected_binary', 1003, nowMs);
+		}
+		const appended = this.#inventoryUploads.append(connectionId, frame, nowMs);
+		if (appended.ok) return [];
+		return this.#fatal(
+			connection,
+			appended.code === 'unexpected_binary' ? 'unexpected_binary' : 'malformed_inventory',
+			appended.code === 'unexpected_binary' ? 1003 : 1002,
+			nowMs
+		);
+	}
+
 	disconnect(connectionId: string, nowMs: number): readonly Delivery[] {
 		const connection = this.#connections.get(connectionId);
 		if (connection === undefined) return [];
+		this.#inventoryUploads.abortConnection(connectionId);
 		this.#connections.delete(connectionId);
 		if (connection.phase !== 'room_bound') return [];
 		const result = this.#roomDirectory.disconnect(connection.binding, nowMs);
@@ -201,6 +226,7 @@ export class ArenaApplication {
 
 	sweep(nowMs: number): readonly Delivery[] {
 		this.#sweepIdentityMutationWindows(nowMs);
+		this.#inventoryUploads.sweep(nowMs);
 		const deliveries: Delivery[] = [];
 		for (const transition of this.#roomDirectory.sweep(nowMs)) {
 			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
@@ -615,6 +641,7 @@ export class ArenaApplication {
 		nowMs: number
 	): readonly Delivery[] {
 		if (this.#connections.get(connection.connectionId) !== connection) return [];
+		this.#inventoryUploads.abortConnection(connection.connectionId);
 		this.#connections.delete(connection.connectionId);
 		const transition =
 			connection.phase === 'room_bound'

@@ -11,4 +11,9 @@ export type Delivery =
 			connectionId: string;
 			code: number;
 			reason: string;
+	  }>
+	| Readonly<{
+			kind: 'send_binary';
+			connectionIds: readonly string[];
+			bytes: Uint8Array;
 	  }>;

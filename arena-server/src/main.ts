@@ -1,6 +1,7 @@
 import { ArenaApplication } from './application/arena-application.ts';
 import { JoseTicketVerifier } from './auth/jose-ticket-verifier.ts';
 import { loadArenaConfig } from './config.ts';
+import { InventoryUploadManager } from './inventory/inventory-upload-manager.ts';
 import { BunPasswordHasher } from './rooms/bun-password-hasher.ts';
 import { createRoomDirectory } from './rooms/room-directory.ts';
 import {
@@ -37,7 +38,12 @@ export function startProductionArenaServer(
 		ticketVerifier,
 		roomDirectory,
 		now: Date.now,
-		newNonce: () => crypto.randomUUID()
+		newNonce: () => crypto.randomUUID(),
+		inventoryUploadManager: new InventoryUploadManager({
+			uploadTimeoutMs: config.inventoryUploadTimeoutMs,
+			maxPendingBytes: config.maxPendingInventoryBytes,
+			maxCommittedBytes: config.maxCommittedInventoryBytes
+		})
 	});
 	const handle = startArenaServer({ application, config, logger: structuredLogger });
 	structuredLogger('info', 'server_started', { host: config.host, port: handle.port });

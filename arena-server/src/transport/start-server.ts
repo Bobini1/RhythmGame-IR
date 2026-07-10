@@ -51,6 +51,7 @@ export type ArenaServerHandle = Readonly<{
 
 type SocketAction =
 	| Readonly<{ kind: 'send'; encoded: string }>
+	| Readonly<{ kind: 'send_binary'; bytes: Uint8Array }>
 	| Readonly<{ kind: 'close'; code: number; reason: string }>;
 
 export function startArenaServer(options: StartArenaServerOptions): ArenaServerHandle {
@@ -113,6 +114,13 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				}
 				continue;
 			}
+			if (delivery.kind === 'send_binary') {
+				for (const connectionId of delivery.connectionIds) {
+					const socket = sockets.get(connectionId);
+					if (socket !== undefined) append(socket, { kind: 'send_binary', bytes: delivery.bytes });
+				}
+				continue;
+			}
 			const socket = sockets.get(delivery.connectionId);
 			if (socket !== undefined) {
 				append(socket, { kind: 'close', code: delivery.code, reason: delivery.reason });
@@ -129,7 +137,8 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						break;
 					}
 					if (socket.data.closing) continue;
-					const result = socket.send(action.encoded);
+					const result =
+						action.kind === 'send' ? socket.send(action.encoded) : socket.send(action.bytes, true);
 					if (result === -1) socket.data.backpressured = true;
 					else if (result === 0) {
 						logger('warn', 'websocket_send_dropped', {
@@ -238,32 +247,30 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
 					return;
 				}
-				if (typeof frame !== 'string') {
-					disconnectAndClose(
-						socket,
-						1003,
-						'unexpected_binary',
-						createFatalError('unexpected_binary')
-					);
-					return;
-				}
 				if (socket.data.queuedFrames >= MAX_QUEUED_FRAMES) {
 					disconnectAndClose(socket, 1008, 'rate_limited');
 					return;
 				}
 
 				socket.data.queuedFrames += 1;
+				const ownedFrame = typeof frame === 'string' ? frame : Uint8Array.from(frame);
 				const work = socket.data.receiveTail.then(async () => {
 					if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
 						return;
 					}
 					try {
-						const message = decodeClientMessage(frame);
-						const deliveries = await options.application.receive(
-							socket.data.connectionId,
-							message,
-							now()
-						);
+						const deliveries =
+							typeof ownedFrame === 'string'
+								? await options.application.receive(
+										socket.data.connectionId,
+										decodeClientMessage(ownedFrame),
+										now()
+									)
+								: await options.application.receiveBinary(
+										socket.data.connectionId,
+										ownedFrame,
+										now()
+									);
 						if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
 							return;
 						}

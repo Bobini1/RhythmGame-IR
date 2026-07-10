@@ -14,7 +14,10 @@ describe('loadArenaConfig', () => {
 			arenaAudience: 'https://arena.rhythmgame.eu',
 			reconnectGraceMs: 60_000,
 			roomCapacity: 16,
-			chatBacklog: 200
+			chatBacklog: 200,
+			inventoryUploadTimeoutMs: 60_000,
+			maxPendingInventoryBytes: 128 * 1024 * 1024,
+			maxCommittedInventoryBytes: 512 * 1024 * 1024
 		});
 	});
 
@@ -27,12 +30,18 @@ describe('loadArenaConfig', () => {
 			ARENA_AUDIENCE: 'http://127.0.0.1:3001',
 			RECONNECT_GRACE_MS: '90000',
 			ROOM_CAPACITY: '16',
-			CHAT_BACKLOG: '300'
+			CHAT_BACKLOG: '300',
+			INVENTORY_UPLOAD_TIMEOUT_MS: '45000',
+			MAX_PENDING_INVENTORY_BYTES: '67108864',
+			MAX_COMMITTED_INVENTORY_BYTES: '268435456'
 		});
 
 		expect(config.port).toBe(4100);
 		expect(config.reconnectGraceMs).toBe(90_000);
 		expect(config.chatBacklog).toBe(300);
+		expect(config.inventoryUploadTimeoutMs).toBe(45_000);
+		expect(config.maxPendingInventoryBytes).toBe(64 * 1024 * 1024);
+		expect(config.maxCommittedInventoryBytes).toBe(256 * 1024 * 1024);
 	});
 
 	test.each(['0', '-1', '65536', '3001.5'])('rejects an invalid port value %s', (port) => {
@@ -93,4 +102,17 @@ describe('loadArenaConfig', () => {
 			expect(() => loadArenaConfig({ CHAT_BACKLOG: chatBacklog })).toThrow();
 		}
 	);
+
+	test('rejects unsafe inventory timeout and process budgets', () => {
+		for (const environment of [
+			{ INVENTORY_UPLOAD_TIMEOUT_MS: '999' },
+			{ INVENTORY_UPLOAD_TIMEOUT_MS: '300001' },
+			{ MAX_PENDING_INVENTORY_BYTES: '0' },
+			{ MAX_PENDING_INVENTORY_BYTES: '536870913' },
+			{ MAX_COMMITTED_INVENTORY_BYTES: '0' },
+			{ MAX_COMMITTED_INVENTORY_BYTES: '2147483649' }
+		]) {
+			expect(() => loadArenaConfig(environment)).toThrow();
+		}
+	});
 });

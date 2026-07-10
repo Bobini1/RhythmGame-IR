@@ -5,6 +5,9 @@ export const FIXED_ROOM_CAPACITY = 16;
 export const MIN_RECONNECT_GRACE_MS = 10_000;
 export const MAX_RECONNECT_GRACE_MS = 5 * 60_000;
 export const MAX_CHAT_BACKLOG = 1_000;
+export const DEFAULT_INVENTORY_UPLOAD_TIMEOUT_MS = 60_000;
+export const DEFAULT_MAX_PENDING_INVENTORY_BYTES = 128 * 1024 * 1024;
+export const DEFAULT_MAX_COMMITTED_INVENTORY_BYTES = 512 * 1024 * 1024;
 
 const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
 
@@ -39,7 +42,25 @@ const environmentSchema = z.object({
 			message: `ROOM_CAPACITY must be ${FIXED_ROOM_CAPACITY} in protocol 1.0`
 		})
 		.default(FIXED_ROOM_CAPACITY),
-	CHAT_BACKLOG: z.coerce.number().int().min(1).max(MAX_CHAT_BACKLOG).default(200)
+	CHAT_BACKLOG: z.coerce.number().int().min(1).max(MAX_CHAT_BACKLOG).default(200),
+	INVENTORY_UPLOAD_TIMEOUT_MS: z.coerce
+		.number()
+		.int()
+		.min(1_000)
+		.max(5 * 60_000)
+		.default(DEFAULT_INVENTORY_UPLOAD_TIMEOUT_MS),
+	MAX_PENDING_INVENTORY_BYTES: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(512 * 1024 * 1024)
+		.default(DEFAULT_MAX_PENDING_INVENTORY_BYTES),
+	MAX_COMMITTED_INVENTORY_BYTES: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(2 * 1024 * 1024 * 1024)
+		.default(DEFAULT_MAX_COMMITTED_INVENTORY_BYTES)
 });
 
 export type ArenaConfig = Readonly<{
@@ -51,6 +72,9 @@ export type ArenaConfig = Readonly<{
 	reconnectGraceMs: number;
 	roomCapacity: typeof FIXED_ROOM_CAPACITY;
 	chatBacklog: number;
+	inventoryUploadTimeoutMs: number;
+	maxPendingInventoryBytes: number;
+	maxCommittedInventoryBytes: number;
 }>;
 
 export function loadArenaConfig(
@@ -66,6 +90,9 @@ export function loadArenaConfig(
 		arenaAudience: parsed.ARENA_AUDIENCE,
 		reconnectGraceMs: parsed.RECONNECT_GRACE_MS,
 		roomCapacity: parsed.ROOM_CAPACITY,
-		chatBacklog: parsed.CHAT_BACKLOG
+		chatBacklog: parsed.CHAT_BACKLOG,
+		inventoryUploadTimeoutMs: parsed.INVENTORY_UPLOAD_TIMEOUT_MS,
+		maxPendingInventoryBytes: parsed.MAX_PENDING_INVENTORY_BYTES,
+		maxCommittedInventoryBytes: parsed.MAX_COMMITTED_INVENTORY_BYTES
 	};
 }

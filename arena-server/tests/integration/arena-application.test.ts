@@ -142,6 +142,33 @@ function snapshotFrom(
 }
 
 describe('ArenaApplication connection protocol', () => {
+	test('treats binary before an expected room upload as fatal without reflecting bytes', async () => {
+		const { application } = createApplication();
+		application.connect('binary-before-hello');
+		const secretBytes = Uint8Array.from([0xde, 0xad, 0xbe, 0xef]);
+		const deliveries = await application.receiveBinary('binary-before-hello', secretBytes, NOW);
+		expect(deliveries).toEqual([
+			{
+				kind: 'send',
+				connectionIds: ['binary-before-hello'],
+				message: {
+					type: 'fatal_error',
+					data: {
+						code: 'unexpected_binary',
+						displayMessageKey: 'arena.error.unexpectedBinary'
+					}
+				}
+			},
+			{
+				kind: 'close',
+				connectionId: 'binary-before-hello',
+				code: 1003,
+				reason: 'unexpected_binary'
+			}
+		]);
+		expect(JSON.stringify(deliveries)).not.toContain('deadbeef');
+	});
+
 	test('requires client_hello first and accepts it only once', async () => {
 		const { application } = createApplication();
 		application.connect('c1');
