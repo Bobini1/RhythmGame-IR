@@ -291,6 +291,35 @@ async function authenticatedClient(url: string, ticket: string): Promise<SplitPr
 }
 
 describe('Arena WebSocket gateway', () => {
+	test('honors forwarded clients only through a configured trusted proxy network', async () => {
+		handle = startTestServer(new TestTicketVerifier(), {
+			TRUSTED_PROXY_CIDRS: '127.0.0.0/8',
+			UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE: '1'
+		});
+		const request = (forwardedFor: string) =>
+			fetch(`http://127.0.0.1:${handle!.port}/ws`, {
+				headers: { 'X-Forwarded-For': forwardedFor }
+			});
+
+		expect((await request('198.51.100.1')).status).toBe(426);
+		expect((await request('198.51.100.1')).status).toBe(429);
+		expect((await request('198.51.100.2')).status).toBe(426);
+	});
+
+	test.skipIf(process.platform === 'win32')(
+		'policy-closes an incomplete hello and releases its global lease',
+		async () => {
+			handle = startTestServer(new TestTicketVerifier(), {
+				CLIENT_HELLO_TIMEOUT_MS: '1000',
+				MAX_CONNECTIONS: '1'
+			});
+			const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);
+
+			expect(await client.closed()).toEqual({ code: 1008, reason: 'hello_timeout' });
+			expect((await fetch(`http://127.0.0.1:${handle.port}/ws`)).status).toBe(426);
+		}
+	);
+
 	test('returns HTTP 503 before allocating application state over the connection cap', async () => {
 		handle = startTestServer(new TestTicketVerifier(), { MAX_CONNECTIONS: '1' });
 		const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);

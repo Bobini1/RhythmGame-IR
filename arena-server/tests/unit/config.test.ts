@@ -20,7 +20,12 @@ describe('loadArenaConfig', () => {
 			maxCommittedInventoryBytes: 512 * 1024 * 1024,
 			maxRooms: 1_000,
 			maxConnections: 5_000,
-			telemetryIntervalMs: 200
+			telemetryIntervalMs: 200,
+			trustedProxyCidrs: [],
+			upgradeAttemptsPerAddressPerMinute: 120,
+			maxConnectionsPerAddress: 20,
+			clientHelloTimeoutMs: 10_000,
+			maxTrackedAddresses: 20_000
 		});
 	});
 
@@ -39,7 +44,12 @@ describe('loadArenaConfig', () => {
 			MAX_COMMITTED_INVENTORY_BYTES: '268435456',
 			MAX_ROOMS: '750',
 			MAX_CONNECTIONS: '4000',
-			TELEMETRY_INTERVAL_MS: '200'
+			TELEMETRY_INTERVAL_MS: '200',
+			TRUSTED_PROXY_CIDRS: '10.1.2.3/8,2001:0db8::/32',
+			UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE: '240',
+			MAX_CONNECTIONS_PER_ADDRESS: '12',
+			CLIENT_HELLO_TIMEOUT_MS: '15000',
+			MAX_TRACKED_ADDRESSES: '10000'
 		});
 
 		expect(config.port).toBe(4100);
@@ -51,6 +61,40 @@ describe('loadArenaConfig', () => {
 		expect(config.maxRooms).toBe(750);
 		expect(config.maxConnections).toBe(4_000);
 		expect(config.telemetryIntervalMs).toBe(200);
+		expect(config.trustedProxyCidrs).toEqual(['10.0.0.0/8', '2001:db8::/32']);
+		expect(config.upgradeAttemptsPerAddressPerMinute).toBe(240);
+		expect(config.maxConnectionsPerAddress).toBe(12);
+		expect(config.clientHelloTimeoutMs).toBe(15_000);
+		expect(config.maxTrackedAddresses).toBe(10_000);
+	});
+
+	test('rejects malformed, duplicate, or globally broad trusted proxy networks', () => {
+		for (const value of [
+			'not-a-network',
+			'0.0.0.0/0',
+			'::/0',
+			'10.0.0.0/8,10.2.3.4/8',
+			'10.0.0.0/8,',
+			'203.0.113.7/SECRET'
+		]) {
+			try {
+				loadArenaConfig({ TRUSTED_PROXY_CIDRS: value });
+				throw new Error('expected rejection');
+			} catch (error) {
+				expect(String(error)).not.toContain(value);
+			}
+		}
+	});
+
+	test('rejects unsafe address admission capacities', () => {
+		for (const environment of [
+			{ UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE: '0' },
+			{ MAX_CONNECTIONS_PER_ADDRESS: '0' },
+			{ CLIENT_HELLO_TIMEOUT_MS: '999' },
+			{ MAX_TRACKED_ADDRESSES: '0' }
+		]) {
+			expect(() => loadArenaConfig(environment)).toThrow();
+		}
 	});
 
 	test('rejects unsafe process capacities and a noncanonical telemetry interval', () => {

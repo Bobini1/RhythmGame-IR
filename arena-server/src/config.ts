@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { parseTrustedProxyCidrs } from './transport/client-address.ts';
+
 export const DEFAULT_ARENA_PORT = 3001;
 export const FIXED_ROOM_CAPACITY = 16;
 export const MIN_RECONNECT_GRACE_MS = 10_000;
@@ -11,6 +13,10 @@ export const DEFAULT_MAX_COMMITTED_INVENTORY_BYTES = 512 * 1024 * 1024;
 export const DEFAULT_MAX_ROOMS = 1_000;
 export const DEFAULT_MAX_CONNECTIONS = 5_000;
 export const DEFAULT_TELEMETRY_INTERVAL_MS = 200;
+export const DEFAULT_UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE = 120;
+export const DEFAULT_MAX_CONNECTIONS_PER_ADDRESS = 20;
+export const DEFAULT_CLIENT_HELLO_TIMEOUT_MS = 10_000;
+export const DEFAULT_MAX_TRACKED_ADDRESSES = 20_000;
 
 const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
 
@@ -72,7 +78,42 @@ const environmentSchema = z.object({
 		.refine((value) => value === DEFAULT_TELEMETRY_INTERVAL_MS, {
 			message: `TELEMETRY_INTERVAL_MS must be ${DEFAULT_TELEMETRY_INTERVAL_MS}`
 		})
-		.default(DEFAULT_TELEMETRY_INTERVAL_MS)
+		.default(DEFAULT_TELEMETRY_INTERVAL_MS),
+	TRUSTED_PROXY_CIDRS: z
+		.string()
+		.default('')
+		.transform((value, context) => {
+			try {
+				return parseTrustedProxyCidrs(value);
+			} catch {
+				context.addIssue({ code: 'custom', message: 'Invalid trusted proxy CIDR configuration' });
+				return z.NEVER;
+			}
+		}),
+	UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(10_000)
+		.default(DEFAULT_UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE),
+	MAX_CONNECTIONS_PER_ADDRESS: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(1_000)
+		.default(DEFAULT_MAX_CONNECTIONS_PER_ADDRESS),
+	CLIENT_HELLO_TIMEOUT_MS: z.coerce
+		.number()
+		.int()
+		.min(1_000)
+		.max(60_000)
+		.default(DEFAULT_CLIENT_HELLO_TIMEOUT_MS),
+	MAX_TRACKED_ADDRESSES: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(1_000_000)
+		.default(DEFAULT_MAX_TRACKED_ADDRESSES)
 });
 
 export type ArenaConfig = Readonly<{
@@ -90,13 +131,17 @@ export type ArenaConfig = Readonly<{
 	maxRooms: number;
 	maxConnections: number;
 	telemetryIntervalMs: typeof DEFAULT_TELEMETRY_INTERVAL_MS;
+	trustedProxyCidrs: readonly string[];
+	upgradeAttemptsPerAddressPerMinute: number;
+	maxConnectionsPerAddress: number;
+	clientHelloTimeoutMs: number;
+	maxTrackedAddresses: number;
 }>;
 
 export function loadArenaConfig(
 	environment: Record<string, string | undefined> = Bun.env
 ): ArenaConfig {
 	const parsed = environmentSchema.parse(environment);
-
 	return {
 		host: parsed.HOST,
 		port: parsed.PORT,
@@ -111,6 +156,11 @@ export function loadArenaConfig(
 		maxCommittedInventoryBytes: parsed.MAX_COMMITTED_INVENTORY_BYTES,
 		maxRooms: parsed.MAX_ROOMS,
 		maxConnections: parsed.MAX_CONNECTIONS,
-		telemetryIntervalMs: parsed.TELEMETRY_INTERVAL_MS
+		telemetryIntervalMs: parsed.TELEMETRY_INTERVAL_MS,
+		trustedProxyCidrs: parsed.TRUSTED_PROXY_CIDRS,
+		upgradeAttemptsPerAddressPerMinute: parsed.UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE,
+		maxConnectionsPerAddress: parsed.MAX_CONNECTIONS_PER_ADDRESS,
+		clientHelloTimeoutMs: parsed.CLIENT_HELLO_TIMEOUT_MS,
+		maxTrackedAddresses: parsed.MAX_TRACKED_ADDRESSES
 	};
 }

@@ -9,6 +9,11 @@ import {
 	PROTOCOL_MINOR,
 	type ServerMessage
 } from '../protocol/messages.ts';
+import { createClientAddressResolver, type ClientAddressResolver } from './client-address.ts';
+import {
+	createConnectionAdmission,
+	type ConnectionAdmissionController
+} from './connection-admission.ts';
 
 const DEFAULT_MAINTENANCE_INTERVAL_MS = 1_000;
 const DEFAULT_SHUTDOWN_DRAIN_MS = 250;
@@ -18,7 +23,7 @@ const DEFAULT_PEER_UPGRADE_POLICY = { maxAttempts: 6_000, windowMs: 60_000 } as 
 
 export type SocketData = {
 	readonly connectionId: string;
-	readonly peerKey: string;
+	readonly admissionLeaseId: string;
 	receiveTail: Promise<void>;
 	queuedFrames: number;
 	closing: boolean;
@@ -41,6 +46,8 @@ export type StartArenaServerOptions = Readonly<{
 	newConnectionId?: () => string;
 	logger?: ArenaLogger;
 	peerUpgradePolicy?: Readonly<{ maxAttempts: number; windowMs: number }>;
+	clientAddressResolver?: ClientAddressResolver;
+	connectionAdmission?: ConnectionAdmissionController;
 }>;
 
 export type ArenaServerHandle = Readonly<{
@@ -89,30 +96,33 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	) {
 		throw new Error('Invalid Arena peer-upgrade policy.');
 	}
+	const clientAddressResolver =
+		options.clientAddressResolver ?? createClientAddressResolver(options.config.trustedProxyCidrs);
+	const connectionAdmission =
+		options.connectionAdmission ??
+		createConnectionAdmission({
+			maxAttemptsPerMinute:
+				options.peerUpgradePolicy?.maxAttempts ?? options.config.upgradeAttemptsPerAddressPerMinute,
+			maxConnectionsPerAddress: options.config.maxConnectionsPerAddress,
+			helloTimeoutMs: options.config.clientHelloTimeoutMs,
+			maxTrackedAddresses: options.config.maxTrackedAddresses,
+			maxConnections: options.config.maxConnections,
+			...(options.peerUpgradePolicy === undefined
+				? {}
+				: { windowMs: options.peerUpgradePolicy.windowMs })
+		});
 	const sockets = new Map<string, Bun.ServerWebSocket<SocketData>>();
-	const connectionSlots = new Set<string>();
-	const peerUpgradeAttempts = new Map<string, number[]>();
+	const leaseSockets = new Map<string, Bun.ServerWebSocket<SocketData>>();
 	let shuttingDown = false;
 	let shutdownPromise: Promise<void> | undefined;
 	let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
 	let scheduledDeadlineMs: number | undefined;
 	let rescheduleDeadline = (): void => undefined;
 
-	const consumePeerUpgradeAttempt = (peerKey: string, nowMs: number): boolean => {
-		const active = (peerUpgradeAttempts.get(peerKey) ?? []).filter(
-			(timestamp) => timestamp > nowMs - peerUpgradePolicy.windowMs
-		);
-		peerUpgradeAttempts.set(peerKey, active);
-		if (active.length >= peerUpgradePolicy.maxAttempts) return false;
-		active.push(nowMs);
-		return true;
-	};
-
-	const sweepPeerUpgradeAttempts = (nowMs: number): void => {
-		for (const [peerKey, attempts] of peerUpgradeAttempts) {
-			const active = attempts.filter((timestamp) => timestamp > nowMs - peerUpgradePolicy.windowMs);
-			if (active.length === 0) peerUpgradeAttempts.delete(peerKey);
-			else peerUpgradeAttempts.set(peerKey, active);
+	const releaseSocketLease = (socket: Bun.ServerWebSocket<SocketData>): void => {
+		connectionAdmission.release(socket.data.admissionLeaseId);
+		if (leaseSockets.get(socket.data.admissionLeaseId) === socket) {
+			leaseSockets.delete(socket.data.admissionLeaseId);
 		}
 	};
 
@@ -126,6 +136,14 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 
 		for (const delivery of deliveries) {
 			if (delivery.kind === 'send' || delivery.kind === 'send_ephemeral') {
+				if (delivery.message.type === 'server_hello') {
+					for (const connectionId of delivery.connectionIds) {
+						const socket = sockets.get(connectionId);
+						if (socket !== undefined) {
+							connectionAdmission.markHello(socket.data.admissionLeaseId);
+						}
+					}
+				}
 				const encoded = encodeServerMessage(delivery.message);
 				const byteLength = Buffer.byteLength(encoded, 'utf8');
 				for (const connectionId of delivery.connectionIds) {
@@ -206,6 +224,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		message?: ServerMessage
 	): void => {
 		if (socket.data.closing) return;
+		releaseSocketLease(socket);
 		const disconnectDeliveries = options.application.disconnect(socket.data.connectionId, now());
 		applyDeliveries([
 			...(message === undefined
@@ -229,6 +248,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			disconnectAndClose(socket, 1011, 'internal_error');
 		} catch {
 			socket.data.closing = true;
+			releaseSocketLease(socket);
 			safeLog('error', 'websocket_internal_cleanup_failed', {
 				connectionId: socket.data.connectionId
 			});
@@ -256,28 +276,30 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			}
 			if (shuttingDown) return new Response(null, { status: 503 });
 			if (url.search.length > 0) return new Response(null, { status: 400 });
-			if (connectionSlots.size >= options.config.maxConnections) {
-				return new Response(null, { status: 503 });
-			}
-
-			const peerKey = bunServer.requestIP(request)?.address ?? 'unknown-peer';
-			if (!consumePeerUpgradeAttempt(peerKey, now())) {
+			const address = clientAddressResolver.resolve({
+				directPeer: bunServer.requestIP(request)?.address ?? '',
+				forwardedFor: request.headers.get('x-forwarded-for')
+			});
+			const admission = connectionAdmission.attemptUpgrade(address, now());
+			if (!admission.accepted) {
 				return new Response(null, {
-					status: 429,
-					headers: {
-						'Retry-After': String(Math.ceil(peerUpgradePolicy.windowMs / 1_000))
-					}
+					status: admission.status,
+					...(admission.status === 429
+						? { headers: { 'Retry-After': String(Math.ceil(peerUpgradePolicy.windowMs / 1_000)) } }
+						: {})
 				});
 			}
 			const connectionId = newConnectionId();
-			if (connectionSlots.has(connectionId)) return new Response(null, { status: 503 });
-			connectionSlots.add(connectionId);
+			if (sockets.has(connectionId)) {
+				connectionAdmission.release(admission.leaseId);
+				return new Response(null, { status: 503 });
+			}
 			let upgraded: boolean;
 			try {
 				upgraded = bunServer.upgrade(request, {
 					data: {
 						connectionId,
-						peerKey,
+						admissionLeaseId: admission.leaseId,
 						receiveTail: Promise.resolve(),
 						queuedFrames: 0,
 						closing: false,
@@ -285,16 +307,17 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 					}
 				});
 			} catch (error) {
-				connectionSlots.delete(connectionId);
+				connectionAdmission.release(admission.leaseId);
 				throw error;
 			}
 			if (upgraded) return undefined;
-			connectionSlots.delete(connectionId);
+			connectionAdmission.release(admission.leaseId);
 			return new Response(null, { status: 426, headers: { Upgrade: 'websocket' } });
 		},
 		websocket: {
 			open(socket) {
 				sockets.set(socket.data.connectionId, socket);
+				leaseSockets.set(socket.data.admissionLeaseId, socket);
 				try {
 					applyDeliveries(options.application.connect(socket.data.connectionId));
 					rescheduleDeadline();
@@ -354,9 +377,9 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				socket.data.ephemeralBlocked = false;
 			},
 			close(socket) {
+				releaseSocketLease(socket);
 				if (sockets.get(socket.data.connectionId) !== socket) return;
 				sockets.delete(socket.data.connectionId);
-				connectionSlots.delete(socket.data.connectionId);
 				socket.data.closing = true;
 				try {
 					applyDeliveries(options.application.disconnect(socket.data.connectionId, now()));
@@ -377,7 +400,14 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 
 	rescheduleDeadline = (): void => {
 		if (shuttingDown) return;
-		const nextDeadlineMs = options.application.nextDeadlineMs();
+		const applicationDeadlineMs = options.application.nextDeadlineMs();
+		const admissionDeadlineMs = connectionAdmission.nextHelloDeadlineMs();
+		const nextDeadlineMs =
+			applicationDeadlineMs === undefined
+				? admissionDeadlineMs
+				: admissionDeadlineMs === undefined
+					? applicationDeadlineMs
+					: Math.min(applicationDeadlineMs, admissionDeadlineMs);
 		if (nextDeadlineMs === scheduledDeadlineMs && deadlineTimer !== undefined) return;
 		if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
 		deadlineTimer = undefined;
@@ -389,6 +419,10 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				scheduledDeadlineMs = undefined;
 				if (shuttingDown) return;
 				try {
+					for (const expired of connectionAdmission.sweep(now())) {
+						const socket = leaseSockets.get(expired.leaseId);
+						if (socket !== undefined) disconnectAndClose(socket, 1008, expired.reason);
+					}
 					applyDeliveries(options.application.sweep(now()));
 				} catch {
 					safeLog('error', 'deadline_sweep_failed');
@@ -406,7 +440,10 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		if (shuttingDown) return;
 		try {
 			const nowMs = now();
-			sweepPeerUpgradeAttempts(nowMs);
+			for (const expired of connectionAdmission.sweep(nowMs)) {
+				const socket = leaseSockets.get(expired.leaseId);
+				if (socket !== undefined) disconnectAndClose(socket, 1008, expired.reason);
+			}
 			applyDeliveries(options.application.sweep(nowMs));
 			rescheduleDeadline();
 		} catch {
@@ -425,6 +462,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	const shutdown = (shutdownOptions: Readonly<{ drainMs?: number }> = {}): Promise<void> => {
 		if (shutdownPromise !== undefined) return shutdownPromise;
 		shuttingDown = true;
+		connectionAdmission.beginShutdown();
 		clearInterval(maintenanceTimer);
 		if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
 		deadlineTimer = undefined;
@@ -451,10 +489,13 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			for (const [connectionId, socket] of [...sockets]) {
 				if (sockets.get(connectionId) !== socket) continue;
 				options.application.disconnect(connectionId, now());
+				releaseSocketLease(socket);
 				socket.data.closing = true;
 				socket.close(1012, 'server_restart');
 			}
 			sockets.clear();
+			leaseSockets.clear();
+			connectionAdmission.releaseAll();
 			await server.stop(true);
 			safeLog('info', 'server_stopped', { activeConnections: connectionIds.length });
 		})();
