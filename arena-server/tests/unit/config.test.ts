@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { loadArenaConfig } from '../../src/config.ts';
 
 describe('loadArenaConfig', () => {
-	test('uses the Phase 1 production defaults', () => {
+	test('uses the production process and competition defaults', () => {
 		const config = loadArenaConfig({});
 
 		expect(config).toEqual({
@@ -17,7 +17,10 @@ describe('loadArenaConfig', () => {
 			chatBacklog: 200,
 			inventoryUploadTimeoutMs: 60_000,
 			maxPendingInventoryBytes: 128 * 1024 * 1024,
-			maxCommittedInventoryBytes: 512 * 1024 * 1024
+			maxCommittedInventoryBytes: 512 * 1024 * 1024,
+			maxRooms: 1_000,
+			maxConnections: 5_000,
+			telemetryIntervalMs: 200
 		});
 	});
 
@@ -33,7 +36,10 @@ describe('loadArenaConfig', () => {
 			CHAT_BACKLOG: '300',
 			INVENTORY_UPLOAD_TIMEOUT_MS: '45000',
 			MAX_PENDING_INVENTORY_BYTES: '67108864',
-			MAX_COMMITTED_INVENTORY_BYTES: '268435456'
+			MAX_COMMITTED_INVENTORY_BYTES: '268435456',
+			MAX_ROOMS: '750',
+			MAX_CONNECTIONS: '4000',
+			TELEMETRY_INTERVAL_MS: '200'
 		});
 
 		expect(config.port).toBe(4100);
@@ -42,6 +48,20 @@ describe('loadArenaConfig', () => {
 		expect(config.inventoryUploadTimeoutMs).toBe(45_000);
 		expect(config.maxPendingInventoryBytes).toBe(64 * 1024 * 1024);
 		expect(config.maxCommittedInventoryBytes).toBe(256 * 1024 * 1024);
+		expect(config.maxRooms).toBe(750);
+		expect(config.maxConnections).toBe(4_000);
+		expect(config.telemetryIntervalMs).toBe(200);
+	});
+
+	test('rejects unsafe process capacities and a noncanonical telemetry interval', () => {
+		for (const environment of [
+			{ MAX_ROOMS: '0' },
+			{ MAX_CONNECTIONS: '0' },
+			{ TELEMETRY_INTERVAL_MS: '199' },
+			{ TELEMETRY_INTERVAL_MS: '201' }
+		]) {
+			expect(() => loadArenaConfig(environment)).toThrow();
+		}
 	});
 
 	test.each(['0', '-1', '65536', '3001.5'])('rejects an invalid port value %s', (port) => {

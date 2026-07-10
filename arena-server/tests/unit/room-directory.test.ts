@@ -28,6 +28,35 @@ function createDirectory(): RoomDirectory {
 }
 
 describe('RoomDirectory lifecycle', () => {
+	test('rejects room creation beyond the configured process capacity', async () => {
+		let entropy = 1;
+		const directory = createRoomDirectoryWithEntropy(
+			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200, maxRooms: 1 },
+			new FakePasswordHasher(),
+			(length) => new Uint8Array(length).fill(entropy++)
+		);
+		const first = await directory.create({ connectionId: 'c1', identity, name: 'First' });
+		expect(first.ok).toBe(true);
+		expect(
+			await directory.create({
+				connectionId: 'c2',
+				identity: { userId: 'u2', displayName: 'Bob', avatarUrl: null },
+				name: 'Second'
+			})
+		).toEqual({ ok: false, rejection: { code: 'server_capacity' } });
+		if (!first.ok) return;
+		directory.leave(first.value.binding, 1);
+		expect(
+			(
+				await directory.create({
+					connectionId: 'c3',
+					identity: { userId: 'u3', displayName: 'Carol', avatarUrl: null },
+					name: 'Replacement'
+				})
+			).ok
+		).toBe(true);
+	});
+
 	test('creates a private admission and an exact anonymous summary atomically', async () => {
 		const directory = createDirectory();
 		expect(directory.list()).toEqual({ revision: 0, rooms: [] });

@@ -9,7 +9,11 @@ import { loadArenaConfig } from '../../src/config.ts';
 import { encodeHashChunk } from '../../src/protocol/binary.ts';
 import type { ClientMessage, ServerMessage } from '../../src/protocol/messages.ts';
 import { createRoomDirectory } from '../../src/rooms/room-directory.ts';
-import { startArenaServer, type ArenaServerHandle } from '../../src/transport/start-server.ts';
+import {
+	startArenaServer,
+	type ArenaLogger,
+	type ArenaServerHandle
+} from '../../src/transport/start-server.ts';
 import { FakePasswordHasher } from '../helpers/fake-password-hasher.ts';
 
 type ClientEvent =
@@ -235,7 +239,11 @@ function verifiedTicket(identity: ArenaIdentity, ticket: string, now: Date): Ver
 	};
 }
 
-function startTestServer(verifier: TicketVerifier = new TestTicketVerifier()): ArenaServerHandle {
+function startTestServer(
+	verifier: TicketVerifier = new TestTicketVerifier(),
+	environment: Record<string, string | undefined> = {},
+	logger?: ArenaLogger
+): ArenaServerHandle {
 	return startArenaServer({
 		application: new ArenaApplication({
 			ticketVerifier: verifier,
@@ -246,9 +254,10 @@ function startTestServer(verifier: TicketVerifier = new TestTicketVerifier()): A
 			now: Date.now,
 			newNonce: () => crypto.randomUUID()
 		}),
-		config: loadArenaConfig({ HOST: '127.0.0.1' }),
+		config: loadArenaConfig({ HOST: '127.0.0.1', ...environment }),
 		portOverride: 0,
-		maintenanceIntervalMs: 60_000
+		maintenanceIntervalMs: 60_000,
+		...(logger === undefined ? {} : { logger })
 	});
 }
 
@@ -282,6 +291,99 @@ async function authenticatedClient(url: string, ticket: string): Promise<SplitPr
 }
 
 describe('Arena WebSocket gateway', () => {
+	test('returns HTTP 503 before allocating application state over the connection cap', async () => {
+		handle = startTestServer(new TestTicketVerifier(), { MAX_CONNECTIONS: '1' });
+		const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);
+		expect((await fetch(`http://127.0.0.1:${handle.port}/healthz`)).status).toBe(200);
+		const capped = await fetch(`http://127.0.0.1:${handle.port}/ws`);
+		expect(capped.status).toBe(503);
+		client.close();
+		await client.closed();
+		const released = await fetch(`http://127.0.0.1:${handle.port}/ws`);
+		expect(released.status).toBe(426);
+	});
+
+	test('never logs ticket, identity, room, chat, telemetry, or result payloads', async () => {
+		const captured: unknown[] = [];
+		handle = startTestServer(new TestTicketVerifier(), {}, (level, event, fields) =>
+			captured.push({ level, event, fields })
+		);
+		const client = await authenticatedClient(
+			`ws://127.0.0.1:${handle.port}/ws`,
+			'alice-SENTINEL-CREDENTIAL'
+		);
+		client.send({
+			type: 'room_create',
+			requestId: 'privacy-create',
+			data: { name: 'SENTINEL-ROOM' }
+		});
+		const snapshot = await client.nextMessage('room_snapshot');
+		if (!('selection' in snapshot.data)) throw new Error('competition snapshot missing');
+		const binding = {
+			roomId: snapshot.data.roomId,
+			roomGeneration: snapshot.data.roomGeneration,
+			connectionGeneration: snapshot.data.self.connectionGeneration
+		};
+		client.send({
+			type: 'round_telemetry',
+			data: {
+				...binding,
+				roundId: 'SENTINEL-ROUND-ID',
+				launchAttemptId: 'SENTINEL-ATTEMPT-ID',
+				telemetry: {
+					sequence: 1,
+					exScore: 2_468,
+					progressPermille: 500,
+					maxCombo: 1_234,
+					badPoorCount: 0,
+					judgements: { perfect: 1_234, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+					gauge: { type: 'normal', valueMilli: 54_321 },
+					playStatus: 'playing'
+				}
+			}
+		});
+		client.send({
+			type: 'round_result_submit',
+			requestId: 'privacy-result',
+			data: {
+				...binding,
+				roundId: 'SENTINEL-ROUND-ID',
+				launchAttemptId: 'SENTINEL-ATTEMPT-ID',
+				result: {
+					exScore: 2_468,
+					maxCombo: 1_234,
+					badPoorCount: 0,
+					judgements: { perfect: 1_234, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+					clearType: 'normal',
+					finalGauge: { type: 'normal', valueMilli: 54_321 }
+				}
+			}
+		});
+		await client.nextMessage('command_error');
+		client.send({
+			type: 'chat_send',
+			requestId: 'privacy-chat',
+			data: { ...binding, text: 'SENTINEL-CHAT' }
+		});
+		await client.nextMessage('chat_message');
+		client.close();
+		await client.closed();
+		await handle.shutdown({ drainMs: 0 });
+		handle = undefined;
+		const encoded = JSON.stringify(captured);
+		for (const sentinel of [
+			'SENTINEL-CREDENTIAL',
+			'SENTINEL-ROOM',
+			'SENTINEL-CHAT',
+			'SENTINEL-ROUND-ID',
+			'2468',
+			'54321',
+			'Alice'
+		]) {
+			expect(encoded).not.toContain(sentinel);
+		}
+	});
+
 	test('upgrades the exact path and serializes anonymous hello before directory state', async () => {
 		handle = startTestServer();
 		const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);
@@ -634,6 +736,49 @@ describe('Arena WebSocket gateway', () => {
 		const scheduled = await client.nextMessage('round_start_scheduled');
 		expect(scheduled.data.startAfterMs).toBeGreaterThanOrEqual(1_999);
 		expect((await client.nextMessage('round_started')).data.roundId).toBe(probe.data.roundId);
+		await client.nextMessage('round_standings');
+		client.send({
+			type: 'round_telemetry',
+			data: {
+				...binding,
+				roundId: probe.data.roundId,
+				launchAttemptId: probe.data.launchAttemptId,
+				telemetry: {
+					sequence: 1,
+					exScore: 20,
+					progressPermille: 500,
+					maxCombo: 10,
+					badPoorCount: 0,
+					judgements: { perfect: 10, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+					gauge: { type: 'normal', valueMilli: 50_000 },
+					playStatus: 'playing'
+				}
+			}
+		});
+		expect((await client.nextMessage('round_standings')).data.entries[0]).toEqual(
+			expect.objectContaining({ rank: 1, competitionState: 'playing' })
+		);
+		client.send({
+			type: 'round_result_submit',
+			requestId: 'round-final',
+			data: {
+				...binding,
+				roundId: probe.data.roundId,
+				launchAttemptId: probe.data.launchAttemptId,
+				result: {
+					exScore: 20,
+					maxCombo: 10,
+					badPoorCount: 0,
+					judgements: { perfect: 10, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+					clearType: 'normal',
+					finalGauge: { type: 'normal', valueMilli: 60_000 }
+				}
+			}
+		});
+		expect((await client.nextMessage('round_terminal_accepted')).requestId).toBe('round-final');
+		const finalized = await client.nextMessage('round_finalized');
+		expect(finalized.data.result.winnerMemberIds).toEqual([snapshot.data.self.memberId]);
+		expect(finalized.data.members[0]?.lobbyWins).toBe(0);
 	});
 
 	test('accepts an exactly 64 KiB valid text frame', async () => {

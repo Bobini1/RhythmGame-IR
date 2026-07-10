@@ -67,7 +67,8 @@ async function authenticate(application: ArenaApplication, connectionId: string)
 
 function messagesFor(deliveries: readonly Delivery[], connectionId: string): ServerMessage[] {
 	return deliveries.flatMap((delivery) =>
-		delivery.kind === 'send' && delivery.connectionIds.includes(connectionId)
+		(delivery.kind === 'send' || delivery.kind === 'send_ephemeral') &&
+		delivery.connectionIds.includes(connectionId)
 			? [delivery.message]
 			: []
 	);
@@ -346,7 +347,177 @@ describe('Arena round application integration', () => {
 				messagesFor(playing, connectionId).some((message) => message.type === 'round_started')
 			).toBe(true);
 		}
-		expect(application.nextDeadlineMs()).toBe(NOW + 242_020);
+		for (const connectionId of ['alice', 'bob', 'carol']) {
+			expect(
+				messagesFor(playing, connectionId).some((message) => message.type === 'round_standings')
+			).toBe(true);
+		}
+		expect(application.nextDeadlineMs()).toBe(NOW + 20_000);
+
+		const ignoredWaitingTelemetry = await application.receive(
+			'carol',
+			{
+				type: 'round_telemetry',
+				data: {
+					roomId: waitingRoom.roomId,
+					roomGeneration: waitingRoom.roomGeneration,
+					connectionGeneration: waitingRoom.self.connectionGeneration,
+					roundId: round.roundId,
+					launchAttemptId: round.launchAttemptId,
+					telemetry: {
+						sequence: 1,
+						exScore: 0,
+						progressPermille: 0,
+						maxCombo: 0,
+						badPoorCount: 0,
+						judgements: { perfect: 0, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+						gauge: { type: 'normal', valueMilli: 0 },
+						playStatus: 'playing'
+					}
+				}
+			},
+			NOW + 2_021
+		);
+		expect(ignoredWaitingTelemetry).toEqual([]);
+		const rejectedWaitingTerminal = await application.receive(
+			'carol',
+			{
+				type: 'round_abandon',
+				requestId: 'waiting-dnf',
+				data: {
+					roomId: waitingRoom.roomId,
+					roomGeneration: waitingRoom.roomGeneration,
+					connectionGeneration: waitingRoom.self.connectionGeneration,
+					roundId: round.roundId,
+					launchAttemptId: round.launchAttemptId,
+					reason: 'aborted'
+				}
+			},
+			NOW + 2_022
+		);
+		expect(messagesFor(rejectedWaitingTerminal, 'carol')[0]).toEqual(
+			expect.objectContaining({
+				type: 'command_error',
+				requestId: 'waiting-dnf',
+				data: expect.objectContaining({ code: 'round_stale' })
+			})
+		);
+
+		const standings = await application.receive(
+			'alice',
+			{
+				type: 'round_telemetry',
+				data: {
+					roomId: aliceRoom.roomId,
+					roomGeneration: aliceRoom.roomGeneration,
+					connectionGeneration: aliceRoom.self.connectionGeneration,
+					roundId: round.roundId,
+					launchAttemptId: round.launchAttemptId,
+					telemetry: {
+						sequence: 1,
+						exScore: 0,
+						progressPermille: 1,
+						maxCombo: 0,
+						badPoorCount: 0,
+						judgements: { perfect: 0, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+						gauge: { type: 'normal', valueMilli: 1 },
+						playStatus: 'playing'
+					}
+				}
+			},
+			NOW + 2_220
+		);
+		const live = messagesFor(standings, 'carol').find(
+			(message) => message.type === 'round_standings'
+		);
+		expect(standings.some((delivery) => delivery.kind === 'send_ephemeral')).toBe(true);
+		if (live?.type !== 'round_standings') throw new Error('standings missing');
+		expect(live.data.entries[0]).toEqual(
+			expect.objectContaining({ memberId: aliceRoom.self.memberId, rank: 1 })
+		);
+
+		const finalResult = {
+			exScore: 200,
+			maxCombo: 100,
+			badPoorCount: 0,
+			judgements: { perfect: 100, great: 0, good: 0, bad: 0, poor: 0, emptyPoor: 0 },
+			clearType: 'normal' as const,
+			finalGauge: { type: 'normal' as const, valueMilli: 60_000 }
+		};
+		const aliceTerminal = await application.receive(
+			'alice',
+			{
+				type: 'round_result_submit',
+				requestId: 'alice-final',
+				data: {
+					roomId: aliceRoom.roomId,
+					roomGeneration: aliceRoom.roomGeneration,
+					connectionGeneration: aliceRoom.self.connectionGeneration,
+					roundId: round.roundId,
+					launchAttemptId: round.launchAttemptId,
+					result: finalResult
+				}
+			},
+			NOW + 2_221
+		);
+		expect(messagesFor(aliceTerminal, 'alice')[0]?.type).toBe('round_terminal_accepted');
+		const bobTerminal = await application.receive(
+			'bob',
+			{
+				type: 'round_abandon',
+				requestId: 'bob-dnf',
+				data: {
+					roomId: bobRoom.roomId,
+					roomGeneration: bobRoom.roomGeneration,
+					connectionGeneration: bobRoom.self.connectionGeneration,
+					roundId: round.roundId,
+					launchAttemptId: round.launchAttemptId,
+					reason: 'result_unavailable'
+				}
+			},
+			NOW + 2_222
+		);
+		const bobMessages = messagesFor(bobTerminal, 'bob');
+		expect(bobMessages[0]?.type).toBe('round_terminal_accepted');
+		const finalized = bobMessages.find((message) => message.type === 'round_finalized');
+		if (finalized?.type !== 'round_finalized') throw new Error('finalization missing');
+		expect(
+			bobTerminal.some(
+				(delivery) => delivery.kind === 'send' && delivery.message.type === 'round_finalized'
+			)
+		).toBe(true);
+		expect(finalized.data.result.winnerMemberIds).toEqual([aliceRoom.self.memberId]);
+		expect(
+			finalized.data.members.find((member) => member.memberId === aliceRoom.self.memberId)
+				?.lobbyWins
+		).toBe(1);
+		expect(finalized.data.members.at(-1)?.roundState).toBe('eligible');
+
+		application.disconnect('bob', NOW + 2_223);
+		application.connect('bob-resumed');
+		const resumed = await application.receive(
+			'bob-resumed',
+			{
+				type: 'client_hello',
+				data: {
+					protocolMajor: 1,
+					protocolMinor: 2,
+					clientVersion: 'round-resume-test',
+					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
+					ticket: 'bob-fresh-ticket',
+					resume: { roomId: bobRoom.roomId, seatToken: bobRoom.self.resumeToken }
+				}
+			},
+			NOW + 2_224
+		);
+		const resumedHello = messagesFor(resumed, 'bob-resumed')[0];
+		if (resumedHello?.type !== 'server_hello' || resumedHello.data.resume.status !== 'succeeded') {
+			throw new Error('result resume failed');
+		}
+		const resumedRoom = resumedHello.data.resume.room;
+		if (!('lastRoundResult' in resumedRoom)) throw new Error('competition snapshot missing');
+		expect(resumedRoom.lastRoundResult?.roundId).toBe(round.roundId);
+		expect(resumedRoom.liveStandings).toBeNull();
 	});
 
 	test('maps a probe mismatch to one authoritative cancellation', async () => {

@@ -13,7 +13,7 @@ import {
 const DEFAULT_MAINTENANCE_INTERVAL_MS = 1_000;
 const DEFAULT_SHUTDOWN_DRAIN_MS = 250;
 const MAX_QUEUED_FRAMES = 32;
-const BACKPRESSURE_LIMIT_BYTES = 256 * 1024;
+export const BACKPRESSURE_LIMIT_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PEER_UPGRADE_POLICY = { maxAttempts: 6_000, windowMs: 60_000 } as const;
 
 export type SocketData = {
@@ -22,7 +22,7 @@ export type SocketData = {
 	receiveTail: Promise<void>;
 	queuedFrames: number;
 	closing: boolean;
-	backpressured: boolean;
+	ephemeralBlocked: boolean;
 };
 
 export type ArenaLogFields = Readonly<Record<string, string | number | boolean | undefined>>;
@@ -50,9 +50,24 @@ export type ArenaServerHandle = Readonly<{
 }>;
 
 type SocketAction =
-	| Readonly<{ kind: 'send'; encoded: string }>
+	| Readonly<{ kind: 'send'; encoded: string; byteLength: number; ephemeral: boolean }>
 	| Readonly<{ kind: 'send_binary'; bytes: Uint8Array }>
 	| Readonly<{ kind: 'close'; code: number; reason: string }>;
+
+export function classifySocketDelivery(
+	ephemeral: boolean,
+	ephemeralBlocked: boolean,
+	bufferedAmount: number,
+	byteLength: number
+): 'send' | 'drop' | 'close' {
+	if (ephemeral && ephemeralBlocked) return 'drop';
+	if (bufferedAmount + byteLength <= BACKPRESSURE_LIMIT_BYTES) return 'send';
+	return ephemeral ? 'drop' : 'close';
+}
+
+export function blocksEphemeralAfterSend(sendResult: number): boolean {
+	return sendResult <= 0;
+}
 
 export function startArenaServer(options: StartArenaServerOptions): ArenaServerHandle {
 	const now = options.now ?? Date.now;
@@ -75,6 +90,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		throw new Error('Invalid Arena peer-upgrade policy.');
 	}
 	const sockets = new Map<string, Bun.ServerWebSocket<SocketData>>();
+	const connectionSlots = new Set<string>();
 	const peerUpgradeAttempts = new Map<string, number[]>();
 	let shuttingDown = false;
 	let shutdownPromise: Promise<void> | undefined;
@@ -109,11 +125,19 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		};
 
 		for (const delivery of deliveries) {
-			if (delivery.kind === 'send') {
+			if (delivery.kind === 'send' || delivery.kind === 'send_ephemeral') {
 				const encoded = encodeServerMessage(delivery.message);
+				const byteLength = Buffer.byteLength(encoded, 'utf8');
 				for (const connectionId of delivery.connectionIds) {
 					const socket = sockets.get(connectionId);
-					if (socket !== undefined) append(socket, { kind: 'send', encoded });
+					if (socket !== undefined) {
+						append(socket, {
+							kind: 'send',
+							encoded,
+							byteLength,
+							ephemeral: delivery.kind === 'send_ephemeral'
+						});
+					}
 				}
 				continue;
 			}
@@ -132,6 +156,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 
 		for (const [socket, socketActions] of actions) {
 			let closeAction: Extract<SocketAction, { kind: 'close' }> | undefined;
+			let reliableOverflow = false;
 			socket.cork(() => {
 				for (const action of socketActions) {
 					if (action.kind === 'close') {
@@ -140,17 +165,34 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						break;
 					}
 					if (socket.data.closing) continue;
+					const byteLength = action.kind === 'send' ? action.byteLength : action.bytes.byteLength;
+					const bufferedAmount = socket.getBufferedAmount();
+					const disposition = classifySocketDelivery(
+						action.kind === 'send' && action.ephemeral,
+						socket.data.ephemeralBlocked,
+						bufferedAmount,
+						byteLength
+					);
+					if (disposition === 'drop') continue;
+					if (disposition === 'close') {
+						reliableOverflow = true;
+						break;
+					}
 					const result =
 						action.kind === 'send' ? socket.send(action.encoded) : socket.send(action.bytes, true);
-					if (result === -1) socket.data.backpressured = true;
-					else if (result === 0) {
-						logger('warn', 'websocket_send_dropped', {
-							connectionId: socket.data.connectionId
-						});
+					if (blocksEphemeralAfterSend(result)) socket.data.ephemeralBlocked = true;
+					if (result === 0) {
+						if (action.kind === 'send' && action.ephemeral) {
+							continue;
+						}
+						reliableOverflow = true;
+						break;
 					}
 				}
 			});
-			if (closeAction !== undefined) {
+			if (reliableOverflow) {
+				queueMicrotask(() => disconnectAndClose(socket, 1013, 'try_again_later'));
+			} else if (closeAction !== undefined) {
 				const { code, reason } = closeAction;
 				queueMicrotask(() => socket.close(code, reason));
 			}
@@ -214,6 +256,9 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			}
 			if (shuttingDown) return new Response(null, { status: 503 });
 			if (url.search.length > 0) return new Response(null, { status: 400 });
+			if (connectionSlots.size >= options.config.maxConnections) {
+				return new Response(null, { status: 503 });
+			}
 
 			const peerKey = bunServer.requestIP(request)?.address ?? 'unknown-peer';
 			if (!consumePeerUpgradeAttempt(peerKey, now())) {
@@ -225,17 +270,26 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				});
 			}
 			const connectionId = newConnectionId();
-			const upgraded = bunServer.upgrade(request, {
-				data: {
-					connectionId,
-					peerKey,
-					receiveTail: Promise.resolve(),
-					queuedFrames: 0,
-					closing: false,
-					backpressured: false
-				}
-			});
+			if (connectionSlots.has(connectionId)) return new Response(null, { status: 503 });
+			connectionSlots.add(connectionId);
+			let upgraded: boolean;
+			try {
+				upgraded = bunServer.upgrade(request, {
+					data: {
+						connectionId,
+						peerKey,
+						receiveTail: Promise.resolve(),
+						queuedFrames: 0,
+						closing: false,
+						ephemeralBlocked: false
+					}
+				});
+			} catch (error) {
+				connectionSlots.delete(connectionId);
+				throw error;
+			}
 			if (upgraded) return undefined;
+			connectionSlots.delete(connectionId);
 			return new Response(null, { status: 426, headers: { Upgrade: 'websocket' } });
 		},
 		websocket: {
@@ -297,24 +351,25 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 					});
 			},
 			drain(socket) {
-				socket.data.backpressured = false;
+				socket.data.ephemeralBlocked = false;
 			},
 			close(socket) {
 				if (sockets.get(socket.data.connectionId) !== socket) return;
 				sockets.delete(socket.data.connectionId);
+				connectionSlots.delete(socket.data.connectionId);
 				socket.data.closing = true;
 				try {
 					applyDeliveries(options.application.disconnect(socket.data.connectionId, now()));
 					rescheduleDeadline();
 				} catch {
-					logger('error', 'websocket_close_cleanup_failed', {
+					safeLog('error', 'websocket_close_cleanup_failed', {
 						connectionId: socket.data.connectionId
 					});
 				}
 			},
 			maxPayloadLength: MAX_CLIENT_MESSAGE_BYTES,
 			backpressureLimit: BACKPRESSURE_LIMIT_BYTES,
-			closeOnBackpressureLimit: true,
+			closeOnBackpressureLimit: false,
 			idleTimeout: 120,
 			sendPings: true
 		}
@@ -355,7 +410,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			applyDeliveries(options.application.sweep(nowMs));
 			rescheduleDeadline();
 		} catch {
-			logger('error', 'maintenance_failed');
+			safeLog('error', 'maintenance_failed');
 		}
 	}, maintenanceIntervalMs);
 	maintenanceTimer.unref?.();
@@ -401,7 +456,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			}
 			sockets.clear();
 			await server.stop(true);
-			logger('info', 'server_stopped', { activeConnections: connectionIds.length });
+			safeLog('info', 'server_stopped', { activeConnections: connectionIds.length });
 		})();
 		return shutdownPromise;
 	};

@@ -16,4 +16,9 @@ export type Delivery =
 			kind: 'send_binary';
 			connectionIds: readonly string[];
 			bytes: Uint8Array;
+	  }>
+	| Readonly<{
+			kind: 'send_ephemeral';
+			connectionIds: readonly string[];
+			message: Extract<ServerMessage, { type: 'round_standings' }>;
 	  }>;

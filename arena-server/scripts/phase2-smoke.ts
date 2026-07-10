@@ -653,7 +653,10 @@ async function runCancellationRound(): Promise<void> {
 	invariant(cancelled.data.reason === 'hash_mismatch', 'hash mismatch cancellation reason');
 	invariant(cancelled.data.selection === null, 'bad chart selection cleared');
 	invariant(context.roomDirectory.list().rooms[0]?.phase === 'selecting', 'room returns Selecting');
-	invariant(context.application.nextDeadlineMs() === undefined, 'cancelled launch has no deadline');
+	invariant(
+		context.roomDirectory.nextDeadlineMs() === undefined,
+		'cancelled launch has no deadline'
+	);
 	phase(10, 'Hash mismatch cancels back to Selecting');
 }
 
@@ -1292,7 +1295,10 @@ async function runCancellationWebSocketRound(
 			runtime.roomDirectory.list().rooms[0]?.phase === 'selecting',
 			'room returns Selecting'
 		);
-		invariant(runtime.application.nextDeadlineMs() === undefined, 'cancellation clears deadlines');
+		invariant(
+			runtime.roomDirectory.nextDeadlineMs() === undefined,
+			'cancellation clears deadlines'
+		);
 		invariant(
 			alice.observedMessages().filter((message) => message.type === 'round_launch_cancelled')
 				.length === 1,

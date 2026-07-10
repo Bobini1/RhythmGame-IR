@@ -16,6 +16,7 @@ import {
 	ROUNDS_CAPABILITY,
 	type ClientMessage,
 	type CompetitionFrozenRound,
+	type RoundResultSnapshot,
 	type SelectionSnapshot,
 	type ServerMessage
 } from '../protocol/messages.ts';
@@ -221,20 +222,11 @@ export class ArenaApplication {
 			case 'round_load_result':
 				return this.#reportLoaded(postHelloConnection, message, nowMs);
 			case 'round_telemetry':
-				return [];
+				return this.#reportTelemetry(postHelloConnection, message, nowMs);
 			case 'round_result_submit':
+				return this.#submitRoundResult(postHelloConnection, message, nowMs);
 			case 'round_abandon':
-				return [
-					this.#send(
-						postHelloConnection.connectionId,
-						createCommandError(
-							message.requestId,
-							hasCompetitionCapability(postHelloConnection)
-								? 'round_stale'
-								: 'competition_capability_required'
-						)
-					)
-				];
+				return this.#abandonRound(postHelloConnection, message, nowMs);
 		}
 	}
 
@@ -274,10 +266,11 @@ export class ArenaApplication {
 		this.#connections.delete(connectionId);
 		if (connection.phase !== 'room_bound') return aborted;
 		const result = this.#roomDirectory.disconnect(connection.binding, nowMs);
-		return [
+		const deliveries = [
 			...aborted,
 			...(result.ok ? this.#mapTransition(result.effects, result.directoryChange) : [])
 		];
+		return [...deliveries, ...this.#flushDueStandings(nowMs)];
 	}
 
 	sweep(nowMs: number): readonly Delivery[] {
@@ -296,9 +289,6 @@ export class ArenaApplication {
 			}
 		}
 		for (const transition of this.#roomDirectory.sweep(nowMs)) {
-			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
-		}
-		for (const transition of this.#roomDirectory.flushDueStandings(nowMs)) {
 			deliveries.push(...this.#mapTransition(transition.effects, transition.directoryChange));
 		}
 		for (const connection of [...this.#connections.values()]) {
@@ -344,11 +334,22 @@ export class ArenaApplication {
 				);
 			}
 		}
+		deliveries.push(...this.#flushDueStandings(nowMs));
 		return deliveries;
 	}
 
 	nextDeadlineMs(): number | undefined {
-		return this.#roomDirectory.nextDeadlineMs();
+		let earliest = this.#roomDirectory.nextDeadlineMs();
+		for (const connection of this.#connections.values()) {
+			const deadline =
+				connection.phase === 'awaiting_hello'
+					? connection.helloDeadlineMs
+					: (connection.pendingHeartbeat?.deadlineMs ?? connection.nextHeartbeatAtMs ?? undefined);
+			if (deadline !== undefined && (earliest === undefined || deadline < earliest)) {
+				earliest = deadline;
+			}
+		}
+		return earliest;
 	}
 
 	shutdown(_nowMs: number): readonly Delivery[] {
@@ -1001,6 +1002,121 @@ export class ArenaApplication {
 				];
 	}
 
+	#reportTelemetry(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'round_telemetry' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		if (
+			!hasCompetitionCapability(connection) ||
+			connection.phase !== 'room_bound' ||
+			bindingMismatch(connection.binding, message.data) !== undefined
+		) {
+			return [];
+		}
+		const reported = this.#roomDirectory.reportTelemetry(connection.binding, message.data, nowMs);
+		const effects = reported.ok
+			? this.#mapTransition(reported.effects, reported.directoryChange)
+			: this.#mapTransition(reported.effects ?? [], reported.directoryChange);
+		if (
+			!reported.ok ||
+			reported.value.status === 'ignored' ||
+			reported.value.status === 'dropped'
+		) {
+			return [...effects, ...this.#flushDueStandings(nowMs)];
+		}
+		if (reported.value.status === 'close') {
+			return [
+				...effects,
+				...this.#policyClose(connection, reported.value.closeCode, reported.value.reason, nowMs)
+			];
+		}
+		return [...effects, ...this.#flushDueStandings(nowMs)];
+	}
+
+	#submitRoundResult(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'round_result_submit' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#competitionCommandPreflight(
+			connection,
+			message.requestId,
+			message.data
+		);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound')
+			throw new Error('Competition preflight invariant failed.');
+		return this.#mapTerminalMutation(
+			connection,
+			message.requestId,
+			message.data,
+			this.#roomDirectory.submitRoundResult(connection.binding, message.data, nowMs),
+			nowMs
+		);
+	}
+
+	#abandonRound(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'round_abandon' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#competitionCommandPreflight(
+			connection,
+			message.requestId,
+			message.data
+		);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound')
+			throw new Error('Competition preflight invariant failed.');
+		return this.#mapTerminalMutation(
+			connection,
+			message.requestId,
+			message.data,
+			this.#roomDirectory.abandonRound(connection.binding, message.data, nowMs),
+			nowMs
+		);
+	}
+
+	#mapTerminalMutation(
+		connection: Extract<PostHelloConnection, { phase: 'room_bound' }>,
+		requestId: string,
+		data: Readonly<{
+			roomId: string;
+			roomGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+		}>,
+		mutation: ReturnType<RoomDirectory['submitRoundResult'] | RoomDirectory['abandonRound']>,
+		nowMs: number
+	): readonly Delivery[] {
+		if (!mutation.ok) {
+			return [
+				...this.#mapTransition(mutation.effects ?? [], mutation.directoryChange),
+				this.#send(
+					connection.connectionId,
+					createCommandError(requestId, toCommandCode(mutation.rejection.code))
+				),
+				...this.#flushDueStandings(nowMs)
+			];
+		}
+		return [
+			this.#send(connection.connectionId, {
+				type: 'round_terminal_accepted',
+				requestId,
+				data: {
+					roomId: data.roomId,
+					roomGeneration: data.roomGeneration,
+					roundId: data.roundId,
+					launchAttemptId: data.launchAttemptId,
+					terminal: mutation.value.terminal
+				}
+			}),
+			...this.#mapTransition(mutation.effects, mutation.directoryChange),
+			...this.#flushDueStandings(nowMs)
+		];
+	}
+
 	#roomCommandPreflight(
 		connection: PostHelloConnection,
 		requestId: string,
@@ -1036,6 +1152,26 @@ export class ArenaApplication {
 				this.#send(
 					connection.connectionId,
 					createCommandError(requestId, 'rounds_capability_required')
+				)
+			];
+		}
+		return this.#roomCommandPreflight(connection, requestId, data);
+	}
+
+	#competitionCommandPreflight(
+		connection: PostHelloConnection,
+		requestId: string,
+		data: Readonly<{
+			roomId: string;
+			roomGeneration: number;
+			connectionGeneration: number;
+		}>
+	): readonly Delivery[] | undefined {
+		if (!hasCompetitionCapability(connection)) {
+			return [
+				this.#send(
+					connection.connectionId,
+					createCommandError(requestId, 'competition_capability_required')
 				)
 			];
 		}
@@ -1101,6 +1237,34 @@ export class ArenaApplication {
 				: []),
 			{ kind: 'close', connectionId: connection.connectionId, code: closeCode, reason: code }
 		];
+	}
+
+	#policyClose(
+		connection: Connection,
+		code: number,
+		reason: string,
+		nowMs: number
+	): readonly Delivery[] {
+		if (this.#connections.get(connection.connectionId) !== connection) return [];
+		const aborted = this.#abortPendingInventory(connection, nowMs);
+		this.#connections.delete(connection.connectionId);
+		const transition =
+			connection.phase === 'room_bound'
+				? this.#roomDirectory.disconnect(connection.binding, nowMs)
+				: undefined;
+		return [
+			...aborted,
+			...(transition?.ok
+				? this.#mapTransition(transition.effects, transition.directoryChange)
+				: []),
+			{ kind: 'close', connectionId: connection.connectionId, code, reason }
+		];
+	}
+
+	#flushDueStandings(nowMs: number): readonly Delivery[] {
+		return this.#roomDirectory
+			.flushDueStandings(nowMs)
+			.flatMap((transition) => this.#mapTransition(transition.effects, transition.directoryChange));
 	}
 
 	#abortPendingInventory(connection: Connection, nowMs: number): readonly Delivery[] {
@@ -1329,10 +1493,14 @@ export class ArenaApplication {
 				];
 			case 'round_standings':
 				return [
-					this.#sendMany(connectionIds, {
-						type: 'round_standings',
-						data: effect.snapshot
-					})
+					{
+						kind: 'send_ephemeral',
+						connectionIds,
+						message: {
+							type: 'round_standings',
+							data: effect.snapshot
+						}
+					}
 				];
 			case 'round_finalized':
 				return [
@@ -1646,6 +1814,28 @@ function copyRoomSnapshot(snapshot: RoomSnapshot) {
 						...snapshot.liveStandings,
 						entries: snapshot.liveStandings.entries.map((entry) => ({ ...entry }))
 					},
-		lastRoundResult: snapshot.lastRoundResult
+		lastRoundResult:
+			snapshot.lastRoundResult === null ? null : copyRoundResult(snapshot.lastRoundResult)
+	};
+}
+
+function copyRoundResult(result: RoundResultSnapshot): RoundResultSnapshot {
+	return {
+		...result,
+		selection: copySelection(result.selection),
+		winnerMemberIds: [...result.winnerMemberIds],
+		entries: result.entries.map((entry) =>
+			entry.competitionState === 'finished'
+				? {
+						...entry,
+						identity: { ...entry.identity },
+						result: {
+							...entry.result,
+							judgements: { ...entry.result.judgements },
+							finalGauge: { ...entry.result.finalGauge }
+						}
+					}
+				: { ...entry, identity: { ...entry.identity } }
+		)
 	};
 }

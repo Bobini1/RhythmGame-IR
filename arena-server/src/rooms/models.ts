@@ -37,7 +37,8 @@ export type RoomRejectionCode =
 	| 'round_already_terminal'
 	| 'result_invalid'
 	| 'launch_stage_stale'
-	| 'room_resume_failed';
+	| 'room_resume_failed'
+	| 'server_capacity';
 
 export type RoomRejection = Readonly<{
 	code: RoomRejectionCode;
@@ -300,6 +301,7 @@ export type RoomDirectoryConfig = Readonly<{
 	roomCapacity: 16;
 	reconnectGraceMs: number;
 	chatBacklog: number;
+	maxRooms?: number;
 }>;
 
 export type CreateRoomInput = Readonly<{

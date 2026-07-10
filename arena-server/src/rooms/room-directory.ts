@@ -66,6 +66,7 @@ import {
 	sha256Bytes,
 	startLeadMs,
 	startRound,
+	STANDINGS_INTERVAL_MS,
 	terminalEquals
 } from './round-state.ts';
 import type { RoundLoadingState } from './round-state.ts';
@@ -185,6 +186,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		if (this.#connections.has(input.connectionId)) {
 			return { ok: false, rejection: { code: 'already_in_room' } };
 		}
+		if (this.#rooms.size >= (this.#config.maxRooms ?? 1_000)) {
+			return { ok: false, rejection: { code: 'server_capacity' } };
+		}
 		if (input.password !== undefined && input.password.length === 0) {
 			return { ok: false, rejection: { code: 'room_password_invalid' } };
 		}
@@ -192,6 +196,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			input.password === undefined ? undefined : await this.#passwordHasher.hash(input.password);
 		if (this.#connections.has(input.connectionId)) {
 			return { ok: false, rejection: { code: 'already_in_room' } };
+		}
+		if (this.#rooms.size >= (this.#config.maxRooms ?? 1_000)) {
+			return { ok: false, rejection: { code: 'server_capacity' } };
 		}
 
 		const roomId = this.#allocateRoomId();
@@ -1430,7 +1437,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			runtime.nextStandingsFlushMs ??
 			(runtime.lastStandingsFlushMs === undefined
 				? nowMs
-				: Math.max(nowMs, runtime.lastStandingsFlushMs + 200));
+				: Math.max(nowMs, runtime.lastStandingsFlushMs + STANDINGS_INTERVAL_MS));
 		return {
 			...runtime,
 			standingsRevision: runtime.standingsRevision + 1,

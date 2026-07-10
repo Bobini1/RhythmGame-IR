@@ -8,6 +8,9 @@ export const MAX_CHAT_BACKLOG = 1_000;
 export const DEFAULT_INVENTORY_UPLOAD_TIMEOUT_MS = 60_000;
 export const DEFAULT_MAX_PENDING_INVENTORY_BYTES = 128 * 1024 * 1024;
 export const DEFAULT_MAX_COMMITTED_INVENTORY_BYTES = 512 * 1024 * 1024;
+export const DEFAULT_MAX_ROOMS = 1_000;
+export const DEFAULT_MAX_CONNECTIONS = 5_000;
+export const DEFAULT_TELEMETRY_INTERVAL_MS = 200;
 
 const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
 
@@ -60,7 +63,16 @@ const environmentSchema = z.object({
 		.int()
 		.min(1)
 		.max(2 * 1024 * 1024 * 1024)
-		.default(DEFAULT_MAX_COMMITTED_INVENTORY_BYTES)
+		.default(DEFAULT_MAX_COMMITTED_INVENTORY_BYTES),
+	MAX_ROOMS: z.coerce.number().int().min(1).max(100_000).default(DEFAULT_MAX_ROOMS),
+	MAX_CONNECTIONS: z.coerce.number().int().min(1).max(100_000).default(DEFAULT_MAX_CONNECTIONS),
+	TELEMETRY_INTERVAL_MS: z.coerce
+		.number()
+		.int()
+		.refine((value) => value === DEFAULT_TELEMETRY_INTERVAL_MS, {
+			message: `TELEMETRY_INTERVAL_MS must be ${DEFAULT_TELEMETRY_INTERVAL_MS}`
+		})
+		.default(DEFAULT_TELEMETRY_INTERVAL_MS)
 });
 
 export type ArenaConfig = Readonly<{
@@ -75,6 +87,9 @@ export type ArenaConfig = Readonly<{
 	inventoryUploadTimeoutMs: number;
 	maxPendingInventoryBytes: number;
 	maxCommittedInventoryBytes: number;
+	maxRooms: number;
+	maxConnections: number;
+	telemetryIntervalMs: typeof DEFAULT_TELEMETRY_INTERVAL_MS;
 }>;
 
 export function loadArenaConfig(
@@ -93,6 +108,9 @@ export function loadArenaConfig(
 		chatBacklog: parsed.CHAT_BACKLOG,
 		inventoryUploadTimeoutMs: parsed.INVENTORY_UPLOAD_TIMEOUT_MS,
 		maxPendingInventoryBytes: parsed.MAX_PENDING_INVENTORY_BYTES,
-		maxCommittedInventoryBytes: parsed.MAX_COMMITTED_INVENTORY_BYTES
+		maxCommittedInventoryBytes: parsed.MAX_COMMITTED_INVENTORY_BYTES,
+		maxRooms: parsed.MAX_ROOMS,
+		maxConnections: parsed.MAX_CONNECTIONS,
+		telemetryIntervalMs: parsed.TELEMETRY_INTERVAL_MS
 	};
 }

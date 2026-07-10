@@ -35,7 +35,8 @@ export function startProductionArenaServer(
 		{
 			roomCapacity: config.roomCapacity,
 			reconnectGraceMs: config.reconnectGraceMs,
-			chatBacklog: config.chatBacklog
+			chatBacklog: config.chatBacklog,
+			maxRooms: config.maxRooms
 		},
 		new BunPasswordHasher(),
 		(inventory) => inventoryUploadManager.releaseCommitted(inventory)
