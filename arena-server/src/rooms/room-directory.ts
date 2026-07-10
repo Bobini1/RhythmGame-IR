@@ -152,15 +152,18 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		}
 		const admission = admissionFor(room, seat, resumeToken.plaintext);
 		this.#connections.set(input.connectionId, admission.binding);
-		const effects: RoomEffect[] = [
-			{
-				type: 'member_joined' as const,
-				targets: incumbentTargets,
-				roomId: room.roomId,
-				roomGeneration: room.generation,
-				member: memberFor(seat)
-			}
-		];
+		const effects: RoomEffect[] =
+			incumbentTargets.length === 0
+				? []
+				: [
+						{
+							type: 'member_joined',
+							targets: incumbentTargets,
+							roomId: room.roomId,
+							roomGeneration: room.generation,
+							member: memberFor(seat)
+						}
+					];
 		return {
 			ok: true,
 			value: admission,

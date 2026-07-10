@@ -172,6 +172,33 @@ describe('Room ownership and moderation', () => {
 		expect(directory.list().rooms[0]).toMatchObject({ connectedCount: 0, reservedCount: 1 });
 	});
 
+	test('omits a zero-target member event when a fresh subject joins an all-reserved room', async () => {
+		const directory = createDirectory();
+		const created = await directory.create({ connectionId: 'c1', identity: user(1), name: 'Room' });
+		expect(created.ok).toBe(true);
+		if (!created.ok) return;
+		directory.disconnect(created.value.binding, 0);
+
+		const joined = await directory.join({
+			roomId: created.value.binding.roomId,
+			connectionId: 'c2',
+			identity: user(2)
+		});
+
+		expect(joined.ok).toBe(true);
+		if (!joined.ok) return;
+		expect(joined.value.snapshot.ownerMemberId).toBe(joined.value.binding.seatId);
+		expect(joined.value.snapshot.members.map((member) => member.status)).toEqual([
+			'reserved',
+			'connected'
+		]);
+		expect(joined.effects).toEqual([]);
+		expect(joined.directoryChange).toMatchObject({
+			revision: 3,
+			upserts: [{ connectedCount: 1, reservedCount: 1 }]
+		});
+	});
+
 	test('allows only the owner to kick another member and bans the subject for room lifetime', async () => {
 		const directory = createDirectory();
 		const created = await directory.create({ connectionId: 'c1', identity: user(1), name: 'Room' });
