@@ -1,0 +1,16 @@
+.env
+.env.*
+.git
+.gitignore
+.worktrees
+node_modules
+tests
+coverage
+*.log
+*.pem
+*.key
+*.crt
+.DS_Store
+.idea
+.vscode
+*.tsbuildinfo
