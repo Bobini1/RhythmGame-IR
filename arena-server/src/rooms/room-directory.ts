@@ -147,6 +147,7 @@ export interface RoomDirectory {
 	sweep(nowMs: number): readonly RoomTransition[];
 	flushDueStandings(nowMs: number): readonly RoomTransition[];
 	cancelLaunches(reason: 'server_shutdown'): readonly RoomTransition[];
+	clear(): void;
 	nextDeadlineMs(): number | undefined;
 }
 
@@ -180,6 +181,17 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				.map(summaryFor)
 				.sort((left, right) => left.roomId.localeCompare(right.roomId))
 		};
+	}
+
+	clear(): void {
+		for (const room of this.#rooms.values()) {
+			for (const seat of room.seats.values()) {
+				if (seat.inventory !== undefined) this.#releaseInventory(seat.inventory);
+			}
+		}
+		this.#rooms.clear();
+		this.#connections.clear();
+		this.#revision += 1;
 	}
 
 	async create(input: CreateRoomInput): Promise<DomainResult<SeatAdmission>> {

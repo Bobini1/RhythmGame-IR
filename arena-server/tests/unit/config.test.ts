@@ -25,7 +25,10 @@ describe('loadArenaConfig', () => {
 			upgradeAttemptsPerAddressPerMinute: 120,
 			maxConnectionsPerAddress: 20,
 			clientHelloTimeoutMs: 10_000,
-			maxTrackedAddresses: 20_000
+			maxTrackedAddresses: 20_000,
+			metricsEnabled: false,
+			metricsBearerToken: null,
+			shutdownDrainMs: 8_000
 		});
 	});
 
@@ -49,7 +52,10 @@ describe('loadArenaConfig', () => {
 			UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE: '240',
 			MAX_CONNECTIONS_PER_ADDRESS: '12',
 			CLIENT_HELLO_TIMEOUT_MS: '15000',
-			MAX_TRACKED_ADDRESSES: '10000'
+			MAX_TRACKED_ADDRESSES: '10000',
+			METRICS_ENABLED: 'true',
+			METRICS_BEARER_TOKEN: 'abcdefghijklmnopqrstuvwxyz-123456',
+			SHUTDOWN_DRAIN_MS: '15000'
 		});
 
 		expect(config.port).toBe(4100);
@@ -66,6 +72,41 @@ describe('loadArenaConfig', () => {
 		expect(config.maxConnectionsPerAddress).toBe(12);
 		expect(config.clientHelloTimeoutMs).toBe(15_000);
 		expect(config.maxTrackedAddresses).toBe(10_000);
+		expect(config.metricsEnabled).toBe(true);
+		expect(config.metricsBearerToken).toBe('abcdefghijklmnopqrstuvwxyz-123456');
+		expect(config.shutdownDrainMs).toBe(15_000);
+	});
+
+	test('keeps metrics private and disabled by default', () => {
+		expect(
+			loadArenaConfig({ METRICS_BEARER_TOKEN: 'SENTINEL-IGNORED-TOKEN-1234567890' })
+		).toMatchObject({
+			metricsEnabled: false,
+			metricsBearerToken: null
+		});
+	});
+
+	test('requires a token of at least 32 valid bearer bytes when metrics are enabled', () => {
+		for (const token of ['', 'short', 'a'.repeat(31), `${'a'.repeat(31)} !`, 'ą'.repeat(32)]) {
+			expect(() =>
+				loadArenaConfig({ METRICS_ENABLED: 'true', METRICS_BEARER_TOKEN: token })
+			).toThrow('METRICS_BEARER_TOKEN');
+		}
+		expect(
+			loadArenaConfig({ METRICS_ENABLED: 'true', METRICS_BEARER_TOKEN: 'a'.repeat(32) })
+				.metricsEnabled
+		).toBe(true);
+	});
+
+	test('rejects noncanonical metrics flags and shutdown drain bounds', () => {
+		for (const environment of [
+			{ METRICS_ENABLED: '1' },
+			{ METRICS_ENABLED: 'TRUE' },
+			{ SHUTDOWN_DRAIN_MS: '999' },
+			{ SHUTDOWN_DRAIN_MS: '60001' }
+		]) {
+			expect(() => loadArenaConfig(environment)).toThrow();
+		}
 	});
 
 	test('rejects malformed, duplicate, or globally broad trusted proxy networks', () => {

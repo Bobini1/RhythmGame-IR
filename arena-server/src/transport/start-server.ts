@@ -1,6 +1,13 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import type { ArenaApplication } from '../application/arena-application.ts';
 import type { Delivery } from '../application/delivery.ts';
 import type { ArenaConfig } from '../config.ts';
+import {
+	createOperationalMetrics,
+	type OperationalMetrics,
+	type WebSocketCloseClass
+} from '../observability/operational-metrics.ts';
 import { decodeClientMessage, encodeServerMessage } from '../protocol/codec.ts';
 import { createFatalError, ProtocolError } from '../protocol/errors.ts';
 import {
@@ -16,7 +23,6 @@ import {
 } from './connection-admission.ts';
 
 const DEFAULT_MAINTENANCE_INTERVAL_MS = 1_000;
-const DEFAULT_SHUTDOWN_DRAIN_MS = 250;
 const MAX_QUEUED_FRAMES = 32;
 export const BACKPRESSURE_LIMIT_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PEER_UPGRADE_POLICY = { maxAttempts: 6_000, windowMs: 60_000 } as const;
@@ -48,6 +54,7 @@ export type StartArenaServerOptions = Readonly<{
 	peerUpgradePolicy?: Readonly<{ maxAttempts: number; windowMs: number }>;
 	clientAddressResolver?: ClientAddressResolver;
 	connectionAdmission?: ConnectionAdmissionController;
+	operationalMetrics?: OperationalMetrics;
 }>;
 
 export type ArenaServerHandle = Readonly<{
@@ -76,10 +83,21 @@ export function blocksEphemeralAfterSend(sendResult: number): boolean {
 	return sendResult <= 0;
 }
 
+export function constantTimeBearerTokenMatches(
+	authorization: string | null,
+	expectedToken: string
+): boolean {
+	if (authorization === null || !authorization.startsWith('Bearer ')) return false;
+	const actual = Buffer.from(authorization.slice('Bearer '.length), 'utf8');
+	const expected = Buffer.from(expectedToken, 'utf8');
+	return actual.byteLength === expected.byteLength && timingSafeEqual(actual, expected);
+}
+
 export function startArenaServer(options: StartArenaServerOptions): ArenaServerHandle {
 	const now = options.now ?? Date.now;
 	const newConnectionId = options.newConnectionId ?? (() => crypto.randomUUID());
 	const logger = options.logger ?? (() => undefined);
+	const metrics = options.operationalMetrics ?? createOperationalMetrics();
 	const safeLog: ArenaLogger = (level, event, fields) => {
 		try {
 			logger(level, event, fields);
@@ -191,7 +209,10 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						bufferedAmount,
 						byteLength
 					);
-					if (disposition === 'drop') continue;
+					if (disposition === 'drop') {
+						metrics.standingsDropped();
+						continue;
+					}
 					if (disposition === 'close') {
 						reliableOverflow = true;
 						break;
@@ -199,6 +220,10 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 					const result =
 						action.kind === 'send' ? socket.send(action.encoded) : socket.send(action.bytes, true);
 					if (blocksEphemeralAfterSend(result)) socket.data.ephemeralBlocked = true;
+					if (action.kind === 'send' && action.ephemeral && result <= 0) {
+						metrics.standingsDropped();
+						continue;
+					}
 					if (result === 0) {
 						if (action.kind === 'send' && action.ephemeral) {
 							continue;
@@ -243,15 +268,13 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	};
 
 	const handleInternalFailure = (socket: Bun.ServerWebSocket<SocketData>): void => {
-		safeLog('error', 'websocket_receive_failed', { connectionId: socket.data.connectionId });
+		safeLog('error', 'websocket_receive_failed');
 		try {
 			disconnectAndClose(socket, 1011, 'internal_error');
 		} catch {
 			socket.data.closing = true;
 			releaseSocketLease(socket);
-			safeLog('error', 'websocket_internal_cleanup_failed', {
-				connectionId: socket.data.connectionId
-			});
+			safeLog('error', 'websocket_internal_cleanup_failed');
 		}
 	};
 
@@ -260,6 +283,34 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		port: options.portOverride ?? options.config.port,
 		fetch(request, bunServer) {
 			const url = new URL(request.url);
+			if (url.pathname === '/metrics') {
+				if (!options.config.metricsEnabled) return new Response(null, { status: 404 });
+				if (request.method !== 'GET' || url.search.length > 0) {
+					return new Response(null, { status: 404 });
+				}
+				const expectedToken = options.config.metricsBearerToken;
+				if (
+					expectedToken === null ||
+					!constantTimeBearerTokenMatches(request.headers.get('authorization'), expectedToken)
+				) {
+					return new Response(null, {
+						status: 401,
+						headers: { 'Cache-Control': 'no-store', 'WWW-Authenticate': 'Bearer' }
+					});
+				}
+				try {
+					return new Response(metrics.renderPrometheus(), {
+						status: 200,
+						headers: {
+							'Cache-Control': 'no-store',
+							'Content-Type': 'text/plain; version=0.0.4; charset=utf-8'
+						}
+					});
+				} catch {
+					safeLog('error', 'metrics_render_failed');
+					return new Response(null, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+				}
+			}
 			if (request.method === 'GET' && url.pathname === '/healthz') {
 				return Response.json(
 					{
@@ -316,6 +367,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		},
 		websocket: {
 			open(socket) {
+				metrics.connectionOpened();
 				sockets.set(socket.data.connectionId, socket);
 				leaseSockets.set(socket.data.admissionLeaseId, socket);
 				try {
@@ -326,7 +378,11 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				}
 			},
 			message(socket, frame) {
-				if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
+				if (
+					shuttingDown ||
+					socket.data.closing ||
+					sockets.get(socket.data.connectionId) !== socket
+				) {
 					return;
 				}
 				if (socket.data.queuedFrames >= MAX_QUEUED_FRAMES) {
@@ -337,7 +393,11 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				socket.data.queuedFrames += 1;
 				const ownedFrame = typeof frame === 'string' ? frame : Uint8Array.from(frame);
 				const work = socket.data.receiveTail.then(async () => {
-					if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
+					if (
+						shuttingDown ||
+						socket.data.closing ||
+						sockets.get(socket.data.connectionId) !== socket
+					) {
 						return;
 					}
 					try {
@@ -353,7 +413,11 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 										ownedFrame,
 										now()
 									);
-						if (socket.data.closing || sockets.get(socket.data.connectionId) !== socket) {
+						if (
+							shuttingDown ||
+							socket.data.closing ||
+							sockets.get(socket.data.connectionId) !== socket
+						) {
 							return;
 						}
 						applyDeliveries(deliveries);
@@ -376,7 +440,8 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			drain(socket) {
 				socket.data.ephemeralBlocked = false;
 			},
-			close(socket) {
+			close(socket, code) {
+				metrics.connectionClosed(classifyClose(code));
 				releaseSocketLease(socket);
 				if (sockets.get(socket.data.connectionId) !== socket) return;
 				sockets.delete(socket.data.connectionId);
@@ -385,9 +450,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 					applyDeliveries(options.application.disconnect(socket.data.connectionId, now()));
 					rescheduleDeadline();
 				} catch {
-					safeLog('error', 'websocket_close_cleanup_failed', {
-						connectionId: socket.data.connectionId
-					});
+					safeLog('error', 'websocket_close_cleanup_failed');
 				}
 			},
 			maxPayloadLength: MAX_CLIENT_MESSAGE_BYTES,
@@ -469,10 +532,14 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		scheduledDeadlineMs = undefined;
 		shutdownPromise = (async () => {
 			const connectionIds = [...sockets.keys()];
-			const cancellationDeliveries = options.application.shutdown(now());
+			let cancellationDeliveries: readonly Delivery[] = [];
+			try {
+				cancellationDeliveries = options.application.shutdown(now());
+			} catch {
+				safeLog('error', 'application_shutdown_failed');
+			}
 			if (connectionIds.length > 0) {
 				applyDeliveries([
-					...cancellationDeliveries,
 					{
 						kind: 'send',
 						connectionIds,
@@ -480,22 +547,36 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 							type: 'server_going_away',
 							data: { displayMessageKey: 'arena.serverGoingAway' }
 						}
-					}
+					},
+					...cancellationDeliveries
 				]);
 			} else applyDeliveries(cancellationDeliveries);
-			const drainMs = shutdownOptions.drainMs ?? DEFAULT_SHUTDOWN_DRAIN_MS;
+			const drainMs = shutdownOptions.drainMs ?? options.config.shutdownDrainMs;
 			if (drainMs > 0) await Bun.sleep(drainMs);
 
 			for (const [connectionId, socket] of [...sockets]) {
 				if (sockets.get(connectionId) !== socket) continue;
-				options.application.disconnect(connectionId, now());
+				try {
+					options.application.disconnect(connectionId, now());
+				} catch {
+					safeLog('error', 'shutdown_disconnect_failed');
+				}
 				releaseSocketLease(socket);
 				socket.data.closing = true;
-				socket.close(1012, 'server_restart');
+				try {
+					socket.close(1012, 'server_restart');
+				} catch {
+					safeLog('error', 'shutdown_socket_close_failed');
+				}
 			}
 			sockets.clear();
 			leaseSockets.clear();
 			connectionAdmission.releaseAll();
+			try {
+				options.application.finalizeShutdown?.();
+			} catch {
+				safeLog('error', 'application_finalize_shutdown_failed');
+			}
 			await server.stop(true);
 			safeLog('info', 'server_stopped', { activeConnections: connectionIds.length });
 		})();
@@ -503,4 +584,12 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	};
 
 	return { server, port, shutdown };
+}
+
+function classifyClose(code: number): WebSocketCloseClass {
+	if (code === 1012) return 'restart';
+	if (code === 1013) return 'overload';
+	if ([1002, 1003, 1007, 1008, 1009, 4001].includes(code)) return 'policy';
+	if (code === 1000 || code === 1001) return 'normal';
+	return 'error';
 }

@@ -29,6 +29,10 @@ import type {
 	SeatConnectionRef
 } from '../rooms/models.ts';
 import type { RoomDirectory } from '../rooms/room-directory.ts';
+import {
+	NOOP_OPERATIONAL_METRICS,
+	type OperationalMetrics
+} from '../observability/operational-metrics.ts';
 import type { Delivery } from './delivery.ts';
 
 export type ArenaApplicationTiming = Readonly<{
@@ -45,6 +49,7 @@ export type ArenaApplicationOptions = Readonly<{
 	newTransferId?: () => Uint8Array;
 	inventoryUploadManager?: InventoryUploadManager;
 	timing?: Partial<ArenaApplicationTiming>;
+	operationalMetrics?: OperationalMetrics;
 }>;
 
 type ConnectionCommon = {
@@ -107,10 +112,12 @@ export class ArenaApplication {
 	readonly #newTransferId: () => Uint8Array;
 	readonly #timing: ArenaApplicationTiming;
 	readonly #inventoryUploads: InventoryUploadManager;
+	readonly #metrics: OperationalMetrics;
 	readonly #connections = new Map<string, Connection>();
 	readonly #issuedConnectionIds = new Set<string>();
 	readonly #identityMutationWindows = new Map<string, IdentityMutationWindow>();
 	readonly #availabilityResyncWindows = new Map<string, number[]>();
+	#shuttingDown = false;
 
 	constructor(options: ArenaApplicationOptions) {
 		this.#ticketVerifier = options.ticketVerifier;
@@ -121,9 +128,14 @@ export class ArenaApplication {
 			options.newTransferId ?? (() => crypto.getRandomValues(new Uint8Array(16)));
 		this.#timing = { ...DEFAULT_TIMING, ...options.timing };
 		this.#inventoryUploads = options.inventoryUploadManager ?? new InventoryUploadManager();
+		this.#metrics = options.operationalMetrics ?? NOOP_OPERATIONAL_METRICS;
+		this.#publishDirectoryGauges();
 	}
 
 	connect(connectionId: string): readonly Delivery[] {
+		if (this.#shuttingDown) {
+			return [{ kind: 'close', connectionId, code: 1012, reason: 'server_restart' }];
+		}
 		if (this.#issuedConnectionIds.has(connectionId)) {
 			throw new Error('Arena connection IDs must be unique for the process lifetime.');
 		}
@@ -148,6 +160,7 @@ export class ArenaApplication {
 		message: ClientMessage,
 		nowMs: number
 	): Promise<readonly Delivery[]> {
+		if (this.#shuttingDown) return [];
 		const connection = this.#connections.get(connectionId);
 		if (connection === undefined) return [];
 
@@ -235,6 +248,7 @@ export class ArenaApplication {
 		frame: Uint8Array,
 		nowMs: number
 	): Promise<readonly Delivery[]> {
+		if (this.#shuttingDown) return [];
 		const connection = this.#connections.get(connectionId);
 		if (connection === undefined) return [];
 		if (connection.phase !== 'room_bound' || !hasRoundsCapability(connection)) {
@@ -274,6 +288,7 @@ export class ArenaApplication {
 	}
 
 	sweep(nowMs: number): readonly Delivery[] {
+		if (this.#shuttingDown) return [];
 		this.#sweepIdentityMutationWindows(nowMs);
 		const deliveries: Delivery[] = [];
 		for (const expired of this.#inventoryUploads.sweep(nowMs)) {
@@ -339,6 +354,7 @@ export class ArenaApplication {
 	}
 
 	nextDeadlineMs(): number | undefined {
+		if (this.#shuttingDown) return undefined;
 		let earliest = this.#roomDirectory.nextDeadlineMs();
 		for (const connection of this.#connections.values()) {
 			const deadline =
@@ -353,9 +369,22 @@ export class ArenaApplication {
 	}
 
 	shutdown(_nowMs: number): readonly Delivery[] {
+		if (this.#shuttingDown) return [];
+		this.#shuttingDown = true;
+		this.#inventoryUploads.abortAll();
 		return this.#roomDirectory
 			.cancelLaunches('server_shutdown')
 			.flatMap((transition) => this.#mapTransition(transition.effects, transition.directoryChange));
+	}
+
+	finalizeShutdown(): void {
+		this.#shuttingDown = true;
+		this.#inventoryUploads.abortAll();
+		this.#roomDirectory.clear();
+		this.#connections.clear();
+		this.#identityMutationWindows.clear();
+		this.#availabilityResyncWindows.clear();
+		this.#publishDirectoryGauges();
 	}
 
 	async #receiveHello(
@@ -379,10 +408,12 @@ export class ArenaApplication {
 			identity = (await this.#ticketVerifier.verify(message.data.ticket, new Date(nowMs))).identity;
 		} catch (error) {
 			if (!this.#isCurrent(connection, 'awaiting_hello', capturedVersion)) return [];
+			if (this.#shuttingDown) return [];
 			const code = error instanceof TicketVerificationError ? error.code : 'invalid_ticket';
 			return this.#fatal(connection, code, 1008, nowMs);
 		}
 		if (!this.#isCurrent(connection, 'awaiting_hello', capturedVersion)) return [];
+		if (this.#shuttingDown) return [];
 
 		if (message.data.resume === undefined) {
 			const authenticated = this.#replaceConnection<AuthenticatedConnection>(
@@ -502,7 +533,7 @@ export class ArenaApplication {
 			name: message.data.name,
 			...(message.data.password === undefined ? {} : { password: message.data.password })
 		});
-		if (!this.#isCurrent(connection, 'authenticated', capturedVersion)) {
+		if (!this.#isCurrent(connection, 'authenticated', capturedVersion) || this.#shuttingDown) {
 			if (!result.ok) return [];
 			const compensated = this.#roomDirectory.leave(result.value.binding, this.#now());
 			return compensated.ok ? this.#mapTransition([], compensated.directoryChange) : [];
@@ -576,7 +607,7 @@ export class ArenaApplication {
 			identity: connection.identity,
 			...(message.data.password === undefined ? {} : { password: message.data.password })
 		});
-		if (!this.#isCurrent(connection, 'authenticated', capturedVersion)) {
+		if (!this.#isCurrent(connection, 'authenticated', capturedVersion) || this.#shuttingDown) {
 			if (!result.ok) return [];
 			const compensated = this.#roomDirectory.leave(result.value.binding, this.#now());
 			return compensated.ok ? this.#mapTransition([], compensated.directoryChange) : [];
@@ -1286,6 +1317,13 @@ export class ArenaApplication {
 		directoryChange?: DirectoryChange
 	): readonly Delivery[] {
 		for (const effect of effects) {
+			if (effect.type === 'round_started') this.#metrics.roundStarted();
+			else if (effect.type === 'round_finalized') this.#metrics.roundFinalized();
+			else if (effect.type === 'round_launch_cancelled') {
+				this.#metrics.roundCancelled(effect.reason);
+			}
+		}
+		for (const effect of effects) {
 			if (effect.type !== 'member_left' || effect.invalidatedBinding === undefined) continue;
 			const invalidated = effect.invalidatedBinding;
 			this.#inventoryUploads.abortConnection(invalidated.connectionId);
@@ -1299,6 +1337,7 @@ export class ArenaApplication {
 		}
 		const deliveries = effects.flatMap((effect) => this.#mapEffect(effect));
 		if (directoryChange !== undefined) {
+			this.#publishDirectoryGauges();
 			const subscribers = [...this.#connections.values()]
 				.filter(
 					(connection) => connection.phase !== 'awaiting_hello' && connection.directorySubscribed
@@ -1612,7 +1651,23 @@ export class ArenaApplication {
 	}
 
 	#sendMany(connectionIds: readonly string[], message: ServerMessage): Delivery {
+		if (message.type === 'command_error') this.#metrics.commandRejected(message.data.code);
+		if (
+			message.type === 'fatal_error' &&
+			(message.data.code === 'invalid_ticket' || message.data.code === 'ticket_replayed')
+		) {
+			this.#metrics.authFailure(message.data.code);
+		}
 		return { kind: 'send', connectionIds: [...connectionIds], message };
+	}
+
+	#publishDirectoryGauges(): void {
+		const rooms = this.#roomDirectory.list().rooms;
+		this.#metrics.setRooms(rooms.length);
+		this.#metrics.setReservedSeats(rooms.reduce((total, room) => total + room.reservedCount, 0));
+		this.#metrics.setRoundsActive(
+			rooms.reduce((total, room) => total + (room.phase === 'selecting' ? 0 : 1), 0)
+		);
 	}
 }
 

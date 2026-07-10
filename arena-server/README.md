@@ -14,6 +14,7 @@ bun run verify
 bun run smoke:phase1
 bun run smoke:phase2
 bun run smoke:phase3
+bun run smoke:production -- https://arena.rhythmgame.eu
 bun run start
 ```
 
@@ -22,6 +23,8 @@ bun run start
 `smoke:phase2` is also credential-free. Its default mode starts an ephemeral loopback Ed25519 JWKS issuer, the production JOSE verifier, the real Arena gateway, and split-process WebSocket clients using actual text and binary frames. Its ten phases retain the complete inventory/common-chart/selection/probe/load/start compatibility proof beneath protocol 1.2 competition admission.
 
 `smoke:phase3` runs a deterministic in-process three-seat assertion driver. It proves legacy admission gating, exact chart-length launch, no-data versus zero, coalesced `1,1,3` live and final ranks, ephemeral full-snapshot repair, joint wins, retained last result, reconnect, abandon, deadline DNF, and room-state destruction. `--docker-image` is reserved for the Docker/Linux integration host, where the image must be paired with an ephemeral loopback JWKS issuer; the local in-process mode never writes a signing key or contacts an IR score endpoint.
+
+`smoke:production` accepts exactly one credential-free HTTPS origin. It validates the public certificate through HTTPS and WSS, checks exact health and query rejection, then performs an anonymous protocol 1.2 hello and directory subscription. It has no ticket, password, token, or private-key input path.
 
 The default development endpoints are `http://127.0.0.1:3001/healthz` and `ws://127.0.0.1:3001/ws`. Production TLS terminates at the reverse proxy; the container itself serves plain HTTP/WS.
 
@@ -36,30 +39,39 @@ The URL modes accept only WSS or explicit loopback WS at the exact `/ws` path. T
 
 ## Runtime configuration
 
-| Variable                        | Default                               | Policy                                                      |
-| ------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| `HOST`                          | `0.0.0.0`                             | Nonempty listen host, at most 253 characters.               |
-| `PORT`                          | `3001`                                | Integer from 1 through 65535.                               |
-| `IR_JWKS_URL`                   | `https://rhythmgame.eu/api/auth/jwks` | HTTPS, except explicit loopback HTTP for development/tests. |
-| `IR_ISSUER`                     | `https://rhythmgame.eu`               | Exact ticket issuer; HTTPS except explicit loopback HTTP.   |
-| `ARENA_AUDIENCE`                | `https://arena.rhythmgame.eu`         | Exact ticket audience; HTTPS except explicit loopback HTTP. |
-| `RECONNECT_GRACE_MS`            | `60000`                               | Integer from 10 seconds through 5 minutes.                  |
-| `ROOM_CAPACITY`                 | `16`                                  | Fixed by protocol 1.x; any other value fails startup.       |
-| `CHAT_BACKLOG`                  | `200`                                 | Integer from 1 through 1000 messages per room.              |
-| `INVENTORY_UPLOAD_TIMEOUT_MS`   | `60000`                               | Integer from 1 second through 5 minutes.                    |
-| `MAX_PENDING_INVENTORY_BYTES`   | `134217728`                           | Process-wide partial-upload budget, at most 512 MiB.        |
-| `MAX_COMMITTED_INVENTORY_BYTES` | `536870912`                           | Process-wide committed-seat budget, at most 2 GiB.          |
-| `MAX_ROOMS`                     | `1000`                                | Process-wide in-memory room cap.                            |
-| `MAX_CONNECTIONS`               | `5000`                                | WebSocket upgrade cap; excess receives HTTP 503.            |
-| `TELEMETRY_INTERVAL_MS`         | `200`                                 | Protocol-canonical value; other values fail startup.        |
+| Variable                                  | Default                               | Policy                                                                    |
+| ----------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
+| `HOST`                                    | `0.0.0.0`                             | Nonempty listen host, at most 253 characters.                             |
+| `PORT`                                    | `3001`                                | Integer from 1 through 65535.                                             |
+| `IR_JWKS_URL`                             | `https://rhythmgame.eu/api/auth/jwks` | HTTPS, except explicit loopback HTTP for development/tests.               |
+| `IR_ISSUER`                               | `https://rhythmgame.eu`               | Exact ticket issuer; HTTPS except explicit loopback HTTP.                 |
+| `ARENA_AUDIENCE`                          | `https://arena.rhythmgame.eu`         | Exact ticket audience; HTTPS except explicit loopback HTTP.               |
+| `RECONNECT_GRACE_MS`                      | `60000`                               | Integer from 10 seconds through 5 minutes.                                |
+| `ROOM_CAPACITY`                           | `16`                                  | Fixed by protocol 1.x; any other value fails startup.                     |
+| `CHAT_BACKLOG`                            | `200`                                 | Integer from 1 through 1000 messages per room.                            |
+| `INVENTORY_UPLOAD_TIMEOUT_MS`             | `60000`                               | Integer from 1 second through 5 minutes.                                  |
+| `MAX_PENDING_INVENTORY_BYTES`             | `134217728`                           | Process-wide partial-upload budget, at most 512 MiB.                      |
+| `MAX_COMMITTED_INVENTORY_BYTES`           | `536870912`                           | Process-wide committed-seat budget, at most 2 GiB.                        |
+| `MAX_ROOMS`                               | `1000`                                | Process-wide in-memory room cap.                                          |
+| `MAX_CONNECTIONS`                         | `5000`                                | WebSocket upgrade cap; excess receives HTTP 503.                          |
+| `TELEMETRY_INTERVAL_MS`                   | `200`                                 | Protocol-canonical value; other values fail startup.                      |
+| `TRUSTED_PROXY_CIDRS`                     | empty                                 | Comma-separated exact private proxy networks; global ranges are rejected. |
+| `UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE` | `120`                                 | Rolling upgrade attempts retained per HMAC address key.                   |
+| `MAX_CONNECTIONS_PER_ADDRESS`             | `20`                                  | Concurrent upgraded sockets per HMAC address key.                         |
+| `CLIENT_HELLO_TIMEOUT_MS`                 | `10000`                               | Incomplete hello policy-close deadline.                                   |
+| `MAX_TRACKED_ADDRESSES`                   | `20000`                               | Process-wide bounded admission entries.                                   |
+| `METRICS_ENABLED`                         | `false`                               | Enables private exact `GET /metrics` only.                                |
+| `METRICS_BEARER_TOKEN`                    | empty                                 | Required bearer-safe value of at least 32 bytes when enabled.             |
+| `SHUTDOWN_DRAIN_MS`                       | `8000`                                | Maximum reliable-send drain before 1012 close.                            |
 
 Invalid configuration fails before the listener starts. `GET /healthz` reports process and protocol 1.2 liveness only; it deliberately does not contact IR or JWKS, so an identity outage cannot create a container restart loop.
 
-The gateway derives its peer key from Bun's direct socket address and never trusts `X-Forwarded-For`. The current limits are 6,000 direct-peer upgrades per minute, five room creations per identity per minute, ten password-bearing join attempts per identity per minute, and five accepted chat messages per seat per ten seconds. The high direct-peer ceiling accounts for Coolify's proxy potentially being the shared direct peer; forwarded-header trust requires a separate validated proxy-hop policy.
+The gateway trusts `X-Forwarded-For` only when Bun's direct peer belongs to a configured `TRUSTED_PROXY_CIDRS` network. It accepts at most eight entries and 512 bytes, strips configured proxy hops right-to-left, and otherwise falls back to the direct peer. Raw addresses and forwarding headers are never logged or used as metric labels; admission keys are HMAC-SHA-256 values under a process-random salt. Configure only the actual private Traefik/container-network CIDR. Empty direct-peer mode is safe, while malformed, duplicate, or global trust ranges fail startup.
 
 ## HTTP and protocol behavior
 
 - Exact `GET /healthz` returns no-store JSON with process status and protocol version.
+- Exact `GET /metrics` is disabled by default. When enabled it requires a constant-time-checked bearer token, returns bounded Prometheus text with no-store, and exposes no room/user/IP/chart/score/chat identifiers.
 - Exact `GET /ws` performs the WebSocket upgrade. A nonempty query is rejected with 400, other methods with 405 and `Allow: GET`, a failed upgrade with 426, and other paths with 404.
 - During shutdown, new `/ws` requests receive 503.
 - The first WebSocket message must be a protocol 1.x `client_hello`. Minor 0 negotiates `rooms-v1`, minor 1 adds `rounds-v1`, and minor 2 adds `competition-v1`. Older clients may browse but cannot enter a playable room.
@@ -81,22 +93,22 @@ An IR/JWKS outage affects new authenticated hellos only: health and anonymous br
 Build and inspect the pinned non-root image:
 
 ```sh
-docker build --pull --tag rhythmgame-arena:phase3 --file arena-server/Dockerfile arena-server
-docker image inspect rhythmgame-arena:phase3 --format '{{.Config.User}} {{json .Config.ExposedPorts}} {{json .Config.Healthcheck}}'
-docker run --rm --entrypoint sh rhythmgame-arena:phase3 -c 'test ! -e /app/tests && test ! -e /app/scripts && test ! -e /app/docs && test ! -e /app/fixtures && test ! -e /app/.env && test ! -e /app/.git'
+docker build --pull --tag rhythmgame-arena:phase4 --file arena-server/Dockerfile arena-server
+docker image inspect rhythmgame-arena:phase4 --format '{{.Config.User}} {{json .Config.ExposedPorts}} {{json .Config.Healthcheck}} {{json .Config.Labels}}'
+docker run --rm --entrypoint sh rhythmgame-arena:phase4 -c 'test ! -e /app/tests && test ! -e /app/scripts && test ! -e /app/docs && test ! -e /app/ops && test ! -e /app/fixtures && test ! -e /app/.env && test ! -e /app/.git'
 ```
 
 Run it without any private IR configuration:
 
 ```sh
-docker run --rm --publish 127.0.0.1:3001:3001 rhythmgame-arena:phase3
+docker run --rm --read-only --tmpfs /tmp --publish 127.0.0.1:3001:3001 rhythmgame-arena:phase4
 curl --fail --silent --show-error http://127.0.0.1:3001/healthz
 ```
 
 Invalid policy must fail startup:
 
 ```sh
-docker run --rm --env ROOM_CAPACITY=8 rhythmgame-arena:phase3
+docker run --rm --env ROOM_CAPACITY=8 rhythmgame-arena:phase4
 ```
 
 The image is pinned to `oven/bun:1.3.14-alpine`, installs production dependencies from the frozen package lock, exposes only `3001/tcp`, runs as the non-root `bun` user, declares `SIGTERM` as its stop signal, and embeds neither tests, smoke scripts, documentation, fixtures, nor local environment/VCS files. Give the container memory headroom above the configured inventory budgets; a 512 MiB container limit is not compatible with a 512 MiB committed-inventory budget plus Bun and room state.
@@ -115,7 +127,7 @@ The image is pinned to `oven/bun:1.3.14-alpine`, installs production dependencie
 | Persistent volume         | None                                                         |
 | TLS                       | Coolify/Traefik termination with a valid public certificate  |
 | Proxy idle timeout        | At least five minutes                                        |
-| Stop grace                | At least ten seconds                                         |
+| Stop grace                | At least fifteen seconds                                     |
 | Restart policy            | Health-based; health is independent of IR/JWKS reachability  |
 | Resource limits           | Explicit CPU, memory, connection, and request/payload limits |
 
@@ -136,9 +148,17 @@ MAX_COMMITTED_INVENTORY_BYTES=536870912
 MAX_ROOMS=1000
 MAX_CONNECTIONS=5000
 TELEMETRY_INTERVAL_MS=200
+TRUSTED_PROXY_CIDRS=<exact-private-traefik-network-cidr>
+UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE=120
+MAX_CONNECTIONS_PER_ADDRESS=20
+CLIENT_HELLO_TIMEOUT_MS=10000
+MAX_TRACKED_ADDRESSES=20000
+METRICS_ENABLED=true
+METRICS_BEARER_TOKEN=<coolify-secret-at-least-32-bytes>
+SHUTDOWN_DRAIN_MS=8000
 ```
 
-Do not configure `DATABASE_URL`, Better Auth secrets, signing private keys, IR session tokens, cookie secrets, certificates, or a volume. Keep exactly one replica until room state and fan-out move to shared infrastructure; multiple replicas would split the directory.
+Do not configure `DATABASE_URL`, Better Auth secrets, signing private keys, IR session tokens, cookie secrets, certificates, or a volume. Keep exactly one replica until room state and fan-out move to shared infrastructure; multiple replicas would split the directory. The exact operational checklist and credential boundary are in [`ops/coolify.md`](ops/coolify.md).
 
 The reverse proxy must preserve WebSocket upgrades, expose WSS only, validate the public certificate/hostname, allow at least a five-minute idle period, and enforce external connection and payload limits. Graceful shutdown broadcasts `server_going_away`, drains briefly, then closes active sockets with WebSocket code 1012. A deployment or restart intentionally destroys every room.
 
@@ -148,6 +168,7 @@ Post-deploy checks:
 curl --fail --silent --show-error https://arena.rhythmgame.eu/healthz
 bun run smoke:phase1 -- --anonymous-url wss://arena.rhythmgame.eu/ws
 bun run smoke:phase2 -- wss://arena.rhythmgame.eu/ws
+bun run smoke:production -- https://arena.rhythmgame.eu
 curl --include 'https://arena.rhythmgame.eu/ws?ticket=sentinel'
 ```
 
@@ -156,7 +177,7 @@ The health request must report protocol 1.2, both anonymous probes must receive 
 ## Security and operational notes
 
 - Never log tickets, room passwords, resume tokens, chat bodies, raw frames, complete deliveries, full song inventories, or availability-transfer payloads.
-- Structured logs contain stable event names and permitted connection/room identifiers only.
+- Structured logs contain stable event names and bounded aggregate counts only; connection, room, member, user, address, chart, score, chat, and credential values are excluded.
 - No room, chat, credential, or reconnect state is persisted.
 - IR/JWKS errors are identity-service failures; Arena socket/health errors are Arena-service failures. Diagnose them separately.
 - The native Bun 1.3.14 WebSocket implementation on Windows can spin in tests involving server-initiated close, binary input, and native oversize rejection. Those real-socket cases remain enabled on Linux and in the deployment image; deterministic application/HTTP tests and both credential-free smoke suites run on Windows.

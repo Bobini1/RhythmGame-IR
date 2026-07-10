@@ -6,8 +6,15 @@ RUN bun install --frozen-lockfile --production
 
 FROM oven/bun:1.3.14-alpine AS runtime
 
+ARG OCI_SOURCE="https://github.com/Bobini1/RhythmGame-IR"
+ARG OCI_REVISION="unknown"
+ARG OCI_VERSION="dev"
+
 LABEL org.opencontainers.image.title="RhythmGame Arena Server" \
-      org.opencontainers.image.description="Ephemeral RhythmGame Arena protocol 1.2 competition server"
+      org.opencontainers.image.description="Ephemeral RhythmGame Arena protocol 1.2 competition server" \
+      org.opencontainers.image.source="${OCI_SOURCE}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.version="${OCI_VERSION}"
 
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -18,7 +25,14 @@ ENV NODE_ENV=production \
     MAX_COMMITTED_INVENTORY_BYTES=536870912 \
     MAX_ROOMS=1000 \
     MAX_CONNECTIONS=5000 \
-    TELEMETRY_INTERVAL_MS=200
+    TELEMETRY_INTERVAL_MS=200 \
+    UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE=120 \
+    MAX_CONNECTIONS_PER_ADDRESS=20 \
+    CLIENT_HELLO_TIMEOUT_MS=10000 \
+    MAX_TRACKED_ADDRESSES=20000 \
+    METRICS_ENABLED=false \
+    SHUTDOWN_DRAIN_MS=8000 \
+    TMPDIR=/tmp
 
 COPY --from=dependencies --chown=bun:bun /app/node_modules ./node_modules
 COPY --chown=bun:bun package.json bun.lock ./

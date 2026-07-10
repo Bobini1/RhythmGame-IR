@@ -2,6 +2,7 @@ import { ArenaApplication } from './application/arena-application.ts';
 import { JoseTicketVerifier } from './auth/jose-ticket-verifier.ts';
 import { loadArenaConfig } from './config.ts';
 import { InventoryUploadManager } from './inventory/inventory-upload-manager.ts';
+import { createOperationalMetrics } from './observability/operational-metrics.ts';
 import { BunPasswordHasher } from './rooms/bun-password-hasher.ts';
 import { createRoomDirectory } from './rooms/room-directory.ts';
 import {
@@ -25,11 +26,13 @@ export function startProductionArenaServer(
 	environment: Record<string, string | undefined> = Bun.env
 ): ArenaServerHandle {
 	const config = loadArenaConfig(environment);
+	const operationalMetrics = createOperationalMetrics();
 	const ticketVerifier = new JoseTicketVerifier(config);
 	const inventoryUploadManager = new InventoryUploadManager({
 		uploadTimeoutMs: config.inventoryUploadTimeoutMs,
 		maxPendingBytes: config.maxPendingInventoryBytes,
-		maxCommittedBytes: config.maxCommittedInventoryBytes
+		maxCommittedBytes: config.maxCommittedInventoryBytes,
+		operationalMetrics
 	});
 	const roomDirectory = createRoomDirectory(
 		{
@@ -46,9 +49,16 @@ export function startProductionArenaServer(
 		roomDirectory,
 		now: Date.now,
 		newNonce: () => crypto.randomUUID(),
-		inventoryUploadManager
+		inventoryUploadManager,
+		operationalMetrics,
+		timing: { helloTimeoutMs: config.clientHelloTimeoutMs }
 	});
-	const handle = startArenaServer({ application, config, logger: structuredLogger });
+	const handle = startArenaServer({
+		application,
+		config,
+		logger: structuredLogger,
+		operationalMetrics
+	});
 	structuredLogger('info', 'server_started', { host: config.host, port: handle.port });
 	return handle;
 }

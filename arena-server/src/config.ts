@@ -17,6 +17,7 @@ export const DEFAULT_UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE = 120;
 export const DEFAULT_MAX_CONNECTIONS_PER_ADDRESS = 20;
 export const DEFAULT_CLIENT_HELLO_TIMEOUT_MS = 10_000;
 export const DEFAULT_MAX_TRACKED_ADDRESSES = 20_000;
+export const DEFAULT_SHUTDOWN_DRAIN_MS = 8_000;
 
 const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
 
@@ -113,7 +114,18 @@ const environmentSchema = z.object({
 		.int()
 		.min(1)
 		.max(1_000_000)
-		.default(DEFAULT_MAX_TRACKED_ADDRESSES)
+		.default(DEFAULT_MAX_TRACKED_ADDRESSES),
+	METRICS_ENABLED: z
+		.enum(['true', 'false'])
+		.default('false')
+		.transform((value) => value === 'true'),
+	METRICS_BEARER_TOKEN: z.string().max(1_024).default(''),
+	SHUTDOWN_DRAIN_MS: z.coerce
+		.number()
+		.int()
+		.min(1_000)
+		.max(60_000)
+		.default(DEFAULT_SHUTDOWN_DRAIN_MS)
 });
 
 export type ArenaConfig = Readonly<{
@@ -136,12 +148,22 @@ export type ArenaConfig = Readonly<{
 	maxConnectionsPerAddress: number;
 	clientHelloTimeoutMs: number;
 	maxTrackedAddresses: number;
+	metricsEnabled: boolean;
+	metricsBearerToken: string | null;
+	shutdownDrainMs: number;
 }>;
 
 export function loadArenaConfig(
 	environment: Record<string, string | undefined> = Bun.env
 ): ArenaConfig {
 	const parsed = environmentSchema.parse(environment);
+	if (
+		parsed.METRICS_ENABLED &&
+		(Buffer.byteLength(parsed.METRICS_BEARER_TOKEN, 'utf8') < 32 ||
+			!/^[-A-Za-z0-9._~+/]+=*$/.test(parsed.METRICS_BEARER_TOKEN))
+	) {
+		throw new Error('METRICS_BEARER_TOKEN must be a valid bearer token of at least 32 bytes.');
+	}
 	return {
 		host: parsed.HOST,
 		port: parsed.PORT,
@@ -161,6 +183,9 @@ export function loadArenaConfig(
 		upgradeAttemptsPerAddressPerMinute: parsed.UPGRADE_ATTEMPTS_PER_ADDRESS_PER_MINUTE,
 		maxConnectionsPerAddress: parsed.MAX_CONNECTIONS_PER_ADDRESS,
 		clientHelloTimeoutMs: parsed.CLIENT_HELLO_TIMEOUT_MS,
-		maxTrackedAddresses: parsed.MAX_TRACKED_ADDRESSES
+		maxTrackedAddresses: parsed.MAX_TRACKED_ADDRESSES,
+		metricsEnabled: parsed.METRICS_ENABLED,
+		metricsBearerToken: parsed.METRICS_ENABLED ? parsed.METRICS_BEARER_TOKEN : null,
+		shutdownDrainMs: parsed.SHUTDOWN_DRAIN_MS
 	};
 }

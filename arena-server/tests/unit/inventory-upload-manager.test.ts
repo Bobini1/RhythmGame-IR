@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'bun:test';
 
 import { InventoryUploadManager } from '../../src/inventory/inventory-upload-manager.ts';
+import { createOperationalMetrics } from '../../src/observability/operational-metrics.ts';
 import { encodeHashChunk, MAX_HASHES_PER_CHUNK } from '../../src/protocol/binary.ts';
 import type { InventoryDeclaration } from '../../src/protocol/messages.ts';
 
@@ -59,7 +60,11 @@ describe('InventoryUploadManager', () => {
 	});
 
 	test('validates ordering across chunks and commits one immutable packed inventory', () => {
-		const manager = new InventoryUploadManager({ newTransferId: deterministicIds() });
+		const metrics = createOperationalMetrics();
+		const manager = new InventoryUploadManager({
+			newTransferId: deterministicIds(),
+			operationalMetrics: metrics
+		});
 		const bytes = packedHashes(MAX_HASHES_PER_CHUNK + 1);
 		const started = begin(manager, 'c1', bytes);
 		const first = bytes.slice(0, MAX_HASHES_PER_CHUNK * 32);
@@ -89,11 +94,16 @@ describe('InventoryUploadManager', () => {
 		if (!committed.ok) return;
 		expect(committed.inventory.copyBytes()).toEqual(bytes);
 		expect(manager.committedBytes).toBe(bytes.byteLength);
+		expect(metrics.renderPrometheus()).toContain(
+			`arena_inventory_committed_bytes ${bytes.byteLength}\n`
+		);
+		expect(metrics.renderPrometheus()).toContain('arena_inventory_upload_seconds_count 1\n');
 		const copy = committed.inventory.copyBytes();
 		copy.fill(0);
 		expect(committed.inventory.copyBytes()).toEqual(bytes);
 		manager.releaseCommitted(committed.inventory);
 		expect(manager.committedBytes).toBe(0);
+		expect(metrics.renderPrometheus()).toContain('arena_inventory_committed_bytes 0\n');
 	});
 
 	test('rejects wrong kind, transfer, index, empty chunks, duplicates, and declaration mismatch', () => {

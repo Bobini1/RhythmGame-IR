@@ -3,6 +3,10 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { decodeHashChunk } from '../protocol/binary.ts';
 import { ProtocolError } from '../protocol/errors.ts';
 import { inventoryDeclarationSchema, type InventoryDeclaration } from '../protocol/messages.ts';
+import {
+	NOOP_OPERATIONAL_METRICS,
+	type OperationalMetrics
+} from '../observability/operational-metrics.ts';
 import { PackedInventory, SHA256_BYTES } from './packed-inventory.ts';
 
 export const DEFAULT_INVENTORY_UPLOAD_TIMEOUT_MS = 60_000;
@@ -27,6 +31,7 @@ type PendingUpload = {
 	chunks: Uint8Array[];
 	receivedHashes: number;
 	lastHash?: Uint8Array;
+	startedAtMs: number;
 };
 
 export type BeginResult =
@@ -66,6 +71,7 @@ export type InventoryUploadManagerOptions = Readonly<{
 	uploadTimeoutMs?: number;
 	maxPendingBytes?: number;
 	maxCommittedBytes?: number;
+	operationalMetrics?: OperationalMetrics;
 }>;
 
 const BEGIN_LIMIT = 6;
@@ -98,6 +104,7 @@ export class InventoryUploadManager {
 	readonly #uploadTimeoutMs: number;
 	readonly #maxPendingBytes: number;
 	readonly #maxCommittedBytes: number;
+	readonly #metrics: OperationalMetrics;
 	readonly #pending = new Map<string, PendingUpload>();
 	readonly #beginWindows = new Map<string, number[]>();
 	readonly #issuedUploadIds = new Set<string>();
@@ -110,6 +117,7 @@ export class InventoryUploadManager {
 		this.#uploadTimeoutMs = options.uploadTimeoutMs ?? DEFAULT_INVENTORY_UPLOAD_TIMEOUT_MS;
 		this.#maxPendingBytes = options.maxPendingBytes ?? DEFAULT_MAX_PENDING_INVENTORY_BYTES;
 		this.#maxCommittedBytes = options.maxCommittedBytes ?? DEFAULT_MAX_COMMITTED_INVENTORY_BYTES;
+		this.#metrics = options.operationalMetrics ?? NOOP_OPERATIONAL_METRICS;
 		for (const value of [this.#uploadTimeoutMs, this.#maxPendingBytes, this.#maxCommittedBytes]) {
 			if (!Number.isSafeInteger(value) || value < 0) {
 				throw new Error('Invalid inventory upload manager limit.');
@@ -159,7 +167,8 @@ export class InventoryUploadManager {
 			declaration: parsed.data,
 			deadlineMs: nowMs + this.#uploadTimeoutMs,
 			chunks: [],
-			receivedHashes: 0
+			receivedHashes: 0,
+			startedAtMs: nowMs
 		};
 		this.#pending.set(connectionId, pending);
 		this.#pendingReservedBytes += pending.declaration.byteCount;
@@ -271,6 +280,8 @@ export class InventoryUploadManager {
 		this.#discard(pending);
 		this.#committedBytes += inventory.byteLength;
 		this.#committedReservations.add(inventory);
+		this.#metrics.setInventoryCommittedBytes(this.#committedBytes);
+		this.#metrics.observeInventoryUpload((nowMs - pending.startedAtMs) / 1_000);
 		return { ok: true, inventory };
 	}
 
@@ -313,6 +324,7 @@ export class InventoryUploadManager {
 	releaseCommitted(inventory: PackedInventory): void {
 		if (!this.#committedReservations.delete(inventory)) return;
 		this.#committedBytes -= inventory.byteLength;
+		this.#metrics.setInventoryCommittedBytes(this.#committedBytes);
 	}
 
 	abortAll(): void {
