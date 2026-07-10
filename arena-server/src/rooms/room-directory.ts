@@ -8,8 +8,11 @@ import type {
 	DirectoryChange,
 	DirectorySnapshot,
 	DomainResult,
+	FrozenReplyBasis,
 	InventoryCommit,
 	JoinRoomInput,
+	LoadReport,
+	ProbeReport,
 	ReadyCommit,
 	ResumeSeatInput,
 	RoomDirectoryConfig,
@@ -37,8 +40,24 @@ import {
 	type RoomState,
 	type SeatState
 } from './room.ts';
-import { clearSelection, freezeRound, replaceSelection, sha256Bytes } from './round-state.ts';
-import type { SelectionSnapshot } from '../protocol/messages.ts';
+import {
+	beginRoundLoading,
+	clearSelection,
+	connectionStartAfterMs,
+	copyFrozenRound,
+	copySelectionSnapshot,
+	currentRttMs,
+	freezeRound,
+	recordLoadReply,
+	recordProbeReply,
+	replaceSelection,
+	scheduleRound,
+	sha256Bytes,
+	startLeadMs,
+	startRound
+} from './round-state.ts';
+import type { RoundLoadingState } from './round-state.ts';
+import type { LaunchCancellationReason, SelectionSnapshot } from '../protocol/messages.ts';
 
 export interface RoomDirectory {
 	list(): DirectorySnapshot;
@@ -52,7 +71,7 @@ export interface RoomDirectory {
 	markInventorySyncing(
 		actor: SeatConnectionRef,
 		libraryGeneration: number,
-		nowMs: number
+		_nowMs: number
 	): DomainResult<UploadAdmission>;
 	abortInventorySync(
 		actor: SeatConnectionRef,
@@ -86,7 +105,12 @@ export interface RoomDirectory {
 		}>,
 		nowMs: number
 	): DomainResult<ReadyCommit>;
+	reportProbe(actor: SeatConnectionRef, report: ProbeReport, nowMs: number): DomainResult<void>;
+	reportLoaded(actor: SeatConnectionRef, report: LoadReport, nowMs: number): DomainResult<void>;
+	recordRtt(actor: SeatConnectionRef, rttMs: number, nowMs: number): DomainResult<void>;
 	sweep(nowMs: number): readonly RoomTransition[];
+	cancelLaunches(reason: 'server_shutdown'): readonly RoomTransition[];
+	nextDeadlineMs(): number | undefined;
 }
 
 class InMemoryRoomDirectory implements RoomDirectory {
@@ -259,6 +283,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		seat.connectionGeneration += 1;
 		seat.resumeTokenDigest = rotatedToken.digest;
 		seat.status = 'connected';
+		seat.rttSamples = [];
 		delete seat.reservedUntilMs;
 		const ownerChanged = room.ownerSeatId === null;
 		if (ownerChanged) room.ownerSeatId = seat.seatId;
@@ -290,6 +315,31 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		}
 		const availabilityReset = this.#availabilityResetEffect(room, seat);
 		if (availabilityReset !== undefined) effects.push(availabilityReset);
+		const runtime = room.roundRuntime;
+		const participant = runtime?.participants.find(
+			(candidate) => candidate.memberId === seat.seatId
+		);
+		if (runtime !== undefined && participant !== undefined) {
+			if (runtime.round.stage === 'probing' && participant.probeAnswer === undefined) {
+				effects.push(this.#probeEffect(room, seat, runtime));
+			} else if (runtime.round.stage === 'loading' && participant.loadAnswer === undefined) {
+				effects.push(this.#loadEffect(room, seat, runtime.round));
+			} else if (runtime.round.stage === 'loading') {
+				effects.push(...this.#scheduleRound(room, input.nowMs));
+			} else if (runtime.round.stage === 'scheduled' && runtime.startAtServerMs !== undefined) {
+				effects.push({
+					type: 'round_start_scheduled',
+					targets: [seat.connectionId],
+					roomId: room.roomId,
+					roomGeneration: room.generation,
+					connectionGeneration: seat.connectionGeneration,
+					roundId: runtime.round.roundId,
+					launchAttemptId: runtime.round.launchAttemptId,
+					startAtServerMs: runtime.startAtServerMs,
+					startAfterMs: connectionStartAfterMs(runtime.startAtServerMs, input.nowMs, undefined)
+				});
+			}
+		}
 
 		return {
 			ok: true,
@@ -302,7 +352,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 	markInventorySyncing(
 		actor: SeatConnectionRef,
 		libraryGeneration: number,
-		_nowMs: number
+		nowMs: number
 	): DomainResult<UploadAdmission> {
 		const bound = this.#boundSeat(actor);
 		if (!bound.ok) return bound;
@@ -470,13 +520,13 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			roomGeneration: room.generation,
 			selectionRevision: room.selectionRevision,
 			availabilityRevision: room.availabilityRevision,
-			selection: room.selection,
+			selection: copySelectionSnapshot(room.selection),
 			selectedByMemberId: room.selectedByMemberId
 		});
 		return {
 			ok: true,
 			value: {
-				selection: room.selection,
+				selection: copySelectionSnapshot(room.selection),
 				selectionRevision: room.selectionRevision,
 				availabilityRevision: room.availabilityRevision,
 				selectedByMemberId: seat.seatId
@@ -493,7 +543,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			availabilityRevision: number;
 			inventoryRevision: number;
 		}>,
-		_nowMs: number
+		nowMs: number
 	): DomainResult<ReadyCommit> {
 		const bound = this.#boundSeat(actor);
 		if (!bound.ok) return bound;
@@ -542,7 +592,24 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				inventoryRevision: candidate.inventoryRevision
 			}))
 		});
-		room.round = round;
+		const probeNonces = new Set<string>();
+		const runtime = beginRoundLoading(
+			round,
+			eligible.map((candidate) => {
+				let probeNonce: string;
+				do probeNonce = this.#opaqueId(16);
+				while (probeNonces.has(probeNonce));
+				probeNonces.add(probeNonce);
+				return {
+					memberId: candidate.seatId,
+					inventoryRevision: candidate.inventoryRevision,
+					probeNonce
+				};
+			}),
+			nowMs
+		);
+		room.roundRuntime = runtime;
+		room.round = runtime.round;
 		room.phase = 'loading';
 		for (const candidate of eligible) {
 			candidate.ready = false;
@@ -554,14 +621,118 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			targets: connectedTargets(room),
 			roomId: room.roomId,
 			roomGeneration: room.generation,
-			round
+			round: copyFrozenRound(runtime.round)
 		});
+		for (const participant of runtime.participants) {
+			const candidate = room.seats.get(participant.memberId);
+			if (candidate === undefined || candidate.status !== 'connected') {
+				throw new Error('Frozen participant disappeared during ready transition.');
+			}
+			effects.push(this.#probeEffect(room, candidate, runtime));
+		}
 		return {
 			ok: true,
-			value: { ready: true, round },
+			value: { ready: true, round: copyFrozenRound(runtime.round) },
 			effects,
 			directoryChange: this.#upsert(room)
 		};
+	}
+
+	reportProbe(actor: SeatConnectionRef, report: ProbeReport, nowMs: number): DomainResult<void> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		const runtime = room.roundRuntime;
+		if (runtime === undefined || seat.roundState === 'waiting') {
+			return { ok: false, rejection: { code: 'round_stale' } };
+		}
+		if (!this.#matchesRoundReply(runtime, seat.seatId, report)) {
+			return { ok: false, rejection: { code: 'round_stale' } };
+		}
+		const transition = recordProbeReply(runtime, seat.seatId, report, nowMs);
+		if (transition.kind === 'rejected') {
+			return { ok: false, rejection: { code: 'launch_stage_stale' } };
+		}
+		if (transition.kind === 'duplicate') {
+			return { ok: true, value: undefined, effects: [] };
+		}
+		if (transition.kind === 'expired' || transition.kind === 'cancelled') {
+			const effects = this.#cancelRound(
+				room,
+				transition.kind === 'expired' ? 'probe_timeout' : transition.reason
+			);
+			return {
+				ok: true,
+				value: undefined,
+				effects,
+				directoryChange: this.#upsert(room)
+			};
+		}
+
+		room.roundRuntime = transition.state;
+		room.round = transition.state.round;
+		if (!transition.barrierComplete) return { ok: true, value: undefined, effects: [] };
+		const effects: RoomEffect[] = [];
+		for (const participant of transition.state.participants) {
+			const candidate = room.seats.get(participant.memberId);
+			if (candidate === undefined) continue;
+			candidate.roundState = 'loading';
+			effects.push(...this.#memberUpdatedEffects(room, candidate));
+			if (candidate.status === 'connected') {
+				effects.push(this.#loadEffect(room, candidate, transition.state.round));
+			}
+		}
+		return { ok: true, value: undefined, effects };
+	}
+
+	reportLoaded(actor: SeatConnectionRef, report: LoadReport, nowMs: number): DomainResult<void> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		const runtime = room.roundRuntime;
+		if (runtime === undefined || seat.roundState === 'waiting') {
+			return { ok: false, rejection: { code: 'round_stale' } };
+		}
+		if (!this.#matchesRoundReply(runtime, seat.seatId, report)) {
+			return { ok: false, rejection: { code: 'round_stale' } };
+		}
+		const transition = recordLoadReply(runtime, seat.seatId, report, nowMs);
+		if (transition.kind === 'rejected') {
+			return { ok: false, rejection: { code: 'launch_stage_stale' } };
+		}
+		if (transition.kind === 'duplicate') {
+			return { ok: true, value: undefined, effects: [] };
+		}
+		if (transition.kind === 'expired' || transition.kind === 'cancelled') {
+			const effects = this.#cancelRound(
+				room,
+				transition.kind === 'expired' ? 'load_timeout' : transition.reason
+			);
+			return {
+				ok: true,
+				value: undefined,
+				effects,
+				directoryChange: this.#upsert(room)
+			};
+		}
+
+		room.roundRuntime = transition.state;
+		room.round = transition.state.round;
+		seat.roundState = 'loaded';
+		const effects = this.#memberUpdatedEffects(room, seat);
+		if (!transition.barrierComplete) return { ok: true, value: undefined, effects };
+		effects.push(...this.#scheduleRound(room, nowMs));
+		return { ok: true, value: undefined, effects };
+	}
+
+	recordRtt(actor: SeatConnectionRef, rttMs: number, nowMs: number): DomainResult<void> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		if (!Number.isSafeInteger(rttMs) || rttMs < 0) {
+			return { ok: false, rejection: { code: 'launch_stage_stale' } };
+		}
+		bound.seat.rttSamples = [...bound.seat.rttSamples, { sampledAtMs: nowMs, rttMs }].slice(-8);
+		return { ok: true, value: undefined, effects: [] };
 	}
 
 	leave(actor: SeatConnectionRef, _nowMs: number): DomainResult<void> {
@@ -576,12 +747,16 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		if (seat === undefined)
 			return { ok: false, rejection: { code: 'connection_generation_stale' } };
 
+		const cancellationEffects = this.#isFrozenParticipant(room, seat.seatId)
+			? this.#cancelRound(room, 'participant_left')
+			: [];
 		const targets = connectedTargets(room);
 		const wasOwner = room.ownerSeatId === seat.seatId;
 		room.seats.delete(seat.seatId);
 		if (seat.inventory !== undefined) this.#releaseInventory(seat.inventory);
 		this.#connections.delete(seat.connectionId);
 		const effects: RoomEffect[] = [
+			...cancellationEffects,
 			{
 				type: 'member_left' as const,
 				targets,
@@ -645,6 +820,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			return { ok: false, rejection: { code: 'target_not_found' } };
 		}
 
+		const cancellationEffects = this.#isFrozenParticipant(room, target.seatId)
+			? this.#cancelRound(room, 'participant_kicked')
+			: [];
 		const targets = connectedTargets(room);
 		const invalidatedBinding: SeatConnectionRef | undefined =
 			target.status === 'connected'
@@ -663,6 +841,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		if (target.status === 'connected') this.#connections.delete(target.connectionId);
 
 		const effects: RoomEffect[] = [
+			...cancellationEffects,
 			{
 				type: 'member_left',
 				targets,
@@ -691,12 +870,13 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		if (seat === undefined) return noOp;
 
 		const wasOwner = room.ownerSeatId === seat.seatId;
+		seat.ready = false;
 		seat.status = 'reserved';
 		seat.reservedUntilMs = nowMs + this.#config.reconnectGraceMs;
 		this.#connections.delete(seat.connectionId);
 		if (wasOwner) room.ownerSeatId = oldestConnectedSeat(room)?.seatId ?? null;
 		const targets = connectedTargets(room);
-		const effects: RoomEffect[] = this.#clearReadyEffects(room);
+		const effects: RoomEffect[] = [];
 		if (targets.length > 0) {
 			effects.push({
 				type: 'member_updated',
@@ -782,6 +962,47 @@ class InMemoryRoomDirectory implements RoomDirectory {
 	sweep(nowMs: number): readonly RoomTransition[] {
 		const transitions: RoomTransition[] = [];
 		for (const room of [...this.#rooms.values()]) {
+			const runtime = room.roundRuntime;
+			if (runtime?.round.stage === 'probing' && nowMs >= runtime.probeDeadlineMs) {
+				transitions.push({
+					effects: this.#cancelRound(room, 'probe_timeout'),
+					directoryChange: this.#upsert(room)
+				});
+			} else if (
+				runtime?.round.stage === 'loading' &&
+				runtime.loadDeadlineMs !== undefined &&
+				nowMs >= runtime.loadDeadlineMs
+			) {
+				transitions.push({
+					effects: this.#cancelRound(room, 'load_timeout'),
+					directoryChange: this.#upsert(room)
+				});
+			} else if (
+				runtime?.round.stage === 'scheduled' &&
+				runtime.startAtServerMs !== undefined &&
+				nowMs >= runtime.startAtServerMs
+			) {
+				const playing = startRound(runtime);
+				room.roundRuntime = playing;
+				room.round = playing.round;
+				room.phase = 'playing';
+				const effects: RoomEffect[] = [];
+				for (const participant of playing.participants) {
+					const seat = room.seats.get(participant.memberId);
+					if (seat === undefined) continue;
+					seat.roundState = 'playing';
+					effects.push(...this.#memberUpdatedEffects(room, seat));
+				}
+				effects.push({
+					type: 'round_started',
+					targets: connectedTargets(room),
+					roomId: room.roomId,
+					roomGeneration: room.generation,
+					roundId: playing.round.roundId,
+					launchAttemptId: playing.round.launchAttemptId
+				});
+				transitions.push({ effects, directoryChange: this.#upsert(room) });
+			}
 			const expiredSeats = [...room.seats.values()]
 				.filter(
 					(seat) =>
@@ -821,6 +1042,38 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		return transitions;
 	}
 
+	nextDeadlineMs(): number | undefined {
+		let earliest: number | undefined;
+		for (const room of this.#rooms.values()) {
+			const runtime = room.roundRuntime;
+			if (runtime === undefined) continue;
+			const deadline =
+				runtime.round.stage === 'probing'
+					? runtime.probeDeadlineMs
+					: runtime.round.stage === 'loading'
+						? runtime.loadDeadlineMs
+						: runtime.round.stage === 'scheduled'
+							? runtime.startAtServerMs
+							: undefined;
+			if (deadline !== undefined && (earliest === undefined || deadline < earliest)) {
+				earliest = deadline;
+			}
+		}
+		return earliest;
+	}
+
+	cancelLaunches(reason: 'server_shutdown'): readonly RoomTransition[] {
+		const transitions: RoomTransition[] = [];
+		for (const room of this.#rooms.values()) {
+			if (room.roundRuntime === undefined || room.roundRuntime.round.stage === 'playing') continue;
+			transitions.push({
+				effects: this.#cancelRound(room, reason),
+				directoryChange: this.#upsert(room)
+			});
+		}
+		return transitions;
+	}
+
 	#boundSeat(actor: SeatConnectionRef):
 		| Readonly<{ ok: true; room: RoomState; seat: SeatState }>
 		| Readonly<{
@@ -854,6 +1107,163 @@ class InMemoryRoomDirectory implements RoomDirectory {
 						member: memberFor(seat)
 					}
 				];
+	}
+
+	#probeEffect(
+		room: RoomState,
+		seat: SeatState,
+		runtime: RoundLoadingState
+	): Extract<RoomEffect, { type: 'round_probe_requested' }> {
+		const participant = runtime.participants.find(
+			(candidate) => candidate.memberId === seat.seatId
+		);
+		if (participant === undefined) throw new Error('Probe effect requires a frozen participant.');
+		return {
+			type: 'round_probe_requested',
+			targets: [seat.connectionId],
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			connectionGeneration: seat.connectionGeneration,
+			roundId: runtime.round.roundId,
+			launchAttemptId: runtime.round.launchAttemptId,
+			selectionRevision: runtime.round.selectionRevision,
+			availabilityRevision: runtime.round.availabilityRevision,
+			inventoryRevision: participant.inventoryRevision,
+			nonce: participant.probeNonce,
+			sha256: runtime.round.selection.sha256,
+			deadlineMs: runtime.probeDeadlineMs
+		};
+	}
+
+	#matchesRoundReply(
+		runtime: RoundLoadingState,
+		memberId: string,
+		report: FrozenReplyBasis
+	): boolean {
+		const participant = runtime.participants.find((candidate) => candidate.memberId === memberId);
+		return (
+			participant !== undefined &&
+			report.roundId === runtime.round.roundId &&
+			report.launchAttemptId === runtime.round.launchAttemptId &&
+			report.selectionRevision === runtime.round.selectionRevision &&
+			report.availabilityRevision === runtime.round.availabilityRevision &&
+			report.inventoryRevision === participant.inventoryRevision
+		);
+	}
+
+	#loadEffect(
+		room: RoomState,
+		seat: SeatState,
+		round: NonNullable<RoomState['round']>
+	): Extract<RoomEffect, { type: 'round_load_requested' }> {
+		return {
+			type: 'round_load_requested',
+			targets: [seat.connectionId],
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			connectionGeneration: seat.connectionGeneration,
+			round: copyFrozenRound(round)
+		};
+	}
+
+	#scheduleRound(room: RoomState, nowMs: number): RoomEffect[] {
+		const runtime = room.roundRuntime;
+		if (
+			runtime === undefined ||
+			runtime.round.stage !== 'loading' ||
+			!runtime.participants.every((participant) => participant.loadAnswer?.ok === true)
+		) {
+			return [];
+		}
+		const seats = runtime.participants.map((participant) => room.seats.get(participant.memberId));
+		if (seats.some((seat) => seat === undefined || seat.status !== 'connected')) return [];
+		const connected = seats.filter((seat): seat is SeatState => seat !== undefined);
+		const rtts = connected.map((seat) => currentRttMs(seat.rttSamples, nowMs));
+		const startAtServerMs = nowMs + startLeadMs(rtts);
+		const scheduled = scheduleRound(runtime, startAtServerMs);
+		room.roundRuntime = scheduled;
+		room.round = scheduled.round;
+		return connected.map((seat, index) => ({
+			type: 'round_start_scheduled' as const,
+			targets: [seat.connectionId] as const,
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			connectionGeneration: seat.connectionGeneration,
+			roundId: scheduled.round.roundId,
+			launchAttemptId: scheduled.round.launchAttemptId,
+			startAtServerMs,
+			startAfterMs: connectionStartAfterMs(startAtServerMs, nowMs, rtts[index])
+		}));
+	}
+
+	#cancelRound(room: RoomState, reason: LaunchCancellationReason): RoomEffect[] {
+		const runtime = room.roundRuntime;
+		if (runtime === undefined) return [];
+		const roundId = runtime.round.roundId;
+		const launchAttemptId = runtime.round.launchAttemptId;
+		const alwaysClear = new Set<LaunchCancellationReason>([
+			'missing_file',
+			'hash_mismatch',
+			'read_failed',
+			'parse_failed',
+			'unsupported_config',
+			'resource_failed'
+		]);
+		const remainsCommon =
+			room.selection !== null &&
+			room.commonInventory !== undefined &&
+			room.commonInventory.contains(sha256Bytes(room.selection.sha256));
+		const clear = room.selection !== null && (alwaysClear.has(reason) || !remainsCommon);
+		if (clear) {
+			const next = clearSelection(room);
+			room.selection = next.selection;
+			room.selectionRevision = next.selectionRevision;
+			room.selectedByMemberId = next.selectedByMemberId;
+		}
+		room.phase = 'selecting';
+		delete room.round;
+		delete room.roundRuntime;
+		for (const seat of room.seats.values()) {
+			seat.ready = false;
+			seat.roundState = 'eligible';
+		}
+		const targets = connectedTargets(room);
+		const effects: RoomEffect[] = [...room.seats.values()].flatMap((seat) =>
+			this.#memberUpdatedEffects(room, seat)
+		);
+		if (clear) {
+			effects.push({
+				type: 'selection_changed',
+				targets,
+				roomId: room.roomId,
+				roomGeneration: room.generation,
+				selectionRevision: room.selectionRevision,
+				availabilityRevision: room.availabilityRevision,
+				selection: null,
+				selectedByMemberId: null
+			});
+		}
+		effects.push({
+			type: 'round_launch_cancelled',
+			targets,
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			roundId,
+			launchAttemptId,
+			reason,
+			selection: room.selection === null ? null : copySelectionSnapshot(room.selection),
+			selectionRevision: room.selectionRevision,
+			availabilityRevision: room.availabilityRevision
+		});
+		return effects;
+	}
+
+	#isFrozenParticipant(room: RoomState, seatId: string): boolean {
+		return (
+			room.roundRuntime !== undefined &&
+			room.roundRuntime.round.stage !== 'playing' &&
+			room.roundRuntime.participants.some((participant) => participant.memberId === seatId)
+		);
 	}
 
 	#clearReadyEffects(room: RoomState): RoomEffect[] {

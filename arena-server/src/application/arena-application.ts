@@ -50,7 +50,7 @@ type ConnectionCommon = {
 	stateVersion: number;
 	directorySubscribed: boolean;
 	nextHeartbeatAtMs: number | null;
-	pendingHeartbeat: Readonly<{ nonce: string; deadlineMs: number }> | null;
+	pendingHeartbeat: Readonly<{ nonce: string; sentAtMs: number; deadlineMs: number }> | null;
 	protocolMinor: 0 | 1;
 	capabilities: readonly (typeof ROOMS_CAPABILITY | typeof ROUNDS_CAPABILITY)[];
 };
@@ -188,6 +188,13 @@ export class ArenaApplication {
 				}
 				postHelloConnection.pendingHeartbeat = null;
 				postHelloConnection.nextHeartbeatAtMs = nowMs + this.#timing.heartbeatIntervalMs;
+				if (postHelloConnection.phase === 'room_bound') {
+					this.#roomDirectory.recordRtt(
+						postHelloConnection.binding,
+						nowMs - pending.sentAtMs,
+						nowMs
+					);
+				}
 				return [];
 			}
 			case 'inventory_upload_begin':
@@ -205,8 +212,9 @@ export class ArenaApplication {
 			case 'ready_set':
 				return this.#setReady(postHelloConnection, message, nowMs);
 			case 'round_probe_result':
+				return this.#reportProbe(postHelloConnection, message, nowMs);
 			case 'round_load_result':
-				return this.#phase2Placeholder(postHelloConnection, message.requestId);
+				return this.#reportLoaded(postHelloConnection, message, nowMs);
 		}
 	}
 
@@ -301,6 +309,7 @@ export class ArenaApplication {
 				const nonce = this.#newNonce();
 				connection.pendingHeartbeat = {
 					nonce,
+					sentAtMs: nowMs,
 					deadlineMs: nowMs + this.#timing.heartbeatReplyTimeoutMs
 				};
 				connection.nextHeartbeatAtMs = null;
@@ -313,6 +322,16 @@ export class ArenaApplication {
 			}
 		}
 		return deliveries;
+	}
+
+	nextDeadlineMs(): number | undefined {
+		return this.#roomDirectory.nextDeadlineMs();
+	}
+
+	shutdown(_nowMs: number): readonly Delivery[] {
+		return this.#roomDirectory
+			.cancelLaunches('server_shutdown')
+			.flatMap((transition) => this.#mapTransition(transition.effects, transition.directoryChange));
 	}
 
 	async #receiveHello(
@@ -908,6 +927,44 @@ export class ArenaApplication {
 				];
 	}
 
+	#reportProbe(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'round_probe_result' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const reported = this.#roomDirectory.reportProbe(connection.binding, message.data, nowMs);
+		return reported.ok
+			? this.#mapTransition(reported.effects, reported.directoryChange)
+			: [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(reported.rejection.code))
+					)
+				];
+	}
+
+	#reportLoaded(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'round_load_result' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const reported = this.#roomDirectory.reportLoaded(connection.binding, message.data, nowMs);
+		return reported.ok
+			? this.#mapTransition(reported.effects, reported.directoryChange)
+			: [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(reported.rejection.code))
+					)
+				];
+	}
+
 	#roomCommandPreflight(
 		connection: PostHelloConnection,
 		requestId: string,
@@ -985,26 +1042,6 @@ export class ArenaApplication {
 		active.push(nowMs);
 		this.#availabilityResyncWindows.set(userId, active);
 		return true;
-	}
-
-	#phase2Placeholder(connection: PostHelloConnection, requestId: string): readonly Delivery[] {
-		if (!hasRoundsCapability(connection)) {
-			return [
-				this.#send(
-					connection.connectionId,
-					createCommandError(requestId, 'rounds_capability_required')
-				)
-			];
-		}
-		if (connection.phase === 'anonymous') {
-			return [this.#send(connection.connectionId, createCommandError(requestId, 'auth_required'))];
-		}
-		if (connection.phase === 'authenticated') {
-			return [this.#send(connection.connectionId, createCommandError(requestId, 'not_in_room'))];
-		}
-		return [
-			this.#send(connection.connectionId, createCommandError(requestId, 'launch_stage_stale'))
-		];
 	}
 
 	#fatal(
@@ -1191,6 +1228,80 @@ export class ArenaApplication {
 							roomId: effect.roomId,
 							roomGeneration: effect.roomGeneration,
 							round: copyRound(effect.round)
+						}
+					})
+				];
+			case 'round_probe_requested':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_probe_requested',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							connectionGeneration: effect.connectionGeneration,
+							roundId: effect.roundId,
+							launchAttemptId: effect.launchAttemptId,
+							selectionRevision: effect.selectionRevision,
+							availabilityRevision: effect.availabilityRevision,
+							inventoryRevision: effect.inventoryRevision,
+							nonce: effect.nonce,
+							sha256: effect.sha256,
+							deadlineMs: effect.deadlineMs
+						}
+					})
+				];
+			case 'round_load_requested':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_load_requested',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							connectionGeneration: effect.connectionGeneration,
+							round: copyRound(effect.round)
+						}
+					})
+				];
+			case 'round_start_scheduled':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_start_scheduled',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							connectionGeneration: effect.connectionGeneration,
+							roundId: effect.roundId,
+							launchAttemptId: effect.launchAttemptId,
+							startAtServerMs: effect.startAtServerMs,
+							startAfterMs: effect.startAfterMs
+						}
+					})
+				];
+			case 'round_started':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_started',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							roundId: effect.roundId,
+							launchAttemptId: effect.launchAttemptId
+						}
+					})
+				];
+			case 'round_launch_cancelled':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_launch_cancelled',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							roundId: effect.roundId,
+							launchAttemptId: effect.launchAttemptId,
+							reason: effect.reason,
+							selection: effect.selection === null ? null : copySelection(effect.selection),
+							selectionRevision: effect.selectionRevision,
+							availabilityRevision: effect.availabilityRevision
 						}
 					})
 				];

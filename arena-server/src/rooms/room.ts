@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { ArenaIdentity } from '../auth/identity.ts';
 import type { PackedInventory } from '../inventory/packed-inventory.ts';
 import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
+import { copyFrozenRound, copySelectionSnapshot, type RoundLoadingState } from './round-state.ts';
 import type {
 	ChatMessage,
 	RoomMember,
@@ -31,6 +32,7 @@ export type SeatState = {
 	inventory?: PackedInventory;
 	availabilityAppliedRevision: number;
 	roundState: 'eligible' | 'waiting' | 'probing' | 'loading' | 'loaded' | 'playing';
+	rttSamples: Array<Readonly<{ sampledAtMs: number; rttMs: number }>>;
 	reservedUntilMs?: number;
 	acceptedChatTimes: number[];
 };
@@ -57,6 +59,7 @@ export type RoomState = {
 	commonInventory?: PackedInventory;
 	nextInventoryRevision: number;
 	round?: FrozenRound;
+	roundRuntime?: RoundLoadingState;
 };
 
 function encodeOpaque(bytes: Uint8Array): string {
@@ -110,6 +113,7 @@ export function createInitialRoom(
 		libraryGeneration: 0,
 		availabilityAppliedRevision: 0,
 		roundState: 'eligible',
+		rttSamples: [],
 		acceptedChatTimes: []
 	};
 	const room: RoomState = {
@@ -213,6 +217,7 @@ export function addConnectedSeat(
 		libraryGeneration: 0,
 		availabilityAppliedRevision: 0,
 		roundState: room.phase === 'selecting' ? 'eligible' : 'waiting',
+		rttSamples: [],
 		acceptedChatTimes: []
 	};
 	room.seats.set(seat.seatId, seat);
@@ -257,10 +262,10 @@ export function admissionFor(room: RoomState, seat: SeatState, resumeToken: stri
 		},
 		members: [...room.seats.values()].sort((a, b) => a.joinOrder - b.joinOrder).map(memberView),
 		chat: [...room.chat],
-		selection: room.selection,
+		selection: room.selection === null ? null : copySelectionSnapshot(room.selection),
 		selectionRevision: room.selectionRevision,
 		availabilityRevision: room.availabilityRevision,
-		...(room.round === undefined ? {} : { round: room.round })
+		...(room.round === undefined ? {} : { round: copyFrozenRound(room.round) })
 	};
 	return { snapshot, resumeToken, binding };
 }

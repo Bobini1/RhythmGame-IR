@@ -40,6 +40,44 @@ function startHealthServer(
 }
 
 describe('Arena HTTP surface', () => {
+	test('arms one exact room-deadline sweep independently of coarse maintenance', async () => {
+		let deadlineMs = Date.now() + 40;
+		const expectedDeadlineMs = deadlineMs;
+		let sweptAtMs: number | undefined;
+		let resolveSweep!: () => void;
+		const swept = new Promise<void>((resolve) => {
+			resolveSweep = resolve;
+		});
+		const application = {
+			connect: () => [],
+			disconnect: () => [],
+			receive: async () => [],
+			receiveBinary: async () => [],
+			sweep: (nowMs: number) => {
+				sweptAtMs = nowMs;
+				deadlineMs = Number.NaN;
+				resolveSweep();
+				return [];
+			},
+			nextDeadlineMs: () => (Number.isNaN(deadlineMs) ? undefined : deadlineMs),
+			shutdown: () => []
+		} as unknown as ArenaApplication;
+		handle = startArenaServer({
+			application,
+			config: loadArenaConfig({ HOST: '127.0.0.1' }),
+			portOverride: 0,
+			maintenanceIntervalMs: 60_000
+		});
+		await Promise.race([
+			swept,
+			Bun.sleep(2_000).then(() => {
+				throw new Error('deadline sweep timed out');
+			})
+		]);
+		expect(sweptAtMs).toBeGreaterThanOrEqual(expectedDeadlineMs);
+		expect(sweptAtMs).toBeDefined();
+	});
+
 	test('serves process health without consulting ticket verification', async () => {
 		let verificationCalls = 0;
 		handle = startHealthServer({

@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import { ArenaApplication } from '../../src/application/arena-application.ts';
 import type { ArenaIdentity, VerifiedArenaTicket } from '../../src/auth/identity.ts';
 import type { TicketVerifier } from '../../src/auth/ticket-verifier.ts';
 import { loadArenaConfig } from '../../src/config.ts';
+import { encodeHashChunk } from '../../src/protocol/binary.ts';
 import type { ClientMessage, ServerMessage } from '../../src/protocol/messages.ts';
 import { createRoomDirectory } from '../../src/rooms/room-directory.ts';
 import { startArenaServer, type ArenaServerHandle } from '../../src/transport/start-server.ts';
@@ -321,7 +323,9 @@ describe('Arena WebSocket gateway', () => {
 			disconnect: () => {
 				throw new Error('sentinel cleanup failure');
 			},
-			sweep: () => []
+			sweep: () => [],
+			nextDeadlineMs: () => undefined,
+			shutdown: () => []
 		} as unknown as ArenaApplication;
 		handle = startArenaServer({
 			application: failingApplication,
@@ -506,6 +510,130 @@ describe('Arena WebSocket gateway', () => {
 			expect(await binary.closed()).toEqual({ code: 1003, reason: 'unexpected_binary' });
 		}
 	);
+
+	test('runs one real text/binary Arena round on the exact deadline timer', async () => {
+		handle = startTestServer();
+		const client = await authenticatedClient(
+			`ws://127.0.0.1:${handle.port}/ws`,
+			'alice-round-ticket'
+		);
+		client.send({
+			type: 'room_create',
+			requestId: 'round-create',
+			data: { name: 'Round' }
+		});
+		const snapshot = await client.nextMessage('room_snapshot');
+		if (!('selection' in snapshot.data)) throw new Error('Phase 2 snapshot missing');
+		const binding = {
+			roomId: snapshot.data.roomId,
+			roomGeneration: snapshot.data.roomGeneration,
+			connectionGeneration: snapshot.data.self.connectionGeneration
+		};
+		const bytes = new Uint8Array(32);
+		new DataView(bytes.buffer).setUint32(28, 2, false);
+		const declaration = {
+			libraryGeneration: 1,
+			hashCount: 1,
+			byteCount: 32,
+			chunkCount: 1,
+			vectorDigest: createHash('sha256').update(bytes).digest('hex')
+		};
+		client.send({
+			type: 'inventory_upload_begin',
+			requestId: 'round-begin',
+			data: { ...binding, ...declaration }
+		});
+		const upload = await client.nextMessage('inventory_upload_ready');
+		client.sendBinary([
+			...encodeHashChunk({
+				kind: 1,
+				transferId: Uint8Array.from(Buffer.from(upload.data.uploadId, 'base64url')),
+				chunkIndex: 0,
+				hashes: bytes
+			})
+		]);
+		client.send({
+			type: 'inventory_upload_commit',
+			requestId: 'round-commit',
+			data: { ...binding, uploadId: upload.data.uploadId, ...declaration }
+		});
+		await client.nextMessage('inventory_committed');
+		const common = await client.nextMessage('availability_transfer_begin');
+		await client.nextMessage('availability_transfer_commit');
+		client.send({
+			type: 'availability_applied',
+			requestId: 'round-ack',
+			data: { ...binding, availabilityRevision: common.data.targetRevision }
+		});
+		const selectedChart = {
+			sha256: '2'.padStart(64, '0'),
+			title: 'Round chart',
+			subtitle: '',
+			artist: 'Artist',
+			keyMode: 7 as const,
+			randomSequence: [1],
+			noteOrderP1: 'random' as const,
+			noteOrderP2: 'mirror' as const,
+			dpMode: 'off' as const,
+			laneSeed: '0123456789abcdef',
+			randomizationVersion: 1 as const
+		};
+		client.send({
+			type: 'selection_set',
+			requestId: 'round-select',
+			data: {
+				...binding,
+				availabilityRevision: common.data.targetRevision,
+				inventoryRevision: 1,
+				selection: selectedChart
+			}
+		});
+		const selected = await client.nextMessage('selection_changed');
+		client.send({
+			type: 'ready_set',
+			requestId: 'round-ready',
+			data: {
+				...binding,
+				ready: true,
+				selectionRevision: selected.data.selectionRevision,
+				availabilityRevision: common.data.targetRevision,
+				inventoryRevision: 1
+			}
+		});
+		const probe = await client.nextMessage('round_probe_requested');
+		client.send({
+			type: 'round_probe_result',
+			requestId: 'round-probe',
+			data: {
+				...binding,
+				roundId: probe.data.roundId,
+				launchAttemptId: probe.data.launchAttemptId,
+				selectionRevision: probe.data.selectionRevision,
+				availabilityRevision: probe.data.availabilityRevision,
+				inventoryRevision: probe.data.inventoryRevision,
+				nonce: probe.data.nonce,
+				ok: true,
+				sha256: probe.data.sha256
+			}
+		});
+		await client.nextMessage('round_load_requested');
+		client.send({
+			type: 'round_load_result',
+			requestId: 'round-load',
+			data: {
+				...binding,
+				roundId: probe.data.roundId,
+				launchAttemptId: probe.data.launchAttemptId,
+				selectionRevision: probe.data.selectionRevision,
+				availabilityRevision: probe.data.availabilityRevision,
+				inventoryRevision: probe.data.inventoryRevision,
+				ok: true
+			}
+		});
+		const scheduled = await client.nextMessage('round_start_scheduled');
+		expect(scheduled.data.startAfterMs).toBeGreaterThanOrEqual(1_999);
+		expect((await client.nextMessage('round_started')).data.roundId).toBe(probe.data.roundId);
+	});
 
 	test('accepts an exactly 64 KiB valid text frame', async () => {
 		handle = startTestServer();

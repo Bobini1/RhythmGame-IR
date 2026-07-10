@@ -270,11 +270,25 @@ export const inventoryDeclarationSchema = z
 	.refine((value) => value.chunkCount === Math.ceil(value.hashCount / MAX_HASHES_PER_CHUNK));
 export type InventoryDeclaration = z.infer<typeof inventoryDeclarationSchema>;
 
+function hasConsistentInventoryDeclaration(value: {
+	hashCount: number;
+	byteCount: number;
+	chunkCount: number;
+}): boolean {
+	return (
+		value.byteCount === value.hashCount * 32 &&
+		value.chunkCount === Math.ceil(value.hashCount / MAX_HASHES_PER_CHUNK)
+	);
+}
+
 const inventoryUploadBeginMessageSchema = z
 	.object({
 		type: z.literal('inventory_upload_begin'),
 		requestId: requestIdSchema,
-		data: roomBindingSchema.extend(inventoryDeclarationSchema.shape).strict()
+		data: roomBindingSchema
+			.extend(inventoryDeclarationSchema.shape)
+			.strict()
+			.refine(hasConsistentInventoryDeclaration)
 	})
 	.strict();
 
@@ -285,6 +299,7 @@ const inventoryUploadCommitMessageSchema = z
 		data: roomBindingSchema
 			.extend({ uploadId: transferIdSchema, ...inventoryDeclarationSchema.shape })
 			.strict()
+			.refine(hasConsistentInventoryDeclaration)
 	})
 	.strict();
 
@@ -805,6 +820,10 @@ const transferVectorDeclarationFields = {
 	digest: vectorDigestSchema
 };
 
+function hasConsistentTransferChunks(count: number, chunkCount: number): boolean {
+	return chunkCount === Math.ceil(count / MAX_HASHES_PER_CHUNK);
+}
+
 const inventoryUploadReadyMessageSchema = z
 	.object({
 		type: z.literal('inventory_upload_ready'),
@@ -816,6 +835,7 @@ const inventoryUploadReadyMessageSchema = z
 				deadlineMs: epochMillisecondsSchema
 			})
 			.strict()
+			.refine(hasConsistentInventoryDeclaration)
 	})
 	.strict();
 
@@ -836,34 +856,43 @@ const inventoryCommittedMessageSchema = z
 const availabilityTransferBeginMessageSchema = z
 	.object({
 		type: z.literal('availability_transfer_begin'),
-		data: z.discriminatedUnion('mode', [
-			roomIdentitySchema
-				.extend({
-					transferId: transferIdSchema,
-					mode: z.literal('reset'),
-					targetRevision: positiveRevisionSchema,
-					basis: availabilityBasisSchema,
-					resetCount: transferVectorDeclarationFields.count,
-					resetChunkCount: transferVectorDeclarationFields.chunkCount,
-					resetDigest: transferVectorDeclarationFields.digest
-				})
-				.strict(),
-			roomIdentitySchema
-				.extend({
-					transferId: transferIdSchema,
-					mode: z.literal('delta'),
-					baseRevision: positiveRevisionSchema,
-					targetRevision: positiveRevisionSchema,
-					basis: availabilityBasisSchema,
-					addedCount: transferVectorDeclarationFields.count,
-					addedChunkCount: transferVectorDeclarationFields.chunkCount,
-					addedDigest: transferVectorDeclarationFields.digest,
-					removedCount: transferVectorDeclarationFields.count,
-					removedChunkCount: transferVectorDeclarationFields.chunkCount,
-					removedDigest: transferVectorDeclarationFields.digest
-				})
-				.strict()
-		])
+		data: z
+			.discriminatedUnion('mode', [
+				roomIdentitySchema
+					.extend({
+						transferId: transferIdSchema,
+						mode: z.literal('reset'),
+						targetRevision: positiveRevisionSchema,
+						basis: availabilityBasisSchema,
+						resetCount: transferVectorDeclarationFields.count,
+						resetChunkCount: transferVectorDeclarationFields.chunkCount,
+						resetDigest: transferVectorDeclarationFields.digest
+					})
+					.strict(),
+				roomIdentitySchema
+					.extend({
+						transferId: transferIdSchema,
+						mode: z.literal('delta'),
+						baseRevision: positiveRevisionSchema,
+						targetRevision: positiveRevisionSchema,
+						basis: availabilityBasisSchema,
+						addedCount: transferVectorDeclarationFields.count,
+						addedChunkCount: transferVectorDeclarationFields.chunkCount,
+						addedDigest: transferVectorDeclarationFields.digest,
+						removedCount: transferVectorDeclarationFields.count,
+						removedChunkCount: transferVectorDeclarationFields.chunkCount,
+						removedDigest: transferVectorDeclarationFields.digest
+					})
+					.strict()
+			])
+			.refine((value) =>
+				value.mode === 'reset'
+					? hasConsistentTransferChunks(value.resetCount, value.resetChunkCount)
+					: value.targetRevision > value.baseRevision &&
+						hasConsistentTransferChunks(value.addedCount, value.addedChunkCount) &&
+						hasConsistentTransferChunks(value.removedCount, value.removedChunkCount) &&
+						value.addedCount + value.removedCount <= MAX_INVENTORY_HASHES
+			)
 	})
 	.strict();
 

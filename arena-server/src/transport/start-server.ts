@@ -78,6 +78,9 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	const peerUpgradeAttempts = new Map<string, number[]>();
 	let shuttingDown = false;
 	let shutdownPromise: Promise<void> | undefined;
+	let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+	let scheduledDeadlineMs: number | undefined;
+	let rescheduleDeadline = (): void => undefined;
 
 	const consumePeerUpgradeAttempt = (peerKey: string, nowMs: number): boolean => {
 		const active = (peerUpgradeAttempts.get(peerKey) ?? []).filter(
@@ -175,6 +178,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			...disconnectDeliveries,
 			{ kind: 'close', connectionId: socket.data.connectionId, code, reason }
 		]);
+		rescheduleDeadline();
 	};
 
 	const handleInternalFailure = (socket: Bun.ServerWebSocket<SocketData>): void => {
@@ -239,6 +243,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				sockets.set(socket.data.connectionId, socket);
 				try {
 					applyDeliveries(options.application.connect(socket.data.connectionId));
+					rescheduleDeadline();
 				} catch {
 					handleInternalFailure(socket);
 				}
@@ -275,6 +280,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 							return;
 						}
 						applyDeliveries(deliveries);
+						rescheduleDeadline();
 					} catch (error) {
 						if (error instanceof ProtocolError) {
 							const closeCode = error.code === 'frame_too_large' ? 1009 : 1002;
@@ -299,6 +305,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 				socket.data.closing = true;
 				try {
 					applyDeliveries(options.application.disconnect(socket.data.connectionId, now()));
+					rescheduleDeadline();
 				} catch {
 					logger('error', 'websocket_close_cleanup_failed', {
 						connectionId: socket.data.connectionId
@@ -313,6 +320,32 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		}
 	});
 
+	rescheduleDeadline = (): void => {
+		if (shuttingDown) return;
+		const nextDeadlineMs = options.application.nextDeadlineMs();
+		if (nextDeadlineMs === scheduledDeadlineMs && deadlineTimer !== undefined) return;
+		if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
+		deadlineTimer = undefined;
+		scheduledDeadlineMs = nextDeadlineMs;
+		if (nextDeadlineMs === undefined) return;
+		deadlineTimer = setTimeout(
+			() => {
+				deadlineTimer = undefined;
+				scheduledDeadlineMs = undefined;
+				if (shuttingDown) return;
+				try {
+					applyDeliveries(options.application.sweep(now()));
+				} catch {
+					safeLog('error', 'deadline_sweep_failed');
+				}
+				rescheduleDeadline();
+			},
+			Math.max(0, nextDeadlineMs - now())
+		);
+		deadlineTimer.unref?.();
+	};
+	rescheduleDeadline();
+
 	const maintenanceIntervalMs = options.maintenanceIntervalMs ?? DEFAULT_MAINTENANCE_INTERVAL_MS;
 	const maintenanceTimer = setInterval(() => {
 		if (shuttingDown) return;
@@ -320,6 +353,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			const nowMs = now();
 			sweepPeerUpgradeAttempts(nowMs);
 			applyDeliveries(options.application.sweep(nowMs));
+			rescheduleDeadline();
 		} catch {
 			logger('error', 'maintenance_failed');
 		}
@@ -337,10 +371,15 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		if (shutdownPromise !== undefined) return shutdownPromise;
 		shuttingDown = true;
 		clearInterval(maintenanceTimer);
+		if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
+		deadlineTimer = undefined;
+		scheduledDeadlineMs = undefined;
 		shutdownPromise = (async () => {
 			const connectionIds = [...sockets.keys()];
+			const cancellationDeliveries = options.application.shutdown(now());
 			if (connectionIds.length > 0) {
 				applyDeliveries([
+					...cancellationDeliveries,
 					{
 						kind: 'send',
 						connectionIds,
@@ -350,7 +389,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						}
 					}
 				]);
-			}
+			} else applyDeliveries(cancellationDeliveries);
 			const drainMs = shutdownOptions.drainMs ?? DEFAULT_SHUTDOWN_DRAIN_MS;
 			if (drainMs > 0) await Bun.sleep(drainMs);
 

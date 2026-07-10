@@ -207,6 +207,32 @@ describe('Arena Phase 2 client text contract', () => {
 		}
 	});
 
+	test('rejects inconsistent inventory counts at the text boundary', () => {
+		for (const type of ['inventory_upload_begin', 'inventory_upload_commit'] as const) {
+			const base = {
+				type,
+				requestId: `invalid-${type}`,
+				data: {
+					...binding,
+					...(type === 'inventory_upload_commit' ? { uploadId: 'AAAAAAAAAAAAAAAAAAAAAA' } : {}),
+					libraryGeneration: 7,
+					hashCount: 2,
+					byteCount: 64,
+					chunkCount: 1,
+					vectorDigest: '33'.repeat(32)
+				}
+			};
+			expectMalformed({
+				...base,
+				data: { ...base.data, hashCount: 2, byteCount: 32, chunkCount: 1 }
+			});
+			expectMalformed({
+				...base,
+				data: { ...base.data, hashCount: 2, byteCount: 64, chunkCount: 0 }
+			});
+		}
+	});
+
 	test('accepts every note order and DP mode but no unknown transform', () => {
 		const noteOrders = [
 			'normal',
@@ -393,6 +419,54 @@ describe('Arena Phase 2 server text contract', () => {
 				encodeServerMessage({ ...message, data: { ...message.data, unexpected: true } } as never)
 			).toThrow(ProtocolError);
 		}
+	});
+
+	test('rejects an inconsistent inventory-ready declaration before encoding', () => {
+		const ready = messages.find((message) => message.type === 'inventory_upload_ready');
+		if (ready?.type !== 'inventory_upload_ready') throw new Error('ready fixture missing');
+		expect(() =>
+			encodeServerMessage({
+				...ready,
+				data: { ...ready.data, hashCount: 2, byteCount: 32, chunkCount: 1 }
+			})
+		).toThrow(ProtocolError);
+	});
+
+	test('rejects inconsistent availability transfer declarations before encoding', () => {
+		const reset = messages.find((message) => message.type === 'availability_transfer_begin');
+		if (reset?.type !== 'availability_transfer_begin' || reset.data.mode !== 'reset') {
+			throw new Error('reset fixture missing');
+		}
+		expect(() =>
+			encodeServerMessage({
+				...reset,
+				data: { ...reset.data, resetChunkCount: 0 }
+			} as unknown as ServerMessage)
+		).toThrow(ProtocolError);
+		const delta: ServerMessage = {
+			type: 'availability_transfer_begin',
+			data: {
+				roomId: binding.roomId,
+				roomGeneration: binding.roomGeneration,
+				transferId: 'CCCCCCCCCCCCCCCCCCCCCC',
+				mode: 'delta',
+				baseRevision: 5,
+				targetRevision: 6,
+				basis: [{ memberId: 'member-1', inventoryRevision: 6 }],
+				addedCount: 1,
+				addedChunkCount: 1,
+				addedDigest: '55'.repeat(32),
+				removedCount: 1,
+				removedChunkCount: 1,
+				removedDigest: '66'.repeat(32)
+			}
+		};
+		expect(() =>
+			encodeServerMessage({
+				...delta,
+				data: { ...delta.data, targetRevision: 5 }
+			} as ServerMessage)
+		).toThrow(ProtocolError);
 	});
 });
 

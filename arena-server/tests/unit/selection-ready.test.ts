@@ -187,7 +187,11 @@ describe('Arena selection and ready state', () => {
 			{ memberId: seats[0]!.binding.seatId, inventoryRevision: 1 },
 			{ memberId: seats[1]!.binding.seatId, inventoryRevision: 2 }
 		]);
-		expect(frozen.effects.at(-1)?.type).toBe('round_loading_started');
+		const effectTypes = frozen.effects.map((effect) => effect.type);
+		expect(effectTypes).toContain('round_loading_started');
+		expect(effectTypes.indexOf('round_loading_started')).toBeLessThan(
+			effectTypes.indexOf('round_probe_requested')
+		);
 	});
 
 	test('does not freeze while an eligible reserved seat is disconnected', async () => {
@@ -215,6 +219,45 @@ describe('Arena selection and ready state', () => {
 		if (result.ok) expect(result.value.round).toBeUndefined();
 	});
 
+	test('disconnect clears only that seat while preserving other next-round ready states', async () => {
+		const directory = createDirectory();
+		const { seats, availabilityRevision } = await readyRoom(directory);
+		const selected = directory.select(
+			seats[0]!.binding,
+			selection(2),
+			{ availabilityRevision, inventoryRevision: 1 },
+			20
+		);
+		if (!selected.ok) throw new Error('selection failed');
+		const ready = directory.setReady(
+			seats[0]!.binding,
+			true,
+			{
+				selectionRevision: selected.value.selectionRevision,
+				availabilityRevision,
+				inventoryRevision: 1
+			},
+			21
+		);
+		expect(ready.ok).toBe(true);
+		directory.disconnect(seats[1]!.binding, 22);
+		const resumed = directory.resume({
+			roomId: seats[1]!.binding.roomId,
+			connectionId: 'c2-resumed',
+			identity: bob,
+			resumeToken: seats[1]!.resumeToken,
+			nowMs: 23
+		});
+		expect(resumed.ok).toBe(true);
+		if (resumed.ok) {
+			expect(
+				resumed.value.snapshot.members.find(
+					(member) => member.memberId === seats[0]!.binding.seatId
+				)?.ready
+			).toBe(true);
+		}
+	});
+
 	test('supports a one-player freeze and marks a post-freeze join as waiting', async () => {
 		const directory = createDirectory();
 		const { seats, availabilityRevision } = await readyRoom(directory, false);
@@ -236,6 +279,9 @@ describe('Arena selection and ready state', () => {
 			21
 		);
 		expect(frozen.ok && frozen.value.round?.participants).toHaveLength(1);
+		if (frozen.ok && frozen.value.round !== undefined) {
+			frozen.value.round.selection.title = 'mutated returned round';
+		}
 		const joined = await directory.join({
 			roomId: seats[0]!.binding.roomId,
 			connectionId: 'c2',
@@ -246,6 +292,7 @@ describe('Arena selection and ready state', () => {
 			expect(joined.value.snapshot.phase).toBe('loading');
 			expect(joined.value.snapshot.members.at(-1)?.roundState).toBe('waiting');
 			expect(joined.value.snapshot.round?.participants).toHaveLength(1);
+			expect(joined.value.snapshot.round?.selection.title).toBe('Chart 1');
 		}
 	});
 });

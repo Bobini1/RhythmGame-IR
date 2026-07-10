@@ -1,6 +1,10 @@
 import type { ArenaIdentity } from '../auth/identity.ts';
 import type { PackedInventory } from '../inventory/packed-inventory.ts';
-import type { FrozenRound, SelectionSnapshot } from '../protocol/messages.ts';
+import type {
+	FrozenRound,
+	LaunchCancellationReason,
+	SelectionSnapshot
+} from '../protocol/messages.ts';
 
 export type RoomRejectionCode =
 	| 'already_in_room'
@@ -159,6 +163,60 @@ export type RoomEffect =
 			round: FrozenRound;
 	  }>
 	| Readonly<{
+			type: 'round_probe_requested';
+			targets: readonly [string];
+			roomId: string;
+			roomGeneration: number;
+			connectionGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+			selectionRevision: number;
+			availabilityRevision: number;
+			inventoryRevision: number;
+			nonce: string;
+			sha256: string;
+			deadlineMs: number;
+	  }>
+	| Readonly<{
+			type: 'round_load_requested';
+			targets: readonly [string];
+			roomId: string;
+			roomGeneration: number;
+			connectionGeneration: number;
+			round: FrozenRound;
+	  }>
+	| Readonly<{
+			type: 'round_start_scheduled';
+			targets: readonly [string];
+			roomId: string;
+			roomGeneration: number;
+			connectionGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+			startAtServerMs: number;
+			startAfterMs: number;
+	  }>
+	| Readonly<{
+			type: 'round_started';
+			targets: readonly string[];
+			roomId: string;
+			roomGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+	  }>
+	| Readonly<{
+			type: 'round_launch_cancelled';
+			targets: readonly string[];
+			roomId: string;
+			roomGeneration: number;
+			roundId: string;
+			launchAttemptId: string;
+			reason: LaunchCancellationReason;
+			selection: SelectionSnapshot | null;
+			selectionRevision: number;
+			availabilityRevision: number;
+	  }>
+	| Readonly<{
 			type: 'member_joined';
 			targets: readonly string[];
 			roomId: string;
@@ -262,3 +320,36 @@ export type ReadyCommit = Readonly<{
 	ready: boolean;
 	round?: FrozenRound;
 }>;
+
+export type FrozenReplyBasis = Readonly<{
+	roundId: string;
+	launchAttemptId: string;
+	selectionRevision: number;
+	availabilityRevision: number;
+	inventoryRevision: number;
+}>;
+
+export type ProbeReport = FrozenReplyBasis &
+	Readonly<{ nonce: string }> &
+	(
+		| Readonly<{ ok: true; sha256: string }>
+		| Readonly<{
+				ok: false;
+				reason: 'missing_file' | 'hash_mismatch' | 'read_failed' | 'cancelled';
+		  }>
+	);
+
+export type LoadReport = FrozenReplyBasis &
+	(
+		| Readonly<{ ok: true }>
+		| Readonly<{
+				ok: false;
+				reason:
+					| 'missing_file'
+					| 'hash_mismatch'
+					| 'parse_failed'
+					| 'unsupported_config'
+					| 'resource_failed'
+					| 'cancelled';
+		  }>
+	);
