@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey, type JWTPayload } from 'jose';
+import type { RemoteJWKSetOptions } from 'jose/jwks/remote';
 
 import type { ArenaConfig } from '../config.ts';
 import type { ArenaIdentity, VerifiedArenaTicket } from './identity.ts';
@@ -29,6 +30,7 @@ type TicketVerifierConfig = Pick<ArenaConfig, 'irJwksUrl' | 'irIssuer' | 'arenaA
 export type JoseTicketVerifierOptions = Readonly<{
 	replayGuard?: ReplayGuard;
 	jwksResolver?: JWTVerifyGetKey;
+	remoteJwksOptions?: Readonly<Pick<RemoteJWKSetOptions, 'cooldownDuration' | 'timeoutDuration'>>;
 }>;
 
 function invalidTicket(): never {
@@ -88,7 +90,9 @@ export class JoseTicketVerifier implements TicketVerifier {
 	constructor(config: TicketVerifierConfig, options: JoseTicketVerifierOptions = {}) {
 		this.#issuer = config.irIssuer;
 		this.#audience = config.arenaAudience;
-		this.#jwksResolver = options.jwksResolver ?? createRemoteJWKSet(new URL(config.irJwksUrl));
+		this.#jwksResolver =
+			options.jwksResolver ??
+			createRemoteJWKSet(new URL(config.irJwksUrl), options.remoteJwksOptions);
 		this.#replayGuard = options.replayGuard ?? new ReplayGuard();
 	}
 
