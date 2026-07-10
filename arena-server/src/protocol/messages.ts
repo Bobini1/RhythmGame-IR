@@ -6,6 +6,7 @@ export const PROTOCOL_MAJOR = 1 as const;
 export const PROTOCOL_MINOR = 0 as const;
 export const REQUIRED_CAPABILITY = 'rooms-v1' as const;
 export const MAX_CLIENT_MESSAGE_BYTES = 64 * 1024;
+export const MAX_SERVER_MESSAGE_BYTES = 4 * 1024 * 1024;
 
 const MAX_CAPABILITIES = 16;
 const MAX_CLIENT_VERSION_CODE_POINTS = 64;
@@ -24,6 +25,16 @@ const capabilityPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 function codePointLength(value: string): number {
 	return Array.from(value).length;
+}
+
+function hasUniqueKeys<T>(values: readonly T[], keyOf: (value: T) => string): boolean {
+	const seen = new Set<string>();
+	for (const value of values) {
+		const key = keyOf(value);
+		if (seen.has(key)) return false;
+		seen.add(key);
+	}
+	return true;
 }
 
 const requestIdSchema = z.string().min(1).max(MAX_REQUEST_ID_LENGTH).regex(safeIdentifierPattern);
@@ -217,6 +228,11 @@ export const memberSchema = z
 
 export type Member = z.infer<typeof memberSchema>;
 
+const memberArraySchema = z
+	.array(memberSchema)
+	.max(MAX_MEMBERS)
+	.refine((members) => hasUniqueKeys(members, (member) => member.memberId));
+
 export const chatMessageSchema = z
 	.object({
 		messageId: opaqueIdSchema,
@@ -235,6 +251,11 @@ export const chatMessageSchema = z
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
+const chatMessageArraySchema = z
+	.array(chatMessageSchema)
+	.max(MAX_WIRE_CHAT_BACKLOG)
+	.refine((messages) => hasUniqueKeys(messages, (message) => message.messageId));
+
 export const roomSummarySchema = z
 	.object({
 		roomId: opaqueIdSchema,
@@ -249,6 +270,14 @@ export const roomSummarySchema = z
 	.refine((room) => room.connectedCount + room.reservedCount <= room.maxCount);
 
 export type RoomSummary = z.infer<typeof roomSummarySchema>;
+
+const roomSummaryArraySchema = z
+	.array(roomSummarySchema)
+	.refine((rooms) => hasUniqueKeys(rooms, (room) => room.roomId));
+
+const removedRoomIdArraySchema = z
+	.array(opaqueIdSchema)
+	.refine((roomIds) => hasUniqueKeys(roomIds, (roomId) => roomId));
 
 const selfSeatSchema = z
 	.object({
@@ -268,8 +297,8 @@ export const roomSnapshotSchema = z
 		maxCount: z.literal(MAX_MEMBERS),
 		ownerMemberId: opaqueIdSchema.nullable(),
 		self: selfSeatSchema,
-		members: z.array(memberSchema).max(MAX_MEMBERS),
-		chat: z.array(chatMessageSchema).max(MAX_WIRE_CHAT_BACKLOG)
+		members: memberArraySchema,
+		chat: chatMessageArraySchema
 	})
 	.strict();
 
@@ -327,7 +356,7 @@ const directorySnapshotMessageSchema = z
 		data: z
 			.object({
 				revision: z.number().int().nonnegative(),
-				rooms: z.array(roomSummarySchema)
+				rooms: roomSummaryArraySchema
 			})
 			.strict()
 	})
@@ -339,10 +368,14 @@ const roomDirectoryUpdatedMessageSchema = z
 		data: z
 			.object({
 				revision: z.number().int().nonnegative(),
-				upserts: z.array(roomSummarySchema),
-				removedRoomIds: z.array(opaqueIdSchema)
+				upserts: roomSummaryArraySchema,
+				removedRoomIds: removedRoomIdArraySchema
 			})
 			.strict()
+			.refine((data) => {
+				const upsertIds = new Set(data.upserts.map((room) => room.roomId));
+				return data.removedRoomIds.every((roomId) => !upsertIds.has(roomId));
+			})
 	})
 	.strict();
 

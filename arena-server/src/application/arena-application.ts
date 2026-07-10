@@ -658,6 +658,7 @@ export class ArenaApplication {
 					}
 				});
 		}
+		return assertNever(effect);
 	}
 
 	#replaceConnection<T extends Connection>(
@@ -805,6 +806,10 @@ function sameBinding(left: SeatConnectionRef, right: SeatConnectionRef): boolean
 function toCommandCode(code: RoomRejectionCode): CommandErrorCode {
 	if (code === 'room_resume_failed') throw new Error('Resume failure is not a command error.');
 	return code;
+}
+
+function assertNever(_value: never): never {
+	throw new Error('Unsupported Arena room effect.');
 }
 
 function copyRoomSummary(summary: {

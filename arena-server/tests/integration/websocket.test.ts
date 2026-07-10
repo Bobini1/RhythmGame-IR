@@ -250,6 +250,14 @@ function startTestServer(verifier: TicketVerifier = new TestTicketVerifier()): A
 	});
 }
 
+async function waitFor(predicate: () => boolean, label: string): Promise<void> {
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		if (predicate()) return;
+		await Bun.sleep(10);
+	}
+	throw new Error(`Timed out waiting for ${label}.`);
+}
+
 function clientHello(ticket?: string): ClientMessage {
 	return {
 		type: 'client_hello',
@@ -298,6 +306,39 @@ describe('Arena WebSocket gateway', () => {
 
 		expect((await client.nextAnyMessage()).type).toBe('server_hello');
 		expect((await client.nextAnyMessage()).type).toBe('directory_snapshot');
+	});
+
+	test('settles the receive tail and quarantines the socket when internal cleanup fails', async () => {
+		let receiveCalls = 0;
+		const events: string[] = [];
+		const failingApplication = {
+			connect: () => [],
+			receive: async () => {
+				receiveCalls += 1;
+				throw new Error('sentinel receive failure');
+			},
+			disconnect: () => {
+				throw new Error('sentinel cleanup failure');
+			},
+			sweep: () => []
+		} as unknown as ArenaApplication;
+		handle = startArenaServer({
+			application: failingApplication,
+			config: loadArenaConfig({ HOST: '127.0.0.1' }),
+			portOverride: 0,
+			maintenanceIntervalMs: 60_000,
+			logger: (_level, event) => events.push(event)
+		});
+		const client = await SplitProcessClient.connect(`ws://127.0.0.1:${handle.port}/ws`);
+
+		client.send({ type: 'directory_subscribe', data: {} });
+		await waitFor(() => receiveCalls === 1, 'first failed receive');
+		client.send({ type: 'directory_subscribe', data: {} });
+		await Bun.sleep(100);
+
+		expect(receiveCalls).toBe(1);
+		expect(events).toContain('websocket_receive_failed');
+		expect(events).toContain('websocket_internal_cleanup_failed');
 	});
 
 	test.skipIf(process.platform === 'win32')(

@@ -1,14 +1,20 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { z } from 'zod';
 
 import { decodeClientMessage, encodeServerMessage } from '../../src/protocol/codec.ts';
 import {
+	commandErrorCodes,
 	createCommandError,
 	createFatalError,
+	fatalErrorCodeSchema,
+	fatalErrorCodes,
 	ProtocolError,
 	type FatalErrorCode
 } from '../../src/protocol/errors.ts';
 import {
 	MAX_CLIENT_MESSAGE_BYTES,
+	MAX_SERVER_MESSAGE_BYTES,
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
 	REQUIRED_CAPABILITY,
@@ -38,6 +44,61 @@ function expectProtocolError(
 			expect(publicError).not.toContain(forbidden);
 		}
 	}
+}
+
+const fixtureCaseSchema = z
+	.object({
+		name: z.string().min(1),
+		message: z.unknown()
+	})
+	.strict();
+
+const invalidFixtureCaseSchema = fixtureCaseSchema
+	.extend({
+		typescriptFailure: fatalErrorCodeSchema,
+		cppFailure: fatalErrorCodeSchema
+	})
+	.strict();
+
+const protocolFixtureSchema = z
+	.object({
+		fixtureSchema: z.literal(1),
+		protocolMajor: z.literal(1),
+		protocolMinor: z.literal(0),
+		clientMessages: z.array(fixtureCaseSchema),
+		serverMessages: z.array(fixtureCaseSchema),
+		invalidServerMessages: z.array(invalidFixtureCaseSchema)
+	})
+	.strict();
+
+function protocolFixture() {
+	const path = `${import.meta.dir}/../../fixtures/protocol-v1.json`;
+	const parsed = protocolFixtureSchema.safeParse(JSON.parse(readFileSync(path, 'utf8')));
+	if (!parsed.success) throw new Error('Invalid Arena protocol fixture manifest.');
+	return parsed.data;
+}
+
+function canonicalJson(value: unknown): string {
+	const normalize = (item: unknown): unknown => {
+		if (Array.isArray(item)) return item.map(normalize);
+		if (typeof item !== 'object' || item === null) return item;
+		return Object.fromEntries(
+			Object.entries(item as Record<string, unknown>)
+				.sort(([left], [right]) => left.localeCompare(right))
+				.map(([key, child]) => [key, normalize(child)])
+		);
+	};
+	return JSON.stringify(normalize(value));
+}
+
+function typeCounts(cases: readonly { message: unknown }[]): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const fixtureCase of cases) {
+		const message = fixtureCase.message as { type?: unknown };
+		if (typeof message.type !== 'string') continue;
+		counts[message.type] = (counts[message.type] ?? 0) + 1;
+	}
+	return counts;
 }
 
 describe('decodeClientMessage', () => {
@@ -298,6 +359,17 @@ describe('decodeClientMessage', () => {
 		]);
 	});
 
+	test('accepts an exactly 65,536-byte valid client frame', () => {
+		const message = { type: 'directory_subscribe', data: {} } satisfies ClientMessage;
+		const encoded = encode(message);
+		const exact = `${encoded}${' '.repeat(
+			MAX_CLIENT_MESSAGE_BYTES - new TextEncoder().encode(encoded).byteLength
+		)}`;
+
+		expect(new TextEncoder().encode(exact).byteLength).toBe(MAX_CLIENT_MESSAGE_BYTES);
+		expect(decodeClientMessage(exact)).toEqual(message);
+	});
+
 	test('rejects empty and over-bound sensitive values without echoing them', () => {
 		const password = 'é'.repeat(65);
 		expectProtocolError(
@@ -500,6 +572,77 @@ describe('server protocol messages', () => {
 		expect(() => encodeServerMessage(invalidMessage as never)).toThrow(ProtocolError);
 	});
 
+	test('rejects duplicate and overlapping server wire identifiers atomically', () => {
+		const summary = {
+			roomId: 'room-duplicate',
+			name: 'Room',
+			phase: 'selecting' as const,
+			hasPassword: false,
+			connectedCount: 1,
+			reservedCount: 0,
+			maxCount: 16 as const
+		};
+		const invalidMessages = [
+			{
+				type: 'directory_snapshot',
+				data: { revision: 1, rooms: [summary, { ...summary }] }
+			},
+			{
+				type: 'room_directory_updated',
+				data: { revision: 2, upserts: [summary, { ...summary }], removedRoomIds: [] }
+			},
+			{
+				type: 'room_directory_updated',
+				data: {
+					revision: 2,
+					upserts: [],
+					removedRoomIds: ['room-duplicate', 'room-duplicate']
+				}
+			},
+			{
+				type: 'room_directory_updated',
+				data: { revision: 2, upserts: [summary], removedRoomIds: ['room-duplicate'] }
+			},
+			{
+				type: 'room_snapshot',
+				requestId: 'join-duplicate-member',
+				data: { ...room, members: [room.members[0]!, { ...room.members[0]! }] }
+			},
+			{
+				type: 'room_snapshot',
+				requestId: 'join-duplicate-chat',
+				data: { ...room, chat: [room.chat[0]!, { ...room.chat[0]! }] }
+			}
+		];
+
+		for (const message of invalidMessages) {
+			expectProtocolError(() => encodeServerMessage(message as never), 'malformed_message', [
+				'room-duplicate'
+			]);
+		}
+	});
+
+	test('rejects an outgoing server frame above four MiB without retaining its contents', () => {
+		const sentinel = 'sentinel-oversized-server-room';
+		const rooms = Array.from({ length: 28_000 }, (_, index) => ({
+			roomId: `room-${index}`,
+			name: `${sentinel}-${index}`.padEnd(80, 'x'),
+			phase: 'selecting' as const,
+			hasPassword: false,
+			connectedCount: 1,
+			reservedCount: 0,
+			maxCount: 16 as const
+		}));
+		const message = {
+			type: 'directory_snapshot',
+			data: { revision: 1, rooms }
+		} satisfies ServerMessage;
+		const rawBytes = new TextEncoder().encode(JSON.stringify(message)).byteLength;
+
+		expect(rawBytes).toBeGreaterThan(MAX_SERVER_MESSAGE_BYTES);
+		expectProtocolError(() => encodeServerMessage(message), 'frame_too_large', [sentinel]);
+	});
+
 	test('builds command errors from stable codes without accepting unsafe detail', () => {
 		expect(createCommandError('request-1', 'permission_denied')).toEqual({
 			type: 'command_error',
@@ -516,5 +659,87 @@ describe('server protocol messages', () => {
 				displayMessageKey: 'arena.error.frameTooLarge'
 			}
 		});
+	});
+});
+
+describe('protocol v1 canonical fixture', () => {
+	test('is strict, complete, and accepted by the TypeScript codec', () => {
+		const fixture = protocolFixture();
+		expect(fixture.clientMessages).toHaveLength(12);
+		expect(fixture.serverMessages).toHaveLength(45);
+		expect(fixture.invalidServerMessages).toHaveLength(9);
+
+		const names = [
+			...fixture.clientMessages,
+			...fixture.serverMessages,
+			...fixture.invalidServerMessages
+		].map((entry) => entry.name);
+		expect(new Set(names).size).toBe(names.length);
+		expect(typeCounts(fixture.clientMessages)).toEqual({
+			client_hello: 3,
+			directory_subscribe: 1,
+			room_create: 2,
+			room_join: 2,
+			room_leave: 1,
+			room_kick: 1,
+			chat_send: 1,
+			heartbeat_reply: 1
+		});
+		expect(typeCounts(fixture.serverMessages)).toEqual({
+			server_hello: 4,
+			directory_snapshot: 1,
+			room_directory_updated: 1,
+			room_snapshot: 1,
+			room_member_joined: 1,
+			room_member_updated: 2,
+			room_member_left: 3,
+			room_owner_changed: 2,
+			chat_message: 1,
+			server_heartbeat: 1,
+			server_going_away: 2,
+			command_error: commandErrorCodes.length,
+			fatal_error: fatalErrorCodes.length
+		});
+		expect(
+			fixture.serverMessages
+				.filter(
+					(fixtureCase) => (fixtureCase.message as { type?: unknown }).type === 'command_error'
+				)
+				.map((fixtureCase) => (fixtureCase.message as { data: { code: string } }).data.code)
+				.sort()
+		).toEqual([...commandErrorCodes].sort());
+		expect(
+			fixture.serverMessages
+				.filter((fixtureCase) => (fixtureCase.message as { type?: unknown }).type === 'fatal_error')
+				.map((fixtureCase) => (fixtureCase.message as { data: { code: string } }).data.code)
+				.sort()
+		).toEqual([...fatalErrorCodes].sort());
+
+		for (const fixtureCase of fixture.clientMessages) {
+			const decoded = decodeClientMessage(JSON.stringify(fixtureCase.message));
+			if (canonicalJson(decoded) !== canonicalJson(fixtureCase.message)) {
+				throw new Error(`Client protocol fixture failed: ${fixtureCase.name}`);
+			}
+		}
+
+		for (const fixtureCase of fixture.serverMessages) {
+			const encoded = JSON.parse(encodeServerMessage(fixtureCase.message as never)) as unknown;
+			if (canonicalJson(encoded) !== canonicalJson(fixtureCase.message)) {
+				throw new Error(`Server protocol fixture failed: ${fixtureCase.name}`);
+			}
+		}
+
+		for (const fixtureCase of fixture.invalidServerMessages) {
+			try {
+				encodeServerMessage(fixtureCase.message as never);
+				throw new Error(`Invalid server protocol fixture was accepted: ${fixtureCase.name}`);
+			} catch (error) {
+				if (!(error instanceof ProtocolError) || error.code !== fixtureCase.typescriptFailure) {
+					throw new Error(
+						`Invalid server protocol fixture failed unexpectedly: ${fixtureCase.name}`
+					);
+				}
+			}
+		}
 	});
 });

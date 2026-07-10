@@ -57,6 +57,13 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	const now = options.now ?? Date.now;
 	const newConnectionId = options.newConnectionId ?? (() => crypto.randomUUID());
 	const logger = options.logger ?? (() => undefined);
+	const safeLog: ArenaLogger = (level, event, fields) => {
+		try {
+			logger(level, event, fields);
+		} catch {
+			// Logging must never reject a socket receive tail.
+		}
+	};
 	const peerUpgradePolicy = options.peerUpgradePolicy ?? DEFAULT_PEER_UPGRADE_POLICY;
 	if (
 		!Number.isSafeInteger(peerUpgradePolicy.maxAttempts) ||
@@ -162,8 +169,15 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 	};
 
 	const handleInternalFailure = (socket: Bun.ServerWebSocket<SocketData>): void => {
-		logger('error', 'websocket_receive_failed', { connectionId: socket.data.connectionId });
-		disconnectAndClose(socket, 1011, 'internal_error');
+		safeLog('error', 'websocket_receive_failed', { connectionId: socket.data.connectionId });
+		try {
+			disconnectAndClose(socket, 1011, 'internal_error');
+		} catch {
+			socket.data.closing = true;
+			safeLog('error', 'websocket_internal_cleanup_failed', {
+				connectionId: socket.data.connectionId
+			});
+		}
 	};
 
 	const server = Bun.serve<SocketData>({

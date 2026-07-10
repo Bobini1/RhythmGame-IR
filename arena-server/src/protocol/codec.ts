@@ -2,6 +2,7 @@ import { ProtocolError } from './errors.ts';
 import {
 	clientMessageSchema,
 	MAX_CLIENT_MESSAGE_BYTES,
+	MAX_SERVER_MESSAGE_BYTES,
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
 	REQUIRED_CAPABILITY,
@@ -66,5 +67,10 @@ export function encodeServerMessage(message: ServerMessage): string {
 		throw new ProtocolError('malformed_message');
 	}
 
-	return JSON.stringify(result.data);
+	const encoded = JSON.stringify(result.data);
+	if (utf8Encoder.encode(encoded).byteLength > MAX_SERVER_MESSAGE_BYTES) {
+		throw new ProtocolError('frame_too_large');
+	}
+
+	return encoded;
 }

@@ -39,6 +39,10 @@ describe('loadArenaConfig', () => {
 		expect(() => loadArenaConfig({ PORT: port })).toThrow();
 	});
 
+	test.each(['   ', 'h'.repeat(254)])('rejects an invalid host value', (host) => {
+		expect(() => loadArenaConfig({ HOST: host })).toThrow();
+	});
+
 	test('rejects a room capacity other than the Phase 1 fixed capacity', () => {
 		expect(() => loadArenaConfig({ ROOM_CAPACITY: '15' })).toThrow();
 		expect(() => loadArenaConfig({ ROOM_CAPACITY: '17' })).toThrow();
@@ -66,6 +70,22 @@ describe('loadArenaConfig', () => {
 			loadArenaConfig({ IR_JWKS_URL: 'http://localhost:5173/api/auth/jwks' }).irJwksUrl
 		).toEqual(new URL('http://localhost:5173/api/auth/jwks'));
 	});
+
+	test.each(['IR_ISSUER', 'ARENA_AUDIENCE'] as const)(
+		'rejects malformed, non-HTTP, and remote plain HTTP values for %s',
+		(variable) => {
+			for (const value of [
+				'not-a-url',
+				'file:///run/arena-identity',
+				'ftp://identity.example.test',
+				'http://identity.example.test'
+			]) {
+				expect(() => loadArenaConfig({ [variable]: value })).toThrow();
+			}
+
+			expect(loadArenaConfig({ [variable]: 'http://127.0.0.1:5173' })).toBeDefined();
+		}
+	);
 
 	test.each(['0', '1001'])(
 		'rejects a chat backlog outside the bounded in-memory range',
