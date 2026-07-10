@@ -21,9 +21,17 @@ export type RoomRejectionCode =
 	| 'inventory_stale'
 	| 'inventory_capacity_exceeded'
 	| 'availability_stale'
+	| 'selection_not_common'
+	| 'selection_stale'
+	| 'ready_not_allowed'
+	| 'round_stale'
+	| 'launch_stage_stale'
 	| 'room_resume_failed';
 
-export type RoomRejection = Readonly<{ code: RoomRejectionCode }>;
+export type RoomRejection = Readonly<{
+	code: RoomRejectionCode;
+	missingMemberIds?: readonly string[];
+}>;
 
 export type RoomMember = Readonly<{
 	memberId: string;
@@ -134,6 +142,23 @@ export type RoomEffect =
 	| MemberLeftEffect
 	| AvailabilityChangedEffect
 	| Readonly<{
+			type: 'selection_changed';
+			targets: readonly string[];
+			roomId: string;
+			roomGeneration: number;
+			selectionRevision: number;
+			availabilityRevision: number;
+			selection: SelectionSnapshot | null;
+			selectedByMemberId: string | null;
+	  }>
+	| Readonly<{
+			type: 'round_loading_started';
+			targets: readonly string[];
+			roomId: string;
+			roomGeneration: number;
+			round: FrozenRound;
+	  }>
+	| Readonly<{
 			type: 'member_joined';
 			targets: readonly string[];
 			roomId: string;
@@ -224,4 +249,16 @@ export type InventoryCommit = Readonly<{
 	libraryGeneration: number;
 	inventoryRevision: number;
 	availabilityRevision: number;
+}>;
+
+export type SelectionCommit = Readonly<{
+	selection: SelectionSnapshot;
+	selectionRevision: number;
+	availabilityRevision: number;
+	selectedByMemberId: string;
+}>;
+
+export type ReadyCommit = Readonly<{
+	ready: boolean;
+	round?: FrozenRound;
 }>;

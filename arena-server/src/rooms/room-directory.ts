@@ -10,12 +10,14 @@ import type {
 	DomainResult,
 	InventoryCommit,
 	JoinRoomInput,
+	ReadyCommit,
 	ResumeSeatInput,
 	RoomDirectoryConfig,
 	RoomEffect,
 	RoomTransition,
 	SeatAdmission,
 	SeatConnectionRef,
+	SelectionCommit,
 	UploadAdmission
 } from './models.ts';
 import {
@@ -35,6 +37,8 @@ import {
 	type RoomState,
 	type SeatState
 } from './room.ts';
+import { clearSelection, freezeRound, replaceSelection, sha256Bytes } from './round-state.ts';
+import type { SelectionSnapshot } from '../protocol/messages.ts';
 
 export interface RoomDirectory {
 	list(): DirectorySnapshot;
@@ -66,6 +70,22 @@ export interface RoomDirectory {
 		actor: SeatConnectionRef,
 		nowMs: number
 	): DomainResult<AvailabilitySnapshot>;
+	select(
+		actor: SeatConnectionRef,
+		selection: SelectionSnapshot,
+		revisions: Readonly<{ availabilityRevision: number; inventoryRevision: number }>,
+		nowMs: number
+	): DomainResult<SelectionCommit>;
+	setReady(
+		actor: SeatConnectionRef,
+		ready: boolean,
+		revisions: Readonly<{
+			selectionRevision: number;
+			availabilityRevision: number;
+			inventoryRevision: number;
+		}>,
+		nowMs: number
+	): DomainResult<ReadyCommit>;
 	sweep(nowMs: number): readonly RoomTransition[];
 }
 
@@ -170,6 +190,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		}
 
 		const incumbentTargets = connectedTargets(room);
+		const readyEffects = this.#clearReadyEffects(room);
 		const resumeToken = issueResumeToken(this.#randomBytes);
 		const seat = addConnectedSeat(room, {
 			seatId: allocateSeatId(room, this.#randomBytes),
@@ -179,24 +200,25 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		});
 		delete room.commonInventory;
 		room.availabilityBasis = [];
-		for (const existingSeat of room.seats.values()) existingSeat.ready = false;
 		if (room.ownerSeatId === null) {
 			room.ownerSeatId = seat.seatId;
 		}
 		const admission = admissionFor(room, seat, resumeToken.plaintext);
 		this.#connections.set(input.connectionId, admission.binding);
-		const effects: RoomEffect[] =
-			incumbentTargets.length === 0
+		const effects: RoomEffect[] = [
+			...readyEffects,
+			...(incumbentTargets.length === 0
 				? []
 				: [
 						{
-							type: 'member_joined',
+							type: 'member_joined' as const,
 							targets: incumbentTargets,
 							roomId: room.roomId,
 							roomGeneration: room.generation,
 							member: memberFor(seat)
 						}
-					];
+					])
+		];
 		return {
 			ok: true,
 			value: admission,
@@ -293,13 +315,14 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		) {
 			return { ok: false, rejection: { code: 'inventory_stale' } };
 		}
+		const readyEffects = this.#clearReadyEffects(room);
 		seat.pendingLibraryGeneration = libraryGeneration;
 		seat.inventoryState = 'syncing';
 		seat.ready = false;
 		return {
 			ok: true,
 			value: { libraryGeneration, inventoryState: 'syncing' },
-			effects: this.#memberUpdatedEffects(room, seat)
+			effects: [...readyEffects, ...this.#memberUpdatedEffects(room, seat)]
 		};
 	}
 
@@ -314,13 +337,14 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		if (seat.pendingLibraryGeneration !== libraryGeneration) {
 			return { ok: false, rejection: { code: 'inventory_stale' } };
 		}
+		const readyEffects = this.#clearReadyEffects(room);
 		delete seat.pendingLibraryGeneration;
 		seat.inventoryState = seat.inventory === undefined ? 'missing' : 'ready';
 		seat.ready = false;
 		return {
 			ok: true,
 			value: undefined,
-			effects: this.#memberUpdatedEffects(room, seat)
+			effects: [...readyEffects, ...this.#memberUpdatedEffects(room, seat)]
 		};
 	}
 
@@ -347,7 +371,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		seat.inventoryState = 'ready';
 		seat.ready = false;
 		delete seat.pendingLibraryGeneration;
-		const availabilityEffect = this.#recomputeAvailability(room);
+		const availabilityEffects = this.#recomputeAvailability(room);
 		if (previousInventory !== undefined) this.#releaseInventory(previousInventory);
 
 		return {
@@ -357,10 +381,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				inventoryRevision: seat.inventoryRevision,
 				availabilityRevision: room.commonInventory === undefined ? 0 : room.availabilityRevision
 			},
-			effects: [
-				...this.#memberUpdatedEffects(room, seat),
-				...(availabilityEffect === undefined ? [] : [availabilityEffect])
-			]
+			effects: [...this.#memberUpdatedEffects(room, seat), ...availabilityEffects]
 		};
 	}
 
@@ -397,6 +418,149 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				inventory: room.commonInventory
 			},
 			effects: []
+		};
+	}
+
+	select(
+		actor: SeatConnectionRef,
+		selection: SelectionSnapshot,
+		revisions: Readonly<{ availabilityRevision: number; inventoryRevision: number }>,
+		_nowMs: number
+	): DomainResult<SelectionCommit> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (room.phase !== 'selecting' || seat.roundState !== 'eligible') {
+			return { ok: false, rejection: { code: 'launch_stage_stale' } };
+		}
+		if (
+			room.commonInventory === undefined ||
+			revisions.availabilityRevision !== room.availabilityRevision ||
+			revisions.inventoryRevision !== seat.inventoryRevision ||
+			seat.inventoryState !== 'ready' ||
+			seat.inventory === undefined ||
+			seat.availabilityAppliedRevision !== room.availabilityRevision
+		) {
+			return { ok: false, rejection: { code: 'selection_stale' } };
+		}
+
+		const hash = sha256Bytes(selection.sha256);
+		if (!room.commonInventory.contains(hash)) {
+			const missingMemberIds = [...room.seats.values()]
+				.filter(
+					(candidate) => candidate.inventory === undefined || !candidate.inventory.contains(hash)
+				)
+				.sort((left, right) => left.joinOrder - right.joinOrder)
+				.map((candidate) => candidate.seatId);
+			return {
+				ok: false,
+				rejection: { code: 'selection_not_common', missingMemberIds }
+			};
+		}
+
+		const next = replaceSelection(room, selection, seat.seatId);
+		room.selection = next.selection;
+		room.selectionRevision = next.selectionRevision;
+		room.selectedByMemberId = next.selectedByMemberId;
+		const effects = this.#clearReadyEffects(room);
+		effects.push({
+			type: 'selection_changed',
+			targets: connectedTargets(room),
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			selectionRevision: room.selectionRevision,
+			availabilityRevision: room.availabilityRevision,
+			selection: room.selection,
+			selectedByMemberId: room.selectedByMemberId
+		});
+		return {
+			ok: true,
+			value: {
+				selection: room.selection,
+				selectionRevision: room.selectionRevision,
+				availabilityRevision: room.availabilityRevision,
+				selectedByMemberId: seat.seatId
+			},
+			effects
+		};
+	}
+
+	setReady(
+		actor: SeatConnectionRef,
+		ready: boolean,
+		revisions: Readonly<{
+			selectionRevision: number;
+			availabilityRevision: number;
+			inventoryRevision: number;
+		}>,
+		_nowMs: number
+	): DomainResult<ReadyCommit> {
+		const bound = this.#boundSeat(actor);
+		if (!bound.ok) return bound;
+		const { room, seat } = bound;
+		if (room.phase !== 'selecting' || seat.roundState !== 'eligible') {
+			return { ok: false, rejection: { code: 'ready_not_allowed' } };
+		}
+		if (!ready) {
+			seat.ready = false;
+			return {
+				ok: true,
+				value: { ready: false },
+				effects: this.#memberUpdatedEffects(room, seat)
+			};
+		}
+		if (
+			room.selection === null ||
+			room.commonInventory === undefined ||
+			revisions.selectionRevision !== room.selectionRevision ||
+			revisions.availabilityRevision !== room.availabilityRevision ||
+			revisions.inventoryRevision !== seat.inventoryRevision ||
+			seat.inventoryState !== 'ready' ||
+			seat.inventory === undefined ||
+			seat.availabilityAppliedRevision !== room.availabilityRevision
+		) {
+			return { ok: false, rejection: { code: 'ready_not_allowed' } };
+		}
+
+		seat.ready = true;
+		const effects = this.#memberUpdatedEffects(room, seat);
+		const eligible = [...room.seats.values()].sort(
+			(left, right) => left.joinOrder - right.joinOrder
+		);
+		if (eligible.some((candidate) => candidate.status !== 'connected' || !candidate.ready)) {
+			return { ok: true, value: { ready: true }, effects };
+		}
+
+		const round = freezeRound({
+			roundId: this.#opaqueId(16),
+			launchAttemptId: this.#opaqueId(16),
+			selection: room.selection,
+			selectionRevision: room.selectionRevision,
+			availabilityRevision: room.availabilityRevision,
+			participants: eligible.map((candidate) => ({
+				memberId: candidate.seatId,
+				inventoryRevision: candidate.inventoryRevision
+			}))
+		});
+		room.round = round;
+		room.phase = 'loading';
+		for (const candidate of eligible) {
+			candidate.ready = false;
+			candidate.roundState = 'probing';
+			effects.push(...this.#memberUpdatedEffects(room, candidate));
+		}
+		effects.push({
+			type: 'round_loading_started',
+			targets: connectedTargets(room),
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			round
+		});
+		return {
+			ok: true,
+			value: { ready: true, round },
+			effects,
+			directoryChange: this.#upsert(room)
 		};
 	}
 
@@ -446,8 +610,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 					});
 				}
 			}
-			const availabilityEffect = this.#recomputeAvailability(room);
-			if (availabilityEffect !== undefined) effects.push(availabilityEffect);
+			effects.push(...this.#recomputeAvailability(room));
 			directoryChange = this.#upsert(room);
 		}
 
@@ -510,8 +673,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				...(invalidatedBinding === undefined ? {} : { invalidatedBinding })
 			}
 		];
-		const availabilityEffect = this.#recomputeAvailability(room);
-		if (availabilityEffect !== undefined) effects.push(availabilityEffect);
+		effects.push(...this.#recomputeAvailability(room));
 
 		return {
 			ok: true,
@@ -534,22 +696,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		this.#connections.delete(seat.connectionId);
 		if (wasOwner) room.ownerSeatId = oldestConnectedSeat(room)?.seatId ?? null;
 		const targets = connectedTargets(room);
-		const effects = [] as Array<
-			| {
-					type: 'member_updated';
-					targets: readonly string[];
-					roomId: string;
-					roomGeneration: number;
-					member: ReturnType<typeof memberFor>;
-			  }
-			| {
-					type: 'owner_changed';
-					targets: readonly string[];
-					roomId: string;
-					roomGeneration: number;
-					ownerMemberId: string | null;
-			  }
-		>;
+		const effects: RoomEffect[] = this.#clearReadyEffects(room);
 		if (targets.length > 0) {
 			effects.push({
 				type: 'member_updated',
@@ -665,8 +812,7 @@ class InMemoryRoomDirectory implements RoomDirectory {
 					this.#rooms.delete(room.roomId);
 					directoryChange = this.#remove(room.roomId);
 				} else {
-					const availabilityEffect = this.#recomputeAvailability(room);
-					if (availabilityEffect !== undefined) effects.push(availabilityEffect);
+					effects.push(...this.#recomputeAvailability(room));
 					directoryChange = this.#upsert(room);
 				}
 				transitions.push({ effects, directoryChange });
@@ -710,12 +856,27 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				];
 	}
 
-	#recomputeAvailability(room: RoomState): AvailabilityChangedEffect | undefined {
+	#clearReadyEffects(room: RoomState): RoomEffect[] {
+		const changed = [...room.seats.values()].filter((seat) => seat.ready);
+		for (const seat of changed) seat.ready = false;
+		const targets = connectedTargets(room);
+		if (targets.length === 0) return [];
+		return changed.map((seat) => ({
+			type: 'member_updated' as const,
+			targets,
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			member: memberFor(seat)
+		}));
+	}
+
+	#recomputeAvailability(room: RoomState): RoomEffect[] {
 		const seats = [...room.seats.values()];
+		const readyEffects = this.#clearReadyEffects(room);
 		if (seats.length === 0 || seats.some((seat) => seat.inventory === undefined)) {
 			delete room.commonInventory;
 			room.availabilityBasis = [];
-			return undefined;
+			return readyEffects;
 		}
 		const previous = room.commonInventory;
 		const previousRevision = room.availabilityRevision;
@@ -730,7 +891,6 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		room.commonInventory = current;
 		room.availabilityBasis = basis;
 		room.availabilityRevision += 1;
-		for (const seat of seats) seat.ready = false;
 		const recipients = seats
 			.filter((seat) => seat.status === 'connected')
 			.map((seat) => ({
@@ -738,18 +898,38 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				baseRevision: seat.availabilityAppliedRevision,
 				forceReset: previous === undefined || seat.availabilityAppliedRevision !== previousRevision
 			}));
-		return {
-			type: 'availability_changed',
-			targets: recipients.map((recipient) => recipient.connectionId),
-			roomId: room.roomId,
-			roomGeneration: room.generation,
-			previousRevision,
-			targetRevision: room.availabilityRevision,
-			basis: basis.map((entry) => ({ ...entry })),
-			...(previous === undefined ? {} : { previous }),
-			current,
-			recipients
-		};
+		const effects: RoomEffect[] = [
+			{
+				type: 'availability_changed',
+				targets: recipients.map((recipient) => recipient.connectionId),
+				roomId: room.roomId,
+				roomGeneration: room.generation,
+				previousRevision,
+				targetRevision: room.availabilityRevision,
+				basis: basis.map((entry) => ({ ...entry })),
+				...(previous === undefined ? {} : { previous }),
+				current,
+				recipients
+			}
+		];
+		effects.push(...readyEffects);
+		if (room.selection !== null && !current.contains(sha256Bytes(room.selection.sha256))) {
+			const next = clearSelection(room);
+			room.selection = next.selection;
+			room.selectionRevision = next.selectionRevision;
+			room.selectedByMemberId = next.selectedByMemberId;
+			effects.push({
+				type: 'selection_changed',
+				targets: connectedTargets(room),
+				roomId: room.roomId,
+				roomGeneration: room.generation,
+				selectionRevision: room.selectionRevision,
+				availabilityRevision: room.availabilityRevision,
+				selection: null,
+				selectedByMemberId: null
+			});
+		}
+		return effects;
 	}
 
 	#availabilityResetEffect(

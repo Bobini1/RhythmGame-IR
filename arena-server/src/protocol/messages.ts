@@ -883,8 +883,8 @@ const selectionChangedMessageSchema = z
 			.extend({
 				selectionRevision: positiveRevisionSchema,
 				availabilityRevision: positiveRevisionSchema,
-				selection: selectionSnapshotSchema,
-				selectedByMemberId: opaqueIdSchema
+				selection: selectionSnapshotSchema.nullable(),
+				selectedByMemberId: opaqueIdSchema.nullable()
 			})
 			.strict()
 	})

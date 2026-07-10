@@ -51,6 +51,7 @@ export type RoomState = {
 	phase: 'selecting' | 'loading' | 'playing';
 	selection: SelectionSnapshot | null;
 	selectionRevision: number;
+	selectedByMemberId: string | null;
 	availabilityRevision: number;
 	availabilityBasis: Array<Readonly<{ memberId: string; inventoryRevision: number }>>;
 	commonInventory?: PackedInventory;
@@ -127,6 +128,7 @@ export function createInitialRoom(
 		phase: 'selecting',
 		selection: null,
 		selectionRevision: 0,
+		selectedByMemberId: null,
 		availabilityRevision: 0,
 		availabilityBasis: [],
 		nextInventoryRevision: 1

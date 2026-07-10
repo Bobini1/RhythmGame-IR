@@ -14,6 +14,8 @@ import {
 	ROOMS_CAPABILITY,
 	ROUNDS_CAPABILITY,
 	type ClientMessage,
+	type FrozenRound,
+	type SelectionSnapshot,
 	type ServerMessage
 } from '../protocol/messages.ts';
 import type {
@@ -199,7 +201,9 @@ export class ArenaApplication {
 			case 'availability_resync':
 				return this.#resyncAvailability(postHelloConnection, message, nowMs);
 			case 'selection_set':
+				return this.#setSelection(postHelloConnection, message, nowMs);
 			case 'ready_set':
+				return this.#setReady(postHelloConnection, message, nowMs);
 			case 'round_probe_result':
 			case 'round_load_result':
 				return this.#phase2Placeholder(postHelloConnection, message.requestId);
@@ -828,6 +832,82 @@ export class ArenaApplication {
 		);
 	}
 
+	#setSelection(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'selection_set' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const selected = this.#roomDirectory.select(
+			connection.binding,
+			message.data.selection,
+			{
+				availabilityRevision: message.data.availabilityRevision,
+				inventoryRevision: message.data.inventoryRevision
+			},
+			nowMs
+		);
+		if (selected.ok) return this.#mapTransition(selected.effects, selected.directoryChange);
+		if (selected.rejection.code === 'selection_not_common') {
+			return [
+				this.#send(connection.connectionId, {
+					type: 'selection_rejected',
+					requestId: message.requestId,
+					data: {
+						reason: 'not_common',
+						missingMemberIds: [...(selected.rejection.missingMemberIds ?? [])]
+					}
+				})
+			];
+		}
+		if (selected.rejection.code === 'selection_stale') {
+			return [
+				this.#send(connection.connectionId, {
+					type: 'selection_rejected',
+					requestId: message.requestId,
+					data: { reason: 'stale' }
+				})
+			];
+		}
+		return [
+			this.#send(connection.connectionId, {
+				type: 'selection_rejected',
+				requestId: message.requestId,
+				data: { reason: 'not_allowed' }
+			})
+		];
+	}
+
+	#setReady(
+		connection: PostHelloConnection,
+		message: Extract<ClientMessage, { type: 'ready_set' }>,
+		nowMs: number
+	): readonly Delivery[] {
+		const preflight = this.#roundCommandPreflight(connection, message.requestId, message.data);
+		if (preflight !== undefined) return preflight;
+		if (connection.phase !== 'room_bound') throw new Error('Round preflight invariant failed.');
+		const readied = this.#roomDirectory.setReady(
+			connection.binding,
+			message.data.ready,
+			{
+				selectionRevision: message.data.selectionRevision,
+				availabilityRevision: message.data.availabilityRevision,
+				inventoryRevision: message.data.inventoryRevision
+			},
+			nowMs
+		);
+		return readied.ok
+			? this.#mapTransition(readied.effects, readied.directoryChange)
+			: [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(readied.rejection.code))
+					)
+				];
+	}
+
 	#roomCommandPreflight(
 		connection: PostHelloConnection,
 		requestId: string,
@@ -1089,6 +1169,31 @@ export class ArenaApplication {
 						this.#send(recipient.connectionId, plan.commit)
 					];
 				});
+			case 'selection_changed':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'selection_changed',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							selectionRevision: effect.selectionRevision,
+							availabilityRevision: effect.availabilityRevision,
+							selection: effect.selection === null ? null : copySelection(effect.selection),
+							selectedByMemberId: effect.selectedByMemberId
+						}
+					})
+				];
+			case 'round_loading_started':
+				return [
+					this.#sendMany(connectionIds, {
+						type: 'round_loading_started',
+						data: {
+							roomId: effect.roomId,
+							roomGeneration: effect.roomGeneration,
+							round: copyRound(effect.round)
+						}
+					})
+				];
 		}
 		return assertNever(effect);
 	}
@@ -1314,11 +1419,28 @@ function copyMember(member: RoomSnapshot['members'][number]) {
 	return { ...member, identity: { ...member.identity } };
 }
 
+function copySelection(selection: SelectionSnapshot): SelectionSnapshot {
+	return {
+		...selection,
+		randomSequence: [...selection.randomSequence]
+	};
+}
+
+function copyRound(round: FrozenRound): FrozenRound {
+	return {
+		...round,
+		selection: copySelection(round.selection),
+		participants: round.participants.map((participant) => ({ ...participant }))
+	};
+}
+
 function copyRoomSnapshot(snapshot: RoomSnapshot) {
 	return {
 		...snapshot,
 		self: { ...snapshot.self },
 		members: snapshot.members.map(copyMember),
-		chat: snapshot.chat.map((message) => ({ ...message }))
+		chat: snapshot.chat.map((message) => ({ ...message })),
+		selection: snapshot.selection === null ? null : copySelection(snapshot.selection),
+		...(snapshot.round === undefined ? {} : { round: copyRound(snapshot.round) })
 	};
 }
