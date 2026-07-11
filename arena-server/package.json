@@ -1,0 +1,31 @@
+{
+	"name": "@rhythmgame/arena-server",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"start": "bun run src/main.ts",
+		"check": "tsc --noEmit",
+		"test": "bun test",
+		"smoke:phase1": "bun run scripts/phase1-smoke.ts",
+		"smoke:phase2": "bun run scripts/phase2-smoke.ts",
+		"smoke:phase3": "bun run scripts/phase3-smoke.ts",
+		"smoke:production": "bun run scripts/phase4-production-smoke.ts",
+		"load:phase4": "bun run scripts/phase4-load.ts",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"verify": "bun run check && bun run test && bun run format:check"
+	},
+	"dependencies": {
+		"jose": "6.2.3",
+		"zod": "4.3.6"
+	},
+	"devDependencies": {
+		"@types/bun": "1.3.11",
+		"prettier": "3.8.1",
+		"typescript": "5.9.3"
+	},
+	"engines": {
+		"bun": "1.3.14"
+	}
+}
