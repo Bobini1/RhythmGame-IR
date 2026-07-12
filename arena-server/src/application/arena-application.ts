@@ -58,7 +58,7 @@ type ConnectionCommon = {
 	directorySubscribed: boolean;
 	nextHeartbeatAtMs: number | null;
 	pendingHeartbeat: Readonly<{ nonce: string; sentAtMs: number; deadlineMs: number }> | null;
-	protocolMinor: 0 | 1 | 2;
+	protocolMinor: typeof PROTOCOL_MINOR;
 	capabilities: readonly (
 		| typeof ROOMS_CAPABILITY
 		| typeof ROUNDS_CAPABILITY
@@ -1730,27 +1730,26 @@ function resumedServerHello(
 }
 
 function negotiate(
-	clientMinor: 0 | 1 | 2,
+	_clientMinor: typeof PROTOCOL_MINOR,
 	clientCapabilities: readonly string[]
 ): Readonly<{
-	protocolMinor: 0 | 1 | 2;
+	protocolMinor: typeof PROTOCOL_MINOR;
 	capabilities: readonly (
 		| typeof ROOMS_CAPABILITY
 		| typeof ROUNDS_CAPABILITY
 		| typeof COMPETITION_CAPABILITY
 	)[];
 }> {
-	const protocolMinor = Math.min(clientMinor, PROTOCOL_MINOR) as 0 | 1 | 2;
+	const protocolMinor = PROTOCOL_MINOR;
 	const capabilities: (
 		| typeof ROOMS_CAPABILITY
 		| typeof ROUNDS_CAPABILITY
 		| typeof COMPETITION_CAPABILITY
 	)[] = [ROOMS_CAPABILITY];
-	if (protocolMinor >= 1 && clientCapabilities.includes(ROUNDS_CAPABILITY)) {
+	if (clientCapabilities.includes(ROUNDS_CAPABILITY)) {
 		capabilities.push(ROUNDS_CAPABILITY);
 	}
 	if (
-		protocolMinor >= 2 &&
 		capabilities.includes(ROUNDS_CAPABILITY) &&
 		clientCapabilities.includes(COMPETITION_CAPABILITY)
 	) {
@@ -1760,11 +1759,11 @@ function negotiate(
 }
 
 function hasRoundsCapability(connection: PostHelloConnection): boolean {
-	return connection.protocolMinor >= 1 && connection.capabilities.includes(ROUNDS_CAPABILITY);
+	return connection.capabilities.includes(ROUNDS_CAPABILITY);
 }
 
 function hasCompetitionCapability(connection: PostHelloConnection): boolean {
-	return connection.protocolMinor >= 2 && connection.capabilities.includes(COMPETITION_CAPABILITY);
+	return connection.capabilities.includes(COMPETITION_CAPABILITY);
 }
 
 function bindingMismatch(
@@ -1827,9 +1826,14 @@ function copyRoomSummary(summary: {
 	hasPassword: boolean;
 	connectedCount: number;
 	reservedCount: number;
-	maxCount: 16;
+	maxCount: 32;
+	members: readonly Readonly<{
+		displayName: string;
+		avatarUrl: string | null;
+		connected: boolean;
+	}>[];
 }) {
-	return { ...summary };
+	return { ...summary, members: summary.members.map((member) => ({ ...member })) };
 }
 
 function copyMember(member: RoomSnapshot['members'][number]) {

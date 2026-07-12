@@ -115,31 +115,31 @@ function expectMalformed(value: unknown): void {
 	}
 }
 
-describe('Arena protocol 1.2 competition negotiation', () => {
-	test('accepts minors zero through two and enforces capability dependencies', () => {
-		expect(PROTOCOL_MINOR).toBe(2);
-		for (const [protocolMinor, capabilities] of [
-			[0, [ROOMS_CAPABILITY]],
-			[1, [ROOMS_CAPABILITY, ROUNDS_CAPABILITY]],
-			[2, [ROOMS_CAPABILITY, ROUNDS_CAPABILITY, COMPETITION_CAPABILITY]]
+describe('Arena protocol 1.0 competition negotiation', () => {
+	test('accepts capability levels at exact 1.0 and enforces dependencies', () => {
+		expect(PROTOCOL_MINOR).toBe(0);
+		for (const capabilities of [
+			[ROOMS_CAPABILITY],
+			[ROOMS_CAPABILITY, ROUNDS_CAPABILITY],
+			[ROOMS_CAPABILITY, ROUNDS_CAPABILITY, COMPETITION_CAPABILITY]
 		] as const) {
 			expect(
 				decode({
 					type: 'client_hello',
 					data: {
 						protocolMajor: 1,
-						protocolMinor,
+						protocolMinor: 0,
 						clientVersion: 'phase3-test',
 						capabilities
 					}
 				})
-			).toEqual(expect.objectContaining({ data: expect.objectContaining({ protocolMinor }) }));
+			).toEqual(expect.objectContaining({ data: expect.objectContaining({ protocolMinor: 0 }) }));
 		}
 		expectMalformed({
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'phase3-test',
 				capabilities: [ROOMS_CAPABILITY, COMPETITION_CAPABILITY]
 			}
@@ -347,7 +347,7 @@ describe('Arena Phase 3 server contract', () => {
 			artist: 'A'.repeat(200),
 			randomSequence: Array.from({ length: 4_096 }, (_, index) => index + 1)
 		};
-		const identities = Array.from({ length: 16 }, (_, index) => ({
+		const identities = Array.from({ length: 32 }, (_, index) => ({
 			userId: `maximum-user-${index}`,
 			displayName: `${index}`.padStart(2, '0') + 'N'.repeat(78),
 			avatarUrl: `https://example.test/${'a'.repeat(1_900)}-${index}`
@@ -362,7 +362,7 @@ describe('Arena Phase 3 server contract', () => {
 		}));
 		const maximumResult: RoundResultSnapshot = {
 			...finalResult,
-			participantCount: 16,
+			participantCount: 32,
 			selection: maximumSelection,
 			winnerMemberIds: entries.map((entry) => entry.memberId),
 			entries
@@ -402,14 +402,14 @@ describe('Arena Phase 3 server contract', () => {
 		).toBeLessThanOrEqual(MAX_FINALIZATION_MESSAGE_BYTES);
 	});
 
-	test('requires nullable competition state keys on a protocol 1.2 room snapshot', () => {
+	test('requires nullable competition state keys on a competition-capable room snapshot', () => {
 		const room = {
 			roomId: binding.roomId,
 			roomGeneration: binding.roomGeneration,
 			name: 'Room',
 			phase: 'selecting',
 			hasPassword: false,
-			maxCount: 16,
+			maxCount: 32,
 			ownerMemberId: member.memberId,
 			self: {
 				memberId: member.memberId,
@@ -444,7 +444,7 @@ describe('Arena Phase 3 canonical text fixture', () => {
 			strictInvalidServerTypes: string[];
 		};
 		expect([fixture.fixtureSchema, fixture.protocolMajor, fixture.protocolMinor]).toEqual([
-			1, 1, 2
+			1, 1, 0
 		]);
 		expect(fixture.clientMessages.map((entry) => String(entry.message.type)).sort()).toEqual(
 			[...fixture.strictInvalidClientTypes].sort()

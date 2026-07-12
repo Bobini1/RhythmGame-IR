@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { commandErrorCodeSchema, fatalErrorCodeSchema } from './errors.ts';
 
 export const PROTOCOL_MAJOR = 1 as const;
-export const PROTOCOL_MINOR = 2 as const;
+export const PROTOCOL_MINOR = 0 as const;
 export const ROOMS_CAPABILITY = 'rooms-v1' as const;
 export const ROUNDS_CAPABILITY = 'rounds-v1' as const;
 export const COMPETITION_CAPABILITY = 'competition-v1' as const;
@@ -23,7 +23,7 @@ const MAX_CHAT_CODE_POINTS = 500;
 const MAX_OPAQUE_ID_LENGTH = 128;
 const MAX_REQUEST_ID_LENGTH = 64;
 const MAX_TICKET_LENGTH = 16 * 1024;
-const MAX_MEMBERS = 16;
+export const MAX_MEMBERS = 32;
 const MAX_WIRE_CHAT_BACKLOG = 1_000;
 const MAX_INVENTORY_HASHES = 250_000;
 const MAX_INVENTORY_BYTES = MAX_INVENTORY_HASHES * 32;
@@ -113,7 +113,7 @@ const resumeRequestSchema = z
 const clientHelloDataSchema = z
 	.object({
 		protocolMajor: z.literal(PROTOCOL_MAJOR),
-		protocolMinor: z.union([z.literal(0), z.literal(1), z.literal(PROTOCOL_MINOR)]),
+		protocolMinor: z.literal(PROTOCOL_MINOR),
 		clientVersion: clientVersionSchema,
 		capabilities: capabilitiesSchema,
 		ticket: ticketSchema.optional(),
@@ -595,6 +595,18 @@ export const publicIdentitySchema = z
 
 export type PublicIdentity = z.infer<typeof publicIdentitySchema>;
 
+export const publicRoomMemberSchema = z
+	.object({
+		displayName: z
+			.string()
+			.refine((value) => codePointLength(value) >= 1 && codePointLength(value) <= 80),
+		avatarUrl: z.string().url().max(2_048).nullable(),
+		connected: z.boolean()
+	})
+	.strict();
+
+export type PublicRoomMember = z.infer<typeof publicRoomMemberSchema>;
+
 export const memberSchema = z
 	.object({
 		memberId: opaqueIdSchema,
@@ -786,10 +798,15 @@ export const roomSummarySchema = z
 		hasPassword: z.boolean(),
 		connectedCount: z.number().int().min(0).max(MAX_MEMBERS),
 		reservedCount: z.number().int().min(0).max(MAX_MEMBERS),
-		maxCount: z.literal(MAX_MEMBERS)
+		maxCount: z.literal(MAX_MEMBERS),
+		members: z.array(publicRoomMemberSchema).max(MAX_MEMBERS)
 	})
 	.strict()
-	.refine((room) => room.connectedCount + room.reservedCount <= room.maxCount);
+	.refine((room) => room.connectedCount + room.reservedCount <= room.maxCount)
+	.refine((room) => room.members.length === room.connectedCount + room.reservedCount)
+	.refine(
+		(room) => room.members.filter((member) => member.connected).length === room.connectedCount
+	);
 
 export type RoomSummary = z.infer<typeof roomSummarySchema>;
 
@@ -1000,21 +1017,14 @@ const serverHelloMessageSchema = z
 		data: z
 			.object({
 				protocolMajor: z.literal(PROTOCOL_MAJOR),
-				protocolMinor: z.union([z.literal(0), z.literal(1), z.literal(PROTOCOL_MINOR)]),
+				protocolMinor: z.literal(PROTOCOL_MINOR),
 				capabilities: serverCapabilitiesSchema,
 				identity: publicIdentitySchema.optional(),
 				resume: resumeResultSchema
 			})
 			.strict()
 	})
-	.strict()
-	.refine((message) => {
-		if (message.data.protocolMinor === 0) return message.data.capabilities.length === 1;
-		if (message.data.protocolMinor === 1) {
-			return !message.data.capabilities.includes(COMPETITION_CAPABILITY);
-		}
-		return true;
-	});
+	.strict();
 
 const fatalErrorMessageSchema = z
 	.object({

@@ -247,21 +247,16 @@ export class SmokeClient {
 
 function hello(
 	ticket?: string,
-	resume?: Readonly<{ roomId: string; seatToken: string }>,
-	protocolMinor: 0 | 1 | 2 = ticket === undefined ? 0 : 2
+	resume?: Readonly<{ roomId: string; seatToken: string }>
 ): ClientMessage {
 	return {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor,
+			protocolMinor: 0,
 			clientVersion: 'phase1-smoke',
 			capabilities:
-				protocolMinor === 2
-					? ['rooms-v1', 'rounds-v1', 'competition-v1']
-					: protocolMinor === 1
-						? ['rooms-v1', 'rounds-v1']
-						: ['rooms-v1'],
+				ticket === undefined ? ['rooms-v1'] : ['rooms-v1', 'rounds-v1', 'competition-v1'],
 			...(ticket === undefined ? {} : { ticket }),
 			...(resume === undefined ? {} : { resume })
 		}
@@ -280,7 +275,7 @@ function roomSummaryMatches(
 			room.roomId === roomId &&
 			room.connectedCount === connectedCount &&
 			room.reservedCount === reservedCount &&
-			room.maxCount === 16
+			room.maxCount === 32
 	);
 }
 
@@ -411,7 +406,7 @@ async function runLocalSmoke(): Promise<void> {
 			IR_ISSUER: ISSUER,
 			ARENA_AUDIENCE: AUDIENCE,
 			RECONNECT_GRACE_MS: '10000',
-			ROOM_CAPACITY: '16',
+			ROOM_CAPACITY: '32',
 			CHAT_BACKLOG: '200'
 		});
 		const directory = createRoomDirectory(
@@ -461,11 +456,7 @@ async function runLocalSmoke(): Promise<void> {
 		const legacy = await SmokeClient.connect('Authenticated protocol 1.0', url);
 		clients.push(legacy);
 		legacy.send(
-			hello(
-				await issuer.issue({ userId: 'phase1-legacy', displayName: 'Legacy player' }),
-				undefined,
-				0
-			)
+			hello(await issuer.issue({ userId: 'phase1-legacy', displayName: 'Legacy player' }))
 		);
 		const legacyHello = await legacy.nextMessage('server_hello');
 		invariant(legacyHello.data.protocolMinor === 0, 'authenticated legacy protocol minor');
@@ -529,7 +520,13 @@ async function runLocalSmoke(): Promise<void> {
 			(room) => room.roomId === firstAliceRoom.data.roomId
 		);
 		invariant(firstSummary?.hasPassword === true, 'password room badge');
-		invariant(!('members' in (firstSummary ?? {})), 'public summary has no members');
+		invariant(
+			firstSummary?.members.length === 1 &&
+				firstSummary.members[0]?.displayName === 'Alice' &&
+				firstSummary.members[0]?.avatarUrl === null &&
+				firstSummary.members[0]?.connected === true,
+			'public summary has the complete public roster'
+		);
 		invariant(!('chat' in (firstSummary ?? {})), 'public summary has no chat');
 		phase(2, 'Password room creation and discovery');
 

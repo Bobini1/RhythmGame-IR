@@ -20,11 +20,11 @@ bun run start
 
 `smoke:phase1` is credential-free. It starts an ephemeral loopback JWKS server with a generated Ed25519 key, the real Arena gateway, two split-process WebSocket clients, the production JOSE verifier, and the production Argon2id password hasher. Its nine phases cover anonymous gating, password admission, chat, moderation, room-lifetime bans, reconnect token rotation, owner transfer, grace expiry, and clean shutdown. The smoke uses the minimum accepted 10-second reconnect grace to stay bounded; normal operation defaults to 60 seconds.
 
-`smoke:phase2` is also credential-free. Its default mode starts an ephemeral loopback Ed25519 JWKS issuer, the production JOSE verifier, the real Arena gateway, and split-process WebSocket clients using actual text and binary frames. Its ten phases retain the complete inventory/common-chart/selection/probe/load/start compatibility proof beneath protocol 1.2 competition admission.
+`smoke:phase2` is also credential-free. Its default mode starts an ephemeral loopback Ed25519 JWKS issuer, the production JOSE verifier, the real Arena gateway, and split-process WebSocket clients using actual text and binary frames. Its ten phases retain the complete inventory/common-chart/selection/probe/load/start compatibility proof beneath protocol 1.0 capability negotiation.
 
 `smoke:phase3` runs a deterministic in-process three-seat assertion driver. It proves legacy admission gating, exact chart-length launch, no-data versus zero, coalesced `1,1,3` live and final ranks, ephemeral full-snapshot repair, joint wins, retained last result, reconnect, abandon, deadline DNF, and room-state destruction. `--docker-image` is reserved for the Docker/Linux integration host, where the image must be paired with an ephemeral loopback JWKS issuer; the local in-process mode never writes a signing key or contacts an IR score endpoint.
 
-`smoke:production` accepts exactly one credential-free HTTPS origin. It validates the public certificate through HTTPS and WSS, checks exact health and query rejection, then performs an anonymous protocol 1.2 hello and directory subscription. It has no ticket, password, token, or private-key input path.
+`smoke:production` accepts exactly one credential-free HTTPS origin. It validates the public certificate through HTTPS and WSS, checks exact health and query rejection, then performs an anonymous protocol 1.0 hello and directory subscription. It has no ticket, password, token, or private-key input path.
 
 The default development endpoints are `http://127.0.0.1:3001/healthz` and `ws://127.0.0.1:3001/ws`. Production TLS terminates at the reverse proxy; the container itself serves plain HTTP/WS.
 
@@ -64,7 +64,7 @@ The URL modes accept only WSS or explicit loopback WS at the exact `/ws` path. T
 | `METRICS_BEARER_TOKEN`                    | empty                                 | Required bearer-safe value of at least 32 bytes when enabled.             |
 | `SHUTDOWN_DRAIN_MS`                       | `8000`                                | Maximum reliable-send drain before 1012 close.                            |
 
-Invalid configuration fails before the listener starts. `GET /healthz` reports process and protocol 1.2 liveness only; it deliberately does not contact IR or JWKS, so an identity outage cannot create a container restart loop.
+Invalid configuration fails before the listener starts. `GET /healthz` reports process and protocol 1.0 liveness only; it deliberately does not contact IR or JWKS, so an identity outage cannot create a container restart loop.
 
 The gateway trusts `X-Forwarded-For` only when Bun's direct peer belongs to a configured `TRUSTED_PROXY_CIDRS` network. It accepts at most eight entries and 512 bytes, strips configured proxy hops right-to-left, and otherwise falls back to the direct peer. Raw addresses and forwarding headers are never logged or used as metric labels; admission keys are HMAC-SHA-256 values under a process-random salt. Configure only the actual private Traefik/container-network CIDR. Empty direct-peer mode is safe, while malformed, duplicate, or global trust ranges fail startup.
 
@@ -140,7 +140,7 @@ IR_JWKS_URL=https://rhythmgame.eu/api/auth/jwks
 IR_ISSUER=https://rhythmgame.eu
 ARENA_AUDIENCE=https://arena.rhythmgame.eu
 RECONNECT_GRACE_MS=60000
-ROOM_CAPACITY=16
+ROOM_CAPACITY=32
 CHAT_BACKLOG=200
 INVENTORY_UPLOAD_TIMEOUT_MS=60000
 MAX_PENDING_INVENTORY_BYTES=134217728
@@ -172,7 +172,7 @@ bun run smoke:production -- https://arena.rhythmgame.eu
 curl --include 'https://arena.rhythmgame.eu/ws?ticket=sentinel'
 ```
 
-The health request must report protocol 1.2, both anonymous probes must receive hello and directory state without credentials, and the query-bearing WebSocket request must return 400. Full authenticated Phase 2/3 smokes remain local or image-owned because deployed probes deliberately accept no credentials. Use a test-only sentinel, never a real ticket, in URL-policy probes.
+The health request must report protocol 1.0, both anonymous probes must receive hello and directory state without credentials, and the query-bearing WebSocket request must return 400. Full authenticated Phase 2/3 smokes remain local or image-owned because deployed probes deliberately accept no credentials. Use a test-only sentinel, never a real ticket, in URL-policy probes.
 
 ## Security and operational notes
 

@@ -15,7 +15,7 @@ function user(number: number): ArenaIdentity {
 function createDirectory(): RoomDirectory {
 	let byte = 1;
 	return createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+		{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 		new FakePasswordHasher(),
 		(length) => new Uint8Array(length).fill(byte++)
 	);
@@ -72,13 +72,13 @@ describe('Room ownership and moderation', () => {
 		expect(crossRoom.ok).toBe(true);
 	});
 
-	test('counts all sixteen seats toward the fixed capacity', async () => {
+	test('counts all thirty-two seats toward the fixed capacity', async () => {
 		const directory = createDirectory();
 		const created = await directory.create({ connectionId: 'c1', identity: user(1), name: 'Full' });
 		expect(created.ok).toBe(true);
 		if (!created.ok) return;
 
-		for (let number = 2; number <= 16; number++) {
+		for (let number = 2; number <= 32; number++) {
 			const joined = await directory.join({
 				roomId: created.value.binding.roomId,
 				connectionId: `c${number}`,
@@ -90,13 +90,13 @@ describe('Room ownership and moderation', () => {
 		expect(
 			await directory.join({
 				roomId: created.value.binding.roomId,
-				connectionId: 'c17',
-				identity: user(17)
+				connectionId: 'c33',
+				identity: user(33)
 			})
 		).toEqual({ ok: false, rejection: { code: 'room_full' } });
 		expect(directory.list()).toMatchObject({
-			revision: 16,
-			rooms: [{ connectedCount: 16, reservedCount: 0, maxCount: 16 }]
+			revision: 32,
+			rooms: [{ connectedCount: 32, reservedCount: 0, maxCount: 32 }]
 		});
 	});
 
@@ -263,7 +263,7 @@ describe('Room disconnect and resume', () => {
 		let opaqueByte = 1;
 		let tokenCall = 0;
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher(),
 			(length) =>
 				new Uint8Array(length).fill(length === 32 ? (tokenCall++ < 2 ? 42 : 43) : opaqueByte++)
@@ -445,7 +445,7 @@ describe('Room disconnect and resume', () => {
 		expect(created.ok).toBe(true);
 		if (!created.ok) return;
 		let lastBinding = created.value.binding;
-		for (let number = 2; number <= 16; number++) {
+		for (let number = 2; number <= 32; number++) {
 			const joined = await directory.join({
 				roomId: created.value.binding.roomId,
 				connectionId: `c${number}`,
@@ -459,15 +459,15 @@ describe('Room disconnect and resume', () => {
 		expect(
 			await directory.join({
 				roomId: created.value.binding.roomId,
-				connectionId: 'c17',
-				identity: user(17)
+				connectionId: 'c33',
+				identity: user(33)
 			})
 		).toEqual({ ok: false, rejection: { code: 'room_full' } });
 		expect(
 			await directory.join({
 				roomId: created.value.binding.roomId,
 				connectionId: 'duplicate',
-				identity: user(16)
+				identity: user(32)
 			})
 		).toEqual({ ok: false, rejection: { code: 'room_duplicate_identity' } });
 
@@ -476,7 +476,7 @@ describe('Room disconnect and resume', () => {
 		if (!kicked.ok) return;
 		expect(kicked.effects[0]).toEqual({
 			type: 'member_left',
-			targets: Array.from({ length: 15 }, (_, index) => `c${index + 1}`),
+			targets: Array.from({ length: 31 }, (_, index) => `c${index + 1}`),
 			roomId: created.value.binding.roomId,
 			roomGeneration: 1,
 			memberId: lastBinding.seatId,

@@ -47,7 +47,7 @@ export type RoomState = {
 	readonly roomId: string;
 	readonly generation: number;
 	readonly name: string;
-	readonly maxCount: 16;
+	readonly maxCount: 32;
 	readonly passwordDigest: string | undefined;
 	ownerSeatId: string | null;
 	readonly seats: Map<string, SeatState>;
@@ -128,7 +128,7 @@ export function createInitialRoom(
 		roomId: input.roomId,
 		generation: input.roomGeneration,
 		name: input.name,
-		maxCount: 16,
+		maxCount: 32,
 		passwordDigest: input.passwordDigest,
 		ownerSeatId: input.seatId,
 		seats: new Map([[input.seatId, seat]]),
@@ -220,7 +220,14 @@ export function summaryFor(room: RoomState): RoomSummary {
 		hasPassword: room.passwordDigest !== undefined,
 		connectedCount: [...room.seats.values()].filter((seat) => seat.status === 'connected').length,
 		reservedCount: [...room.seats.values()].filter((seat) => seat.status === 'reserved').length,
-		maxCount: room.maxCount
+		maxCount: room.maxCount,
+		members: [...room.seats.values()]
+			.sort((left, right) => left.joinOrder - right.joinOrder)
+			.map((seat) => ({
+				displayName: seat.identity.displayName,
+				avatarUrl: seat.identity.avatarUrl,
+				connected: seat.status === 'connected'
+			}))
 	};
 }
 

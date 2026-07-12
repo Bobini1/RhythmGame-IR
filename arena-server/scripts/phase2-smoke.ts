@@ -50,7 +50,7 @@ class SmokeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 90_000),
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		};
 	}
 }
@@ -67,7 +67,7 @@ function createContext(): SmokeContext {
 	let entropy = 1;
 	const inventoryUploads = new InventoryUploadManager();
 	const roomDirectory = createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+		{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 		new BunPasswordHasher(),
 		(length) => new Uint8Array(length).fill(entropy++),
 		(inventory) => inventoryUploads.releaseCommitted(inventory)
@@ -120,7 +120,7 @@ function snapshotFor(deliveries: readonly Delivery[], connectionId: string): Roo
 function phase2RoomSnapshot(
 	message: Extract<ServerMessage, { type: 'room_snapshot' }>
 ): RoomSnapshot {
-	invariant('selection' in message.data, 'WebSocket room snapshot uses protocol 1.1');
+	invariant('selection' in message.data, 'WebSocket room snapshot includes rounds capability');
 	return message.data;
 }
 
@@ -171,7 +171,7 @@ async function authenticate(
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'phase2-smoke',
 				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: connectionId
@@ -180,7 +180,7 @@ async function authenticate(
 		NOW
 	);
 	const hello = messageFor(deliveries, connectionId, 'server_hello');
-	invariant(hello.data.protocolMinor === 2, `${connectionId} negotiates protocol 1.2`);
+	invariant(hello.data.protocolMinor === 0, `${connectionId} negotiates protocol 1.0`);
 	invariant(
 		hello.data.capabilities.includes('competition-v1'),
 		`${connectionId} negotiates competition-v1`
@@ -674,7 +674,7 @@ function startWebSocketRuntime(jwksPort: number): WebSocketSmokeRuntime {
 		IR_ISSUER: 'https://rhythmgame.eu',
 		ARENA_AUDIENCE: 'https://arena.rhythmgame.eu',
 		RECONNECT_GRACE_MS: '10000',
-		ROOM_CAPACITY: '16',
+		ROOM_CAPACITY: '32',
 		CHAT_BACKLOG: '200',
 		INVENTORY_UPLOAD_TIMEOUT_MS: '60000',
 		MAX_PENDING_INVENTORY_BYTES: '134217728',
@@ -728,14 +728,14 @@ async function authenticatedWebSocketClient(
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 2,
+			protocolMinor: 0,
 			clientVersion: 'phase2-smoke',
 			capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 			ticket
 		}
 	});
 	const hello = await client.nextMessage('server_hello');
-	invariant(hello.data.protocolMinor === 2, `${name} negotiates protocol 1.2`);
+	invariant(hello.data.protocolMinor === 0, `${name} negotiates protocol 1.0`);
 	invariant(
 		hello.data.capabilities.includes('competition-v1'),
 		`${name} negotiates competition-v1`

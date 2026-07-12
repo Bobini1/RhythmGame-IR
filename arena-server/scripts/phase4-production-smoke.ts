@@ -17,10 +17,10 @@ async function main(): Promise<void> {
 	if (
 		healthBody.status !== 'ok' ||
 		healthBody.protocolMajor !== 1 ||
-		healthBody.protocolMinor !== 2 ||
+		healthBody.protocolMinor !== 0 ||
 		Object.keys(healthBody).length !== 3
 	) {
-		throw new Error('Health did not return the exact protocol 1.2 liveness body.');
+		throw new Error('Health did not return the exact protocol 1.0 liveness body.');
 	}
 
 	const queryProbe = await fetchWithTimeout(new URL('/ws?ticket=phase4-public-sentinel', origin));
@@ -96,7 +96,7 @@ function anonymousDirectory(
 					type: 'client_hello',
 					data: {
 						protocolMajor: 1,
-						protocolMinor: 2,
+						protocolMinor: 0,
 						clientVersion: 'phase4-production-smoke',
 						capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1']
 					}

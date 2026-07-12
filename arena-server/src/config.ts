@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { parseTrustedProxyCidrs } from './transport/client-address.ts';
 
 export const DEFAULT_ARENA_PORT = 3001;
-export const FIXED_ROOM_CAPACITY = 16;
+export const FIXED_ROOM_CAPACITY = 32;
 export const MIN_RECONNECT_GRACE_MS = 10_000;
 export const MAX_RECONNECT_GRACE_MS = 5 * 60_000;
 export const MAX_CHAT_BACKLOG = 1_000;
