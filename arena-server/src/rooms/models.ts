@@ -325,6 +325,13 @@ export type JoinRoomInput = Readonly<{
 	password?: string;
 }>;
 
+export type ReclaimSeatInput = Readonly<{
+	roomId: string;
+	connectionId: string;
+	identity: ArenaIdentity;
+	nowMs: number;
+}>;
+
 export type ResumeSeatInput = Readonly<{
 	roomId: string;
 	connectionId: string;

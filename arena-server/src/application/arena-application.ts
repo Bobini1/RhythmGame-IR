@@ -26,6 +26,7 @@ import type {
 	RoomEffect,
 	RoomRejectionCode,
 	RoomSnapshot,
+	SeatAdmission,
 	SeatConnectionRef
 } from '../rooms/models.ts';
 import type { RoomDirectory } from '../rooms/room-directory.ts';
@@ -466,24 +467,7 @@ export class ArenaApplication {
 		const deliveries: Delivery[] = [
 			this.#send(bound.connectionId, resumedServerHello(bound, identity, resumed.value.snapshot))
 		];
-		const staleConnectionId = resumed.value.staleConnectionId;
-		if (staleConnectionId !== undefined) {
-			const stale = this.#connections.get(staleConnectionId);
-			if (
-				stale?.phase === 'room_bound' &&
-				stale.binding.roomId === resumed.value.binding.roomId &&
-				stale.binding.seatId === resumed.value.binding.seatId &&
-				stale.binding.connectionGeneration < resumed.value.binding.connectionGeneration
-			) {
-				this.#connections.delete(staleConnectionId);
-				deliveries.push({
-					kind: 'close',
-					connectionId: staleConnectionId,
-					code: 4001,
-					reason: 'seat_replaced'
-				});
-			}
-		}
+		deliveries.push(...this.#retireReplacedSeatConnection(resumed.value));
 		deliveries.push(...this.#mapTransition(resumed.effects, resumed.directoryChange));
 		return deliveries;
 	}
@@ -546,19 +530,13 @@ export class ArenaApplication {
 				)
 			];
 		}
-		this.#replaceConnection<RoomBoundConnection>(connection, {
-			phase: 'room_bound',
-			identity: connection.identity,
-			binding: result.value.binding
-		});
-		return [
-			this.#send(connection.connectionId, {
-				type: 'room_snapshot',
-				requestId: message.requestId,
-				data: copyRoomSnapshot(result.value.snapshot)
-			}),
-			...this.#mapTransition(result.effects, result.directoryChange)
-		];
+		return this.#bindCommandAdmission(
+			connection,
+			message.requestId,
+			result.value,
+			result.effects,
+			result.directoryChange
+		);
 	}
 
 	async #joinRoom(
@@ -586,6 +564,29 @@ export class ArenaApplication {
 					createCommandError(message.requestId, 'competition_capability_required')
 				)
 			];
+		}
+		const reclaimed = this.#roomDirectory.reclaim({
+			roomId: message.data.roomId,
+			connectionId: connection.connectionId,
+			identity: connection.identity,
+			nowMs
+		});
+		if (reclaimed !== undefined) {
+			if (!reclaimed.ok) {
+				return [
+					this.#send(
+						connection.connectionId,
+						createCommandError(message.requestId, toCommandCode(reclaimed.rejection.code))
+					)
+				];
+			}
+			return this.#bindCommandAdmission(
+				connection,
+				message.requestId,
+				reclaimed.value,
+				reclaimed.effects,
+				reclaimed.directoryChange
+			);
 		}
 		if (
 			message.data.password !== undefined &&
@@ -620,19 +621,13 @@ export class ArenaApplication {
 				)
 			];
 		}
-		this.#replaceConnection<RoomBoundConnection>(connection, {
-			phase: 'room_bound',
-			identity: connection.identity,
-			binding: result.value.binding
-		});
-		return [
-			this.#send(connection.connectionId, {
-				type: 'room_snapshot',
-				requestId: message.requestId,
-				data: copyRoomSnapshot(result.value.snapshot)
-			}),
-			...this.#mapTransition(result.effects, result.directoryChange)
-		];
+		return this.#bindCommandAdmission(
+			connection,
+			message.requestId,
+			result.value,
+			result.effects,
+			result.directoryChange
+		);
 	}
 
 	#leaveRoom(
@@ -1296,6 +1291,53 @@ export class ArenaApplication {
 		return this.#roomDirectory
 			.flushDueStandings(nowMs)
 			.flatMap((transition) => this.#mapTransition(transition.effects, transition.directoryChange));
+	}
+
+	#bindCommandAdmission(
+		connection: AuthenticatedConnection,
+		requestId: string,
+		admission: SeatAdmission,
+		effects: readonly RoomEffect[],
+		directoryChange: DirectoryChange | undefined
+	): readonly Delivery[] {
+		this.#replaceConnection<RoomBoundConnection>(connection, {
+			phase: 'room_bound',
+			identity: connection.identity,
+			binding: admission.binding
+		});
+		return [
+			this.#send(connection.connectionId, {
+				type: 'room_snapshot',
+				requestId,
+				data: copyRoomSnapshot(admission.snapshot)
+			}),
+			...this.#retireReplacedSeatConnection(admission),
+			...this.#mapTransition(effects, directoryChange)
+		];
+	}
+
+	#retireReplacedSeatConnection(admission: SeatAdmission): readonly Delivery[] {
+		const staleConnectionId = admission.staleConnectionId;
+		if (staleConnectionId === undefined) return [];
+		const stale = this.#connections.get(staleConnectionId);
+		if (
+			stale?.phase !== 'room_bound' ||
+			stale.binding.roomId !== admission.binding.roomId ||
+			stale.binding.seatId !== admission.binding.seatId ||
+			stale.binding.connectionGeneration >= admission.binding.connectionGeneration
+		) {
+			return [];
+		}
+		this.#inventoryUploads.abortConnection(staleConnectionId);
+		this.#connections.delete(staleConnectionId);
+		return [
+			{
+				kind: 'close',
+				connectionId: staleConnectionId,
+				code: 4001,
+				reason: 'seat_replaced'
+			}
+		];
 	}
 
 	#abortPendingInventory(connection: Connection, nowMs: number): readonly Delivery[] {

@@ -862,6 +862,49 @@ describe('ArenaApplication room orchestration', () => {
 });
 
 describe('ArenaApplication resume and liveness', () => {
+	test.each([
+		{ label: 'a reserved seat after disconnect', disconnectFirst: true },
+		{ label: 'a live seat owned by a stale process', disconnectFirst: false }
+	])('reclaims $label through an authenticated room join', async ({ disconnectFirst }) => {
+		const { application } = createApplication();
+		await authenticate(application, 'alice-1');
+		const created = await application.receive(
+			'alice-1',
+			{ type: 'room_create', requestId: 'create-reclaim', data: { name: 'Room' } },
+			NOW
+		);
+		const original = snapshotFrom(created);
+		if (disconnectFirst) application.disconnect('alice-1', NOW);
+
+		await authenticate(application, 'alice-2', 'alice-fresh', NOW + 1);
+		const deliveries = await application.receive(
+			'alice-2',
+			{
+				type: 'room_join',
+				requestId: 'join-reclaim',
+				data: { roomId: original.roomId }
+			},
+			NOW + 1
+		);
+		const reclaimed = snapshotFrom(deliveries);
+
+		expect(reclaimed.self.memberId).toBe(original.self.memberId);
+		expect(reclaimed.self.connectionGeneration).toBe(2);
+		expect(reclaimed.self.resumeToken).not.toBe(original.self.resumeToken);
+		expect(reclaimed.members).toHaveLength(1);
+		expect(reclaimed.members[0]).toMatchObject({
+			memberId: original.self.memberId,
+			identity: alice,
+			status: 'connected'
+		});
+		expect(deliveries.filter((delivery) => delivery.kind === 'close')).toEqual(
+			disconnectFirst
+				? []
+				: [{ kind: 'close', connectionId: 'alice-1', code: 4001, reason: 'seat_replaced' }]
+		);
+		expect(application.disconnect('alice-1', NOW + 2)).toEqual([]);
+	});
+
 	test('resumes just before grace expiry and uses one non-enumerating failure at the exact boundary', async () => {
 		const { application } = createApplication();
 		await authenticate(application, 'alice-1');
