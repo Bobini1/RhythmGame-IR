@@ -67,7 +67,7 @@ class LoadTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 120_000),
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		};
 	}
 }
@@ -192,7 +192,7 @@ async function authenticate(
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'phase4-load',
 				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: `${identity.userId}|${connectionId}`,
@@ -661,7 +661,7 @@ async function run(): Promise<void> {
 	});
 	const roomDirectory: RoomDirectory = createRoomDirectoryWithEntropy(
 		{
-			roomCapacity: 16,
+			roomCapacity: 32,
 			reconnectGraceMs: 60_000,
 			chatBacklog: 200,
 			maxRooms: ROOM_COUNT

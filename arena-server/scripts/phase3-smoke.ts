@@ -38,7 +38,7 @@ class SmokeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 120_000),
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		};
 	}
 }
@@ -154,7 +154,7 @@ async function authenticate(
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'phase3-smoke',
 				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: `${identity.userId}-${connectionId}`,
@@ -337,7 +337,7 @@ async function run(): Promise<void> {
 	let entropy = 1;
 	const verifier = new SmokeTicketVerifier();
 	const roomDirectory: RoomDirectory = createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 10_000, chatBacklog: 200, maxRooms: 10 },
+		{ roomCapacity: 32, reconnectGraceMs: 10_000, chatBacklog: 200, maxRooms: 10 },
 		new BunPasswordHasher(),
 		(length) => new Uint8Array(length).fill(entropy++)
 	);
@@ -349,9 +349,9 @@ async function run(): Promise<void> {
 		newTransferId: () => new Uint8Array(16).fill(entropy++)
 	});
 
-	for (const [minor, connectionId] of [
-		[0, 'legacy0'],
-		[1, 'legacy1']
+	for (const [capabilities, connectionId] of [
+		[['rooms-v1'] as const, 'rooms-only'],
+		[['rooms-v1', 'rounds-v1'] as const, 'rounds-only']
 	] as const) {
 		application.connect(connectionId);
 		await application.receive(
@@ -360,9 +360,9 @@ async function run(): Promise<void> {
 				type: 'client_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: minor,
+					protocolMinor: 0,
 					clientVersion: 'legacy-smoke',
-					capabilities: minor === 0 ? ['rooms-v1'] : ['rooms-v1', 'rounds-v1'],
+					capabilities: [...capabilities],
 					ticket: `phase3-alice-${connectionId}`
 				}
 			},
@@ -370,16 +370,20 @@ async function run(): Promise<void> {
 		);
 		const rejected = await application.receive(
 			connectionId,
-			{ type: 'room_create', requestId: `legacy-create-${minor}`, data: { name: 'Legacy' } },
+			{
+				type: 'room_create',
+				requestId: `limited-create-${connectionId}`,
+				data: { name: 'Limited' }
+			},
 			BASE
 		);
 		const error = messagesFor(rejected, connectionId)[0];
 		invariant(
 			error?.type === 'command_error' && error.data.code === 'competition_capability_required',
-			`minor ${minor} admission gate`
+			`capability-limited ${connectionId} admission gate`
 		);
 	}
-	phase(1, 'minor 0/1 browse, competition admission requires update');
+	phase(1, 'protocol 1.0 capability levels gate competition admission');
 
 	await authenticate(application, 'alice', identities.alice, BASE);
 	await authenticate(application, 'bob', identities.bob, BASE);

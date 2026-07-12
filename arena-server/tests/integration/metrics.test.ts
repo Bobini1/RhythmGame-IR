@@ -111,7 +111,7 @@ describe('Arena operational metrics HTTP surface', () => {
 	test('instruments application transitions with aggregates and closed reasons only', async () => {
 		const metrics = createOperationalMetrics();
 		const directory = createRoomDirectory(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher()
 		);
 		const application = new ArenaApplication({
@@ -125,7 +125,7 @@ describe('Arena operational metrics HTTP surface', () => {
 						issuedAt: new Date(now.getTime() - 1_000),
 						expiresAt: new Date(now.getTime() + 60_000),
 						protocolMajor: 1,
-						protocolMinor: 2
+						protocolMinor: 0
 					};
 				}
 			},
@@ -170,7 +170,7 @@ function authenticatedHello(ticket: string): ClientMessage {
 		type: 'client_hello' as const,
 		data: {
 			protocolMajor: 1 as const,
-			protocolMinor: 2 as const,
+			protocolMinor: 0 as const,
 			clientVersion: 'metrics-test',
 			capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 			ticket

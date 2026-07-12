@@ -11,7 +11,7 @@ ARG OCI_REVISION="unknown"
 ARG OCI_VERSION="dev"
 
 LABEL org.opencontainers.image.title="RhythmGame Arena Server" \
-      org.opencontainers.image.description="Ephemeral RhythmGame Arena protocol 1.2 competition server" \
+      org.opencontainers.image.description="Ephemeral RhythmGame Arena protocol 1.0 competition server" \
       org.opencontainers.image.source="${OCI_SOURCE}" \
       org.opencontainers.image.revision="${OCI_REVISION}" \
       org.opencontainers.image.version="${OCI_VERSION}"

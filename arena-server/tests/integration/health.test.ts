@@ -24,7 +24,7 @@ function startHealthServer(
 	const application = new ArenaApplication({
 		ticketVerifier: verifier,
 		roomDirectory: createRoomDirectory(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher()
 		),
 		now: Date.now,
@@ -93,7 +93,7 @@ describe('Arena HTTP surface', () => {
 		expect(await response.json()).toEqual({
 			status: 'ok',
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		});
 		expect(verificationCalls).toBe(0);
 	});

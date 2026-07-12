@@ -25,7 +25,7 @@ SHA-256 was computed after normalizing CRLF to LF. Every shared fixture matched:
 | `phase2-binary-goldens.json` | `ba4535da55a7a70383c72ae783b915d0f518aff87d1a0992adb9d391f44886a0` | same       |
 | `phase3-text-goldens.json`   | `843c6e6c9d2c5e599119b988bc4c0edda9948167b6031426c4676454aec7820b` | same       |
 
-The Phase 4 work did not change a protocol fixture or advance protocol 1.2.
+The Phase 4 work did not change the protocol version.
 
 ## Automated server gates
 

@@ -31,7 +31,7 @@ class FakeTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 89_000),
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		};
 	}
 }
@@ -69,7 +69,7 @@ function deterministicBytes(): (length: number) => Uint8Array {
 
 function createDirectory(): RoomDirectory {
 	return createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+		{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 		new FakePasswordHasher(),
 		deterministicBytes()
 	);
@@ -81,7 +81,7 @@ function hello(ticket?: string): ClientMessage {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: authenticated ? 2 : 0,
+			protocolMinor: 0,
 			clientVersion: 'test',
 			capabilities: authenticated ? ['rooms-v1', 'rounds-v1', 'competition-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket })
@@ -322,7 +322,7 @@ describe('ArenaApplication connection protocol', () => {
 				type: 'client_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 1,
+					protocolMinor: 0,
 					clientVersion: 'modern',
 					capabilities: ['rounds-v1', 'rooms-v1'],
 					ticket: 'modern-ticket'
@@ -334,7 +334,7 @@ describe('ArenaApplication connection protocol', () => {
 			expect.objectContaining({
 				type: 'server_hello',
 				data: expect.objectContaining({
-					protocolMinor: 1,
+					protocolMinor: 0,
 					capabilities: ['rooms-v1', 'rounds-v1']
 				})
 			})
@@ -366,7 +366,7 @@ describe('ArenaApplication connection protocol', () => {
 				type: 'client_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 2,
+					protocolMinor: 0,
 					clientVersion: 'competition',
 					capabilities: ['competition-v1', 'rooms-v1', 'rounds-v1'],
 					ticket: 'competition-ticket'
@@ -378,7 +378,7 @@ describe('ArenaApplication connection protocol', () => {
 			expect.objectContaining({
 				type: 'server_hello',
 				data: expect.objectContaining({
-					protocolMinor: 2,
+					protocolMinor: 0,
 					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1']
 				})
 			})
@@ -655,7 +655,7 @@ describe('ArenaApplication room orchestration', () => {
 
 	test('correlates password join, broadcasts revisions, and keeps resume token private', async () => {
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher(),
 			deterministicBytes()
 		);
@@ -880,7 +880,7 @@ describe('ArenaApplication resume and liveness', () => {
 				type: 'client_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 1,
+					protocolMinor: 0,
 					clientVersion: 'legacy-resume',
 					capabilities: ['rooms-v1', 'rounds-v1'],
 					ticket: 'alice-legacy-fresh',
@@ -893,7 +893,7 @@ describe('ArenaApplication resume and liveness', () => {
 			expect.objectContaining({
 				type: 'server_hello',
 				data: expect.objectContaining({
-					protocolMinor: 1,
+					protocolMinor: 0,
 					resume: {
 						status: 'failed',
 						code: 'competition_capability_required',
@@ -953,7 +953,7 @@ describe('ArenaApplication resume and liveness', () => {
 				type: 'server_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 2,
+					protocolMinor: 0,
 					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 					identity: alice,
 					resume: {
@@ -1103,7 +1103,7 @@ describe('ArenaApplication awaited-operation safety', () => {
 	test('compensates a room committed after its creating connection disappears', async () => {
 		const hasher = new DeferredHashPasswordHasher();
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			hasher,
 			deterministicBytes()
 		);
@@ -1138,7 +1138,7 @@ describe('ArenaApplication awaited-operation safety', () => {
 	test('compensates a password join without exposing a member that was never admitted', async () => {
 		const hasher = new FakePasswordHasher();
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			hasher,
 			deterministicBytes()
 		);

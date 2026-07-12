@@ -72,7 +72,14 @@ export type RoomSummary = Readonly<{
 	hasPassword: boolean;
 	connectedCount: number;
 	reservedCount: number;
-	maxCount: 16;
+	maxCount: 32;
+	members: readonly PublicRoomMember[];
+}>;
+
+export type PublicRoomMember = Readonly<{
+	displayName: string;
+	avatarUrl: string | null;
+	connected: boolean;
 }>;
 
 export type RoomSnapshot = Readonly<{
@@ -81,7 +88,7 @@ export type RoomSnapshot = Readonly<{
 	name: string;
 	phase: 'selecting' | 'loading' | 'playing';
 	hasPassword: boolean;
-	maxCount: 16;
+	maxCount: 32;
 	ownerMemberId: string | null;
 	self: Readonly<{
 		memberId: string;
@@ -298,7 +305,7 @@ export type DirectorySnapshot = Readonly<{
 }>;
 
 export type RoomDirectoryConfig = Readonly<{
-	roomCapacity: 16;
+	roomCapacity: 32;
 	reconnectGraceMs: number;
 	chatBacklog: number;
 	maxRooms?: number;

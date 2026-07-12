@@ -21,7 +21,7 @@ function deterministicBytes(): (length: number) => Uint8Array {
 
 function createDirectory(): RoomDirectory {
 	return createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+		{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 		new FakePasswordHasher(),
 		deterministicBytes()
 	);
@@ -31,7 +31,7 @@ describe('RoomDirectory lifecycle', () => {
 	test('rejects room creation beyond the configured process capacity', async () => {
 		let entropy = 1;
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200, maxRooms: 1 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200, maxRooms: 1 },
 			new FakePasswordHasher(),
 			(length) => new Uint8Array(length).fill(entropy++)
 		);
@@ -81,7 +81,8 @@ describe('RoomDirectory lifecycle', () => {
 					hasPassword: false,
 					connectedCount: 1,
 					reservedCount: 0,
-					maxCount: 16
+					maxCount: 32,
+					members: [{ displayName: 'Alice', avatarUrl: null, connected: true }]
 				}
 			]
 		});
@@ -89,12 +90,13 @@ describe('RoomDirectory lifecycle', () => {
 			'connectedCount',
 			'hasPassword',
 			'maxCount',
+			'members',
 			'name',
 			'phase',
 			'reservedCount',
 			'roomId'
 		]);
-		expect(JSON.stringify(summary)).not.toContain('Alice');
+		expect(JSON.stringify(summary)).toContain('Alice');
 		expect(JSON.stringify(summary)).not.toContain(created.value.resumeToken);
 
 		expect(created.value.snapshot).toEqual({
@@ -103,7 +105,7 @@ describe('RoomDirectory lifecycle', () => {
 			name: 'First room',
 			phase: 'selecting',
 			hasPassword: false,
-			maxCount: 16,
+			maxCount: 32,
 			ownerMemberId: created.value.binding.seatId,
 			self: {
 				memberId: created.value.binding.seatId,
@@ -135,6 +137,71 @@ describe('RoomDirectory lifecycle', () => {
 			revision: 1,
 			upserts: [summary.rooms[0]!],
 			removedRoomIds: []
+		});
+	});
+
+	test('publishes member identity and connection changes in stable seat order', async () => {
+		const directory = createDirectory();
+		const created = await directory.create({ connectionId: 'c1', identity, name: 'Roster' });
+		expect(created.ok).toBe(true);
+		if (!created.ok) return;
+
+		const joined = await directory.join({
+			roomId: created.value.binding.roomId,
+			connectionId: 'c2',
+			identity: {
+				userId: 'u2',
+				displayName: 'Bob',
+				avatarUrl: 'https://example.test/bob.png'
+			}
+		});
+		expect(joined.ok).toBe(true);
+		if (!joined.ok) return;
+
+		const disconnected = directory.disconnect(joined.value.binding, 1_000);
+		expect(disconnected.ok).toBe(true);
+		expect(disconnected.directoryChange).toMatchObject({
+			revision: 3,
+			upserts: [
+				{
+					members: [
+						{ displayName: 'Alice', avatarUrl: null, connected: true },
+						{
+							displayName: 'Bob',
+							avatarUrl: 'https://example.test/bob.png',
+							connected: false
+						}
+					]
+				}
+			]
+		});
+
+		const resumed = directory.resume({
+			roomId: created.value.binding.roomId,
+			connectionId: 'c2-resumed',
+			identity: {
+				userId: 'u2',
+				displayName: 'Bobini',
+				avatarUrl: 'https://example.test/bobini.png'
+			},
+			resumeToken: joined.value.resumeToken,
+			nowMs: 2_000
+		});
+		expect(resumed.ok).toBe(true);
+		expect(directory.list()).toMatchObject({
+			revision: 4,
+			rooms: [
+				{
+					members: [
+						{ displayName: 'Alice', avatarUrl: null, connected: true },
+						{
+							displayName: 'Bobini',
+							avatarUrl: 'https://example.test/bobini.png',
+							connected: true
+						}
+					]
+				}
+			]
 		});
 	});
 
@@ -174,7 +241,7 @@ describe('room passwords', () => {
 		const hasher = new FakePasswordHasher();
 		let byte = 1;
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			hasher,
 			(length) => new Uint8Array(length).fill(byte++)
 		);
@@ -239,7 +306,7 @@ describe('room passwords', () => {
 		const hasher = new FakePasswordHasher();
 		let byte = 1;
 		const directory = createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			hasher,
 			(length) => new Uint8Array(length).fill(byte++)
 		);
@@ -302,7 +369,7 @@ describe('password admission races', () => {
 	function raceDirectory(hasher: FakePasswordHasher): RoomDirectory {
 		let byte = 1;
 		return createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			hasher,
 			(length) => new Uint8Array(length).fill(byte++)
 		);
@@ -336,22 +403,22 @@ describe('password admission races', () => {
 		async (winner) => {
 			const hasher = new FakePasswordHasher();
 			const directory = raceDirectory(hasher);
-			const created = await privateRoomWithCount(directory, 15);
+			const created = await privateRoomWithCount(directory, 31);
 			const firstVerify = hasher.deferVerify();
 			const secondVerify = hasher.deferVerify();
 			const first = directory.join({
 				roomId: created.value.binding.roomId,
-				connectionId: 'c16-a',
-				identity: { userId: 'u16-a', displayName: 'A', avatarUrl: null },
+				connectionId: 'c32-a',
+				identity: { userId: 'u32-a', displayName: 'A', avatarUrl: null },
 				password: 'secret'
 			});
 			const second = directory.join({
 				roomId: created.value.binding.roomId,
-				connectionId: 'c16-b',
-				identity: { userId: 'u16-b', displayName: 'B', avatarUrl: null },
+				connectionId: 'c32-b',
+				identity: { userId: 'u32-b', displayName: 'B', avatarUrl: null },
 				password: 'secret'
 			});
-			expect(directory.list().revision).toBe(15);
+			expect(directory.list().revision).toBe(31);
 
 			const winnerHandle = winner === 'first' ? firstVerify : secondVerify;
 			const loserHandle = winner === 'first' ? secondVerify : firstVerify;
@@ -360,12 +427,12 @@ describe('password admission races', () => {
 			winnerHandle.resolve(true);
 			const admitted = await winnerPromise;
 			expect(admitted.ok).toBe(true);
-			if (admitted.ok) expect(admitted.directoryChange?.revision).toBe(16);
+			if (admitted.ok) expect(admitted.directoryChange?.revision).toBe(32);
 			loserHandle.resolve(true);
 			expect(await loserPromise).toEqual({ ok: false, rejection: { code: 'room_full' } });
 			expect(directory.list()).toMatchObject({
-				revision: 16,
-				rooms: [{ connectedCount: 16, reservedCount: 0 }]
+				revision: 32,
+				rooms: [{ connectedCount: 32, reservedCount: 0 }]
 			});
 		}
 	);
@@ -410,7 +477,7 @@ describe('password admission races', () => {
 	test('rechecks reservations, bans, room lifetime, and connection binding after verification', async () => {
 		const hasher = new FakePasswordHasher();
 		const directory = raceDirectory(hasher);
-		const created = await privateRoomWithCount(directory, 15);
+		const created = await privateRoomWithCount(directory, 31);
 
 		const firstVerify = hasher.deferVerify();
 		const secondVerify = hasher.deferVerify();
@@ -428,14 +495,14 @@ describe('password admission races', () => {
 		});
 		directory.disconnect(created.value.binding, 0);
 		expect(directory.list()).toMatchObject({
-			revision: 16,
-			rooms: [{ connectedCount: 14, reservedCount: 1 }]
+			revision: 32,
+			rooms: [{ connectedCount: 30, reservedCount: 1 }]
 		});
 		secondVerify.resolve(true);
 		expect((await second).ok).toBe(true);
 		firstVerify.resolve(true);
 		expect(await first).toEqual({ ok: false, rejection: { code: 'room_full' } });
-		expect(directory.list().revision).toBe(17);
+		expect(directory.list().revision).toBe(33);
 
 		const smallHasher = new FakePasswordHasher();
 		const small = raceDirectory(smallHasher);

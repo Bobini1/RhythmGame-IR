@@ -27,7 +27,7 @@ class RoundTicketVerifier implements TicketVerifier {
 			issuedAt: new Date(now.getTime() - 1_000),
 			expiresAt: new Date(now.getTime() + 90_000),
 			protocolMajor: 1,
-			protocolMinor: 2
+			protocolMinor: 0
 		};
 	}
 }
@@ -38,7 +38,7 @@ function createApplication(): ArenaApplication {
 	return new ArenaApplication({
 		ticketVerifier: new RoundTicketVerifier(),
 		roomDirectory: createRoomDirectoryWithEntropy(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher(),
 			(length) => new Uint8Array(length).fill(entropy++)
 		),
@@ -55,7 +55,7 @@ async function authenticate(application: ArenaApplication, connectionId: string)
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'round-test',
 				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: `${connectionId}-ticket`
@@ -501,7 +501,7 @@ describe('Arena round application integration', () => {
 				type: 'client_hello',
 				data: {
 					protocolMajor: 1,
-					protocolMinor: 2,
+					protocolMinor: 0,
 					clientVersion: 'round-resume-test',
 					capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 					ticket: 'bob-fresh-ticket',

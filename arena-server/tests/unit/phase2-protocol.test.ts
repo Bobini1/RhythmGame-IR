@@ -58,34 +58,36 @@ function expectMalformed(value: unknown): void {
 	}
 }
 
-describe('Arena protocol 1.1 negotiation', () => {
-	test('accepts 1.0 browse and 1.1 rounds hellos', () => {
-		for (const [protocolMinor, capabilities] of [
-			[0, [ROOMS_CAPABILITY]],
-			[1, [ROOMS_CAPABILITY, ROUNDS_CAPABILITY]]
+describe('Arena protocol 1.0 rounds negotiation', () => {
+	test('accepts browse and rounds capabilities at exact 1.0', () => {
+		for (const capabilities of [
+			[ROOMS_CAPABILITY],
+			[ROOMS_CAPABILITY, ROUNDS_CAPABILITY]
 		] as const) {
 			expect(
 				decode({
 					type: 'client_hello',
 					data: {
 						protocolMajor: PROTOCOL_MAJOR,
-						protocolMinor,
+						protocolMinor: 0,
 						clientVersion: 'phase2-test',
 						capabilities
 					}
 				})
 			).toEqual(
-				expect.objectContaining({ data: expect.objectContaining({ protocolMinor, capabilities }) })
+				expect.objectContaining({
+					data: expect.objectContaining({ protocolMinor: 0, capabilities })
+				})
 			);
 		}
-		expect(PROTOCOL_MINOR).toBe(2);
+		expect(PROTOCOL_MINOR).toBe(0);
 	});
 
 	test('rejects unsupported versions and duplicate capabilities', () => {
 		for (const data of [
 			{
 				protocolMajor: 2,
-				protocolMinor: 1,
+				protocolMinor: 0,
 				clientVersion: 'test',
 				capabilities: [ROOMS_CAPABILITY, ROUNDS_CAPABILITY]
 			},
@@ -102,7 +104,7 @@ describe('Arena protocol 1.1 negotiation', () => {
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 1,
+				protocolMinor: 0,
 				clientVersion: 'test',
 				capabilities: [ROOMS_CAPABILITY, ROUNDS_CAPABILITY, ROUNDS_CAPABILITY]
 			}
@@ -484,7 +486,7 @@ describe('Arena Phase 2 canonical text fixture', () => {
 			strictInvalidServerTypes: string[];
 		};
 		expect([fixture.fixtureSchema, fixture.protocolMajor, fixture.protocolMinor]).toEqual([
-			1, 1, 1
+			1, 1, 0
 		]);
 
 		const clientByType = new Map(

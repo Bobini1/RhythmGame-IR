@@ -72,13 +72,13 @@ describe('Arena graceful shutdown', () => {
 					issuedAt: new Date(now.getTime() - 1_000),
 					expiresAt: new Date(now.getTime() + 60_000),
 					protocolMajor: 1,
-					protocolMinor: 2
+					protocolMinor: 0
 				};
 			}
 		};
 		const uploads = new InventoryUploadManager({ newTransferId: () => new Uint8Array(16).fill(1) });
 		const directory = createRoomDirectory(
-			{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+			{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 			new FakePasswordHasher(),
 			(inventory) => uploads.releaseCommitted(inventory)
 		);
@@ -148,7 +148,7 @@ function hello(ticket: string): ClientMessage {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: 2,
+			protocolMinor: 0,
 			clientVersion: 'shutdown-test',
 			capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 			ticket

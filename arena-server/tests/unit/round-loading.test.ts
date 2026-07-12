@@ -46,7 +46,7 @@ function selection(value = 2): SelectionSnapshot {
 function createDirectory(): RoomDirectory {
 	let entropy = 1;
 	return createRoomDirectoryWithEntropy(
-		{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+		{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 		new FakePasswordHasher(),
 		(length) => new Uint8Array(length).fill(entropy++)
 	);

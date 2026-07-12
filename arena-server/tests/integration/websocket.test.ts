@@ -235,7 +235,7 @@ function verifiedTicket(identity: ArenaIdentity, ticket: string, now: Date): Ver
 		issuedAt: new Date(now.getTime() - 1_000),
 		expiresAt: new Date(now.getTime() + 89_000),
 		protocolMajor: 1,
-		protocolMinor: 2
+		protocolMinor: 0
 	};
 }
 
@@ -248,7 +248,7 @@ function startTestServer(
 		application: new ArenaApplication({
 			ticketVerifier: verifier,
 			roomDirectory: createRoomDirectory(
-				{ roomCapacity: 16, reconnectGraceMs: 60_000, chatBacklog: 200 },
+				{ roomCapacity: 32, reconnectGraceMs: 60_000, chatBacklog: 200 },
 				new FakePasswordHasher()
 			),
 			now: Date.now,
@@ -275,7 +275,7 @@ function clientHello(ticket?: string): ClientMessage {
 		type: 'client_hello',
 		data: {
 			protocolMajor: 1,
-			protocolMinor: authenticated ? 2 : 0,
+			protocolMinor: 0,
 			clientVersion: 'test',
 			capabilities: authenticated ? ['rooms-v1', 'rounds-v1', 'competition-v1'] : ['rooms-v1'],
 			...(ticket === undefined ? {} : { ticket })
@@ -603,7 +603,7 @@ describe('Arena WebSocket gateway', () => {
 			type: 'client_hello',
 			data: {
 				protocolMajor: 1,
-				protocolMinor: 2,
+				protocolMinor: 0,
 				clientVersion: 'test',
 				capabilities: ['rooms-v1', 'rounds-v1', 'competition-v1'],
 				ticket: 'alice-ticket-2',

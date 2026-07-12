@@ -18,10 +18,61 @@ import {
 	PROTOCOL_MAJOR,
 	PROTOCOL_MINOR,
 	REQUIRED_CAPABILITY,
+	roomSummarySchema,
 	type ClientMessage,
 	type RoomSnapshot,
 	type ServerMessage
 } from '../../src/protocol/messages.ts';
+
+describe('unreleased Arena protocol contract', () => {
+	test('uses exact protocol 1.0', () => {
+		expect(PROTOCOL_MAJOR).toBe(1);
+		expect(PROTOCOL_MINOR).toBe(0);
+		expectProtocolError(
+			() =>
+				decodeClientMessage(
+					JSON.stringify({
+						type: 'client_hello',
+						data: {
+							protocolMajor: 1,
+							protocolMinor: 1,
+							clientVersion: 'test',
+							capabilities: ['rooms-v1', 'rounds-v1']
+						}
+					})
+				),
+			'protocol_incompatible'
+		);
+	});
+
+	test('publishes every public member and accepts at most 32 members', () => {
+		const members = Array.from({ length: 32 }, (_, index) => ({
+			displayName: `Player ${index + 1}`,
+			avatarUrl: index === 1 ? 'https://example.test/player-2.png' : null,
+			connected: index !== 2
+		}));
+		const summary = {
+			roomId: 'room-123',
+			name: 'Arena room',
+			phase: 'selecting' as const,
+			hasPassword: false,
+			connectedCount: 31,
+			reservedCount: 1,
+			maxCount: 32,
+			members
+		};
+
+		expect(roomSummarySchema.parse(summary).members).toEqual(members);
+		expect(() =>
+			roomSummarySchema.parse({
+				...summary,
+				connectedCount: 32,
+				reservedCount: 1,
+				members: [...members, { displayName: 'Player 33', avatarUrl: null, connected: true }]
+			})
+		).toThrow();
+	});
+});
 
 function encode(value: unknown): string {
 	return JSON.stringify(value);
@@ -410,7 +461,7 @@ describe('server protocol messages', () => {
 		name: 'Arena room',
 		phase: 'selecting',
 		hasPassword: true,
-		maxCount: 16,
+		maxCount: 32,
 		ownerMemberId: 'member-1',
 		self: {
 			memberId: 'member-1',
@@ -498,7 +549,8 @@ describe('server protocol messages', () => {
 							hasPassword: true,
 							connectedCount: 1,
 							reservedCount: 0,
-							maxCount: 16
+							maxCount: 32,
+							members: [{ displayName: 'Alice', avatarUrl: null, connected: true }]
 						}
 					]
 				}
@@ -570,7 +622,8 @@ describe('server protocol messages', () => {
 						hasPassword: true,
 						connectedCount: 1,
 						reservedCount: 0,
-						maxCount: 16,
+						maxCount: 32,
+						members: [{ displayName: 'Alice', avatarUrl: null, connected: true }],
 						resumeToken: 'must-not-leak'
 					}
 				]
@@ -588,7 +641,8 @@ describe('server protocol messages', () => {
 			hasPassword: false,
 			connectedCount: 1,
 			reservedCount: 0,
-			maxCount: 16 as const
+			maxCount: 32 as const,
+			members: [{ displayName: 'Alice', avatarUrl: null, connected: true }]
 		};
 		const invalidMessages = [
 			{
@@ -639,7 +693,8 @@ describe('server protocol messages', () => {
 			hasPassword: false,
 			connectedCount: 1,
 			reservedCount: 0,
-			maxCount: 16 as const
+			maxCount: 32 as const,
+			members: [{ displayName: `Player ${index}`, avatarUrl: null, connected: true }]
 		}));
 		const message = {
 			type: 'directory_snapshot',
@@ -738,11 +793,6 @@ describe('protocol v1 canonical fixture', () => {
 		}
 
 		for (const fixtureCase of fixture.invalidServerMessages) {
-			if (fixtureCase.name === 'invalid server protocol minor') {
-				// Protocol minor 1 became valid in Phase 2; keep the Phase 1 corpus byte-stable.
-				encodeServerMessage(fixtureCase.message as never);
-				continue;
-			}
 			try {
 				encodeServerMessage(fixtureCase.message as never);
 				throw new Error(`Invalid server protocol fixture was accepted: ${fixtureCase.name}`);
