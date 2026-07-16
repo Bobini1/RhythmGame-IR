@@ -276,6 +276,14 @@ describe('Arena Playing domain', () => {
 		]);
 		expect(second.value.finalized?.entries.map((entry) => entry.lobbyWinsAfter)).toEqual([1, 1]);
 		const finalized = effectOf(second.effects, 'round_finalized')[0]!;
+		const cleared = effectOf(second.effects, 'selection_changed');
+		expect(cleared).toHaveLength(1);
+		expect(cleared[0]).toEqual(
+			expect.objectContaining({
+				selection: null,
+				selectionRevision: playing.round.selectionRevision + 1
+			})
+		);
 		expect(
 			finalized.members.map((member) => [member.lobbyWins, member.ready, member.roundState])
 		).toEqual([

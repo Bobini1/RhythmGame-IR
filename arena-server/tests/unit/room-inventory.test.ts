@@ -151,4 +151,40 @@ describe('RoomDirectory inventory and common availability', () => {
 		expect(reset.ok).toBe(true);
 		if (reset.ok) expect(values(reset.value.inventory)).toEqual([1]);
 	});
+
+	test('requires a fresh inventory when the same account takes over a live seat', async () => {
+		const released: PackedInventory[] = [];
+		const directory = createDirectory(released);
+		const created = await directory.create({ connectionId: 'c1', identity: alice, name: 'Room' });
+		if (!created.ok) throw new Error('create failed');
+		const original = packed([1, 2]);
+		directory.markInventorySyncing(created.value.binding, 1, 0);
+		directory.replaceInventory(created.value.binding, { libraryGeneration: 1 }, original, 1);
+
+		const reclaimed = directory.reclaim({
+			roomId: created.value.binding.roomId,
+			connectionId: 'c2',
+			identity: alice,
+			nowMs: 2
+		});
+		expect(reclaimed?.ok).toBe(true);
+		if (reclaimed === undefined || !reclaimed.ok) return;
+		const self = reclaimed.value.snapshot.members.find(
+			(member) => member.memberId === reclaimed.value.binding.seatId
+		);
+		expect(self).toMatchObject({ inventoryState: 'missing', inventoryRevision: 0 });
+		expect(released).toContain(original);
+
+		expect(directory.markInventorySyncing(reclaimed.value.binding, 1, 3).ok).toBe(true);
+		const replacement = directory.replaceInventory(
+			reclaimed.value.binding,
+			{ libraryGeneration: 1 },
+			packed([3, 4]),
+			4
+		);
+		expect(replacement.ok).toBe(true);
+		const reset = directory.requestAvailabilityReset(reclaimed.value.binding, 5);
+		expect(reset.ok).toBe(true);
+		if (reset.ok) expect(values(reset.value.inventory)).toEqual([3, 4]);
+	});
 });

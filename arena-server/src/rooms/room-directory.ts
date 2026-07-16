@@ -318,7 +318,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			(candidate) => candidate.identity.userId === input.identity.userId
 		);
 		if (seat === undefined) return undefined;
-		return this.#rebindSeat(room, seat, input.connectionId, input.identity, input.nowMs);
+		return this.#rebindSeat(room, seat, input.connectionId, input.identity, input.nowMs, {
+			preserveInventory: false
+		});
 	}
 
 	resume(input: ResumeSeatInput): DomainResult<SeatAdmission> {
@@ -341,7 +343,9 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		) {
 			return { ok: false, rejection: { code: 'room_resume_failed' } };
 		}
-		return this.#rebindSeat(room, seat, input.connectionId, input.identity, input.nowMs);
+		return this.#rebindSeat(room, seat, input.connectionId, input.identity, input.nowMs, {
+			preserveInventory: true
+		});
 	}
 
 	markInventorySyncing(
@@ -1497,18 +1501,10 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			seat.ready = false;
 			seat.roundState = 'eligible';
 		}
-		let selectionCleared = false;
-		if (
-			room.selection !== null &&
-			(room.commonInventory === undefined ||
-				!room.commonInventory.contains(sha256Bytes(room.selection.sha256)))
-		) {
-			const cleared = clearSelection(room);
-			room.selection = cleared.selection;
-			room.selectionRevision = cleared.selectionRevision;
-			room.selectedByMemberId = cleared.selectedByMemberId;
-			selectionCleared = true;
-		}
+		const cleared = clearSelection(room);
+		room.selection = cleared.selection;
+		room.selectionRevision = cleared.selectionRevision;
+		room.selectedByMemberId = cleared.selectedByMemberId;
 		const targets = connectedTargets(room);
 		const members = membersForRoom(room);
 		const effects: RoomEffect[] = [
@@ -1524,18 +1520,16 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			}
 		];
 		for (const seat of room.seats.values()) effects.push(...this.#memberUpdatedEffects(room, seat));
-		if (selectionCleared) {
-			effects.push({
-				type: 'selection_changed',
-				targets,
-				roomId: room.roomId,
-				roomGeneration: room.generation,
-				selectionRevision: room.selectionRevision,
-				availabilityRevision: room.availabilityRevision,
-				selection: null,
-				selectedByMemberId: null
-			});
-		}
+		effects.push({
+			type: 'selection_changed',
+			targets,
+			roomId: room.roomId,
+			roomGeneration: room.generation,
+			selectionRevision: room.selectionRevision,
+			availabilityRevision: room.availabilityRevision,
+			selection: null,
+			selectedByMemberId: null
+		});
 		return { effects, result: copyRoundResult(result) };
 	}
 
@@ -1544,7 +1538,8 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		seat: SeatState,
 		connectionId: string,
 		identity: ReclaimSeatInput['identity'],
-		nowMs: number
+		nowMs: number,
+		options: Readonly<{ preserveInventory: boolean }>
 	): DomainResult<SeatAdmission> {
 		const staleConnectionId = seat.connectionId;
 		const incumbentTargets = connectedTargets(room).filter(
@@ -1563,7 +1558,18 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		seat.status = 'connected';
 		seat.ready = false;
 		seat.rttSamples = [];
-		if (seat.pendingLibraryGeneration !== undefined) {
+		if (!options.preserveInventory) {
+			const previousInventory = seat.inventory;
+			delete seat.inventory;
+			delete seat.pendingLibraryGeneration;
+			seat.inventoryState = 'missing';
+			seat.inventoryRevision = 0;
+			seat.libraryGeneration = 0;
+			seat.availabilityAppliedRevision = 0;
+			delete room.commonInventory;
+			room.availabilityBasis = [];
+			if (previousInventory !== undefined) this.#releaseInventory(previousInventory);
+		} else if (seat.pendingLibraryGeneration !== undefined) {
 			delete seat.pendingLibraryGeneration;
 			seat.inventoryState = seat.inventory === undefined ? 'missing' : 'ready';
 		}
@@ -1571,13 +1577,14 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		this.#setParticipantConnectionStatus(room, seat.seatId, 'connected', nowMs);
 		const ownerChanged = room.ownerSeatId === null;
 		if (ownerChanged) room.ownerSeatId = seat.seatId;
+		const readyEffects = options.preserveInventory ? [] : this.#clearReadyEffects(room);
 
 		const admission: SeatAdmission = {
 			...admissionFor(room, seat, rotatedToken.plaintext),
 			staleConnectionId
 		};
 		this.#connections.set(connectionId, admission.binding);
-		const effects: RoomEffect[] = [];
+		const effects: RoomEffect[] = [...readyEffects];
 		if (incumbentTargets.length > 0) {
 			effects.push({
 				type: 'member_updated',

@@ -481,6 +481,10 @@ describe('Arena round application integration', () => {
 		expect(bobMessages[0]?.type).toBe('round_terminal_accepted');
 		const finalized = bobMessages.find((message) => message.type === 'round_finalized');
 		if (finalized?.type !== 'round_finalized') throw new Error('finalization missing');
+		const cleared = bobMessages.find((message) => message.type === 'selection_changed');
+		if (cleared?.type !== 'selection_changed') throw new Error('selection clear missing');
+		expect(cleared.data.selection).toBeNull();
+		expect(cleared.data.selectionRevision).toBe(selectionRevision + 1);
 		expect(
 			bobTerminal.some(
 				(delivery) => delivery.kind === 'send' && delivery.message.type === 'round_finalized'
@@ -517,6 +521,8 @@ describe('Arena round application integration', () => {
 		const resumedRoom = resumedHello.data.resume.room;
 		if (!('lastRoundResult' in resumedRoom)) throw new Error('competition snapshot missing');
 		expect(resumedRoom.lastRoundResult?.roundId).toBe(round.roundId);
+		expect(resumedRoom.selection).toBeNull();
+		expect(resumedRoom.selectionRevision).toBe(selectionRevision + 1);
 		expect(resumedRoom.liveStandings).toBeNull();
 	});
 
