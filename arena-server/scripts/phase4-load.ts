@@ -130,7 +130,7 @@ function selection() {
 		keyMode: 7 as const,
 		randomSequence: [1, 2, 3],
 		noteOrderP1: 'random' as const,
-		noteOrderP2: 'mirror' as const,
+		noteOrderP2: 'normal_or_mirror' as const,
 		dpMode: 'off' as const,
 		laneSeed: '0123456789abcdef',
 		randomizationVersion: 1 as const

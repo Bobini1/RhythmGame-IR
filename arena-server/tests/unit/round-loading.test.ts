@@ -36,7 +36,7 @@ function selection(value = 2): SelectionSnapshot {
 		keyMode: 7,
 		randomSequence: [1, 2],
 		noteOrderP1: 'random',
-		noteOrderP2: 'mirror',
+		noteOrderP2: 'normal_or_mirror',
 		dpMode: 'off',
 		laneSeed: '0123456789abcdef',
 		randomizationVersion: 1

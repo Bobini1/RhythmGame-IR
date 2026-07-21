@@ -235,8 +235,7 @@ const transferIdSchema = z
 const metadataTextSchema = z.string().refine((value) => codePointLength(value) <= 200);
 
 export const noteOrderSchema = z.enum([
-	'normal',
-	'mirror',
+	'normal_or_mirror',
 	'random',
 	's_random',
 	'r_random',

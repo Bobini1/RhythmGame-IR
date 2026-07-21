@@ -36,8 +36,8 @@ function selection(value: number, title = `Chart ${value}`): SelectionSnapshot {
 		artist: 'Artist',
 		keyMode: 7,
 		randomSequence: [1, 2],
-		noteOrderP1: 'normal',
-		noteOrderP2: 'mirror',
+		noteOrderP1: 'normal_or_mirror',
+		noteOrderP2: 'normal_or_mirror',
 		dpMode: 'off',
 		laneSeed: '0123456789abcdef',
 		randomizationVersion: 1

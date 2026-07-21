@@ -237,8 +237,7 @@ describe('Arena Phase 2 client text contract', () => {
 
 	test('accepts every note order and DP mode but no unknown transform', () => {
 		const noteOrders = [
-			'normal',
-			'mirror',
+			'normal_or_mirror',
 			'random',
 			's_random',
 			'r_random',
