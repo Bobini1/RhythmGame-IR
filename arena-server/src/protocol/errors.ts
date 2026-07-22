@@ -19,7 +19,6 @@ export const commandErrorCodes = [
 	'rate_limited',
 	'rounds_capability_required',
 	'competition_capability_required',
-	'inventory_busy',
 	'inventory_invalid',
 	'inventory_stale',
 	'inventory_capacity_exceeded',
@@ -44,8 +43,7 @@ export const fatalErrorCodes = [
 	'protocol_incompatible',
 	'capability_required',
 	'invalid_ticket',
-	'ticket_replayed',
-	'server_shutting_down'
+	'ticket_replayed'
 ] as const;
 
 export const commandErrorCodeSchema = z.enum(commandErrorCodes);
@@ -57,34 +55,33 @@ export type FatalErrorCode = z.infer<typeof fatalErrorCodeSchema>;
 const commandDisplayMessageKeys = {
 	auth_required: 'arena.error.authRequired',
 	already_in_room: 'arena.error.alreadyInRoom',
-	not_in_room: 'arena.error.notInRoom',
+	not_in_room: 'arena.error.roomMembershipChanged',
 	room_not_found: 'arena.error.roomNotFound',
 	room_password_invalid: 'arena.error.roomPasswordInvalid',
 	room_full: 'arena.error.roomFull',
 	room_banned: 'arena.error.roomBanned',
 	room_duplicate_identity: 'arena.error.roomDuplicateIdentity',
-	room_generation_stale: 'arena.error.roomGenerationStale',
-	connection_generation_stale: 'arena.error.connectionGenerationStale',
-	permission_denied: 'arena.error.permissionDenied',
-	target_not_found: 'arena.error.targetNotFound',
-	cannot_kick_self: 'arena.error.cannotKickSelf',
-	chat_empty: 'arena.error.chatEmpty',
-	chat_too_long: 'arena.error.chatTooLong',
+	room_generation_stale: 'arena.error.roomStateChanged',
+	connection_generation_stale: 'arena.error.roomStateChanged',
+	permission_denied: 'arena.error.roomActionUnavailable',
+	target_not_found: 'arena.error.roomMembershipChanged',
+	cannot_kick_self: 'arena.error.roomActionUnavailable',
+	chat_empty: 'arena.error.chatRejected',
+	chat_too_long: 'arena.error.chatRejected',
 	rate_limited: 'arena.error.rateLimited',
 	rounds_capability_required: 'arena.error.roundsCapabilityRequired',
 	competition_capability_required: 'arena.error.competitionCapabilityRequired',
-	inventory_busy: 'arena.error.inventoryBusy',
 	inventory_invalid: 'arena.error.inventoryInvalid',
-	inventory_stale: 'arena.error.inventoryStale',
+	inventory_stale: 'arena.error.roomLibraryChanged',
 	inventory_capacity_exceeded: 'arena.error.inventoryCapacityExceeded',
-	availability_stale: 'arena.error.availabilityStale',
+	availability_stale: 'arena.error.roomLibraryChanged',
 	selection_not_common: 'arena.error.selectionNotCommon',
-	selection_stale: 'arena.error.selectionStale',
+	selection_stale: 'arena.error.roomLibraryChanged',
 	ready_not_allowed: 'arena.error.readyNotAllowed',
-	round_stale: 'arena.error.roundStale',
-	launch_stage_stale: 'arena.error.launchStageStale',
+	round_stale: 'arena.error.roomStateChanged',
+	launch_stage_stale: 'arena.error.roomStateChanged',
 	result_invalid: 'arena.error.resultInvalid',
-	round_already_terminal: 'arena.error.roundAlreadyTerminal',
+	round_already_terminal: 'arena.error.roomStateChanged',
 	server_capacity: 'arena.error.serverCapacity'
 } as const satisfies Record<CommandErrorCode, string>;
 
@@ -98,8 +95,7 @@ const fatalDisplayMessageKeys = {
 	protocol_incompatible: 'arena.error.protocolIncompatible',
 	capability_required: 'arena.error.capabilityRequired',
 	invalid_ticket: 'arena.error.invalidTicket',
-	ticket_replayed: 'arena.error.invalidTicket',
-	server_shutting_down: 'arena.error.serverShuttingDown'
+	ticket_replayed: 'arena.error.invalidTicket'
 } as const satisfies Record<FatalErrorCode, string>;
 
 const protocolErrorMessages = {
@@ -112,8 +108,7 @@ const protocolErrorMessages = {
 	protocol_incompatible: 'The Arena protocol version is incompatible.',
 	capability_required: 'The Arena client lacks a required capability.',
 	invalid_ticket: 'The Arena identity ticket is invalid.',
-	ticket_replayed: 'The Arena identity ticket is invalid.',
-	server_shutting_down: 'The Arena server is shutting down.'
+	ticket_replayed: 'The Arena identity ticket is invalid.'
 } as const satisfies Record<FatalErrorCode, string>;
 
 export class ProtocolError extends Error {

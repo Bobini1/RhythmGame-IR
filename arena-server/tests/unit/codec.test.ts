@@ -536,7 +536,7 @@ describe('server protocol messages', () => {
 					}
 				}
 			},
-			createFatalError('server_shutting_down'),
+			createFatalError('frame_too_large'),
 			{
 				type: 'directory_snapshot',
 				data: {
@@ -712,7 +712,7 @@ describe('server protocol messages', () => {
 			requestId: 'request-1',
 			data: {
 				code: 'permission_denied',
-				displayMessageKey: 'arena.error.permissionDenied'
+				displayMessageKey: 'arena.error.roomActionUnavailable'
 			}
 		});
 		expect(createFatalError('frame_too_large')).toEqual({
@@ -729,7 +729,7 @@ describe('protocol v1 canonical fixture', () => {
 	test('is strict, complete, and accepted by the TypeScript codec', () => {
 		const fixture = protocolFixture();
 		expect(fixture.clientMessages).toHaveLength(12);
-		expect(fixture.serverMessages).toHaveLength(45);
+		expect(fixture.serverMessages).toHaveLength(44);
 		expect(fixture.invalidServerMessages).toHaveLength(9);
 
 		const names = [
@@ -761,7 +761,7 @@ describe('protocol v1 canonical fixture', () => {
 			server_heartbeat: 1,
 			server_going_away: 2,
 			command_error: 16,
-			fatal_error: 10
+			fatal_error: 9
 		});
 		expect(
 			fixture.serverMessages
