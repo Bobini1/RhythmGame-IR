@@ -390,7 +390,6 @@ export type TelemetryMutation =
 	| Readonly<{
 			status: 'accepted';
 			standingsRevision: number;
-			nextFlushAtMs: number;
 	  }>
 	| Readonly<{ status: 'ignored' }>
 	| Readonly<{ status: 'dropped' }>

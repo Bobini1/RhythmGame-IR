@@ -796,14 +796,13 @@ class InMemoryRoomDirectory implements RoomDirectory {
 				? { ...candidate, telemetry: copyTelemetry(input.telemetry) }
 				: candidate
 		);
-		const updated = this.#dirtyStandings({ ...runtime, participants }, nowMs);
+		const updated = this.#dirtyStandings({ ...runtime, participants }, nowMs, 'immediate');
 		room.roundRuntime = updated;
 		return {
 			ok: true,
 			value: {
 				status: 'accepted',
-				standingsRevision: updated.standingsRevision,
-				nextFlushAtMs: updated.nextStandingsFlushMs!
+				standingsRevision: updated.standingsRevision
 			},
 			effects: []
 		};
@@ -1386,12 +1385,18 @@ class InMemoryRoomDirectory implements RoomDirectory {
 		);
 	}
 
-	#dirtyStandings(runtime: RoundLoadingState, nowMs: number): RoundLoadingState {
+	#dirtyStandings(
+		runtime: RoundLoadingState,
+		nowMs: number,
+		delivery: 'coalesced' | 'immediate' = 'coalesced'
+	): RoundLoadingState {
 		const nextStandingsFlushMs =
-			runtime.nextStandingsFlushMs ??
-			(runtime.lastStandingsFlushMs === undefined
+			delivery === 'immediate'
 				? nowMs
-				: Math.max(nowMs, runtime.lastStandingsFlushMs + STANDINGS_INTERVAL_MS));
+				: (runtime.nextStandingsFlushMs ??
+					(runtime.lastStandingsFlushMs === undefined
+						? nowMs
+						: Math.max(nowMs, runtime.lastStandingsFlushMs + STANDINGS_INTERVAL_MS)));
 		return {
 			...runtime,
 			standingsRevision: runtime.standingsRevision + 1,

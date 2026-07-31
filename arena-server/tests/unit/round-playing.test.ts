@@ -193,7 +193,7 @@ describe('Arena Playing domain', () => {
 		expect(saturatingIncrementUint32(0xffff_ffff)).toBe(0xffff_ffff);
 	});
 
-	test('coalesces authoritative standings while preserving zero and no-data rows', async () => {
+	test('flushes accepted telemetry immediately while preserving zero and no-data rows', async () => {
 		const directory = createDirectory();
 		const playing = await preparePlaying(directory);
 		const initial = directory.flushDueStandings(playing.startAtMs);
@@ -217,8 +217,7 @@ describe('Arena Playing domain', () => {
 				value: expect.objectContaining({ status: 'accepted', standingsRevision: 2 })
 			})
 		);
-		expect(directory.flushDueStandings(playing.startAtMs + 199)).toHaveLength(0);
-		const flushed = directory.flushDueStandings(playing.startAtMs + 200);
+		const flushed = directory.flushDueStandings(playing.startAtMs + 1);
 		expect(flushed).toHaveLength(1);
 		const snapshot = effectOf(flushed[0]!.effects, 'round_standings')[0]!.snapshot;
 		expect(snapshot.entries[0]).toEqual(

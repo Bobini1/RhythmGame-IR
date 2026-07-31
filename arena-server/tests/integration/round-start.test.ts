@@ -425,7 +425,7 @@ describe('Arena round application integration', () => {
 					}
 				}
 			},
-			NOW + 2_220
+			NOW + 2_021
 		);
 		const live = messagesFor(standings, 'carol').find(
 			(message) => message.type === 'round_standings'
