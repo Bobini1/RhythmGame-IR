@@ -28,6 +28,11 @@ const SERVER_STOP_TIMEOUT_MS = 1_000;
 export const BACKPRESSURE_LIMIT_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PEER_UPGRADE_POLICY = { maxAttempts: 6_000, windowMs: 60_000 } as const;
 
+type PendingEphemeralFrame = Readonly<{
+	encoded: string;
+	byteLength: number;
+}>;
+
 export type SocketData = {
 	readonly connectionId: string;
 	readonly admissionLeaseId: string;
@@ -35,6 +40,7 @@ export type SocketData = {
 	queuedFrames: number;
 	closing: boolean;
 	ephemeralBlocked: boolean;
+	pendingEphemeral: PendingEphemeralFrame | null;
 };
 
 export type ArenaLogFields = Readonly<Record<string, string | number | boolean | undefined>>;
@@ -145,6 +151,29 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 		}
 	};
 
+	const flushPendingEphemeral = (socket: Bun.ServerWebSocket<SocketData>): void => {
+		const pending = socket.data.pendingEphemeral;
+		if (pending === null || socket.data.closing) return;
+
+		const bufferedAmount = socket.getBufferedAmount();
+		if (socket.data.ephemeralBlocked && bufferedAmount > 0) return;
+		if (bufferedAmount + pending.byteLength > BACKPRESSURE_LIMIT_BYTES) return;
+
+		socket.data.ephemeralBlocked = false;
+		const result = socket.send(pending.encoded);
+		if (result !== 0) socket.data.pendingEphemeral = null;
+		if (blocksEphemeralAfterSend(result)) socket.data.ephemeralBlocked = true;
+	};
+
+	const queueLatestEphemeral = (
+		socket: Bun.ServerWebSocket<SocketData>,
+		frame: PendingEphemeralFrame
+	): void => {
+		if (socket.data.pendingEphemeral !== null) metrics.standingsDropped();
+		socket.data.pendingEphemeral = frame;
+		flushPendingEphemeral(socket);
+	};
+
 	const applyDeliveries = (deliveries: readonly Delivery[]): void => {
 		const actions = new Map<Bun.ServerWebSocket<SocketData>, SocketAction[]>();
 		const append = (socket: Bun.ServerWebSocket<SocketData>, action: SocketAction): void => {
@@ -202,10 +231,20 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						break;
 					}
 					if (socket.data.closing) continue;
+					if (action.kind === 'send' && action.ephemeral) {
+						queueLatestEphemeral(socket, {
+							encoded: action.encoded,
+							byteLength: action.byteLength
+						});
+						continue;
+					}
 					const byteLength = action.kind === 'send' ? action.byteLength : action.bytes.byteLength;
 					const bufferedAmount = socket.getBufferedAmount();
+					if (socket.data.ephemeralBlocked && bufferedAmount === 0) {
+						socket.data.ephemeralBlocked = false;
+					}
 					const disposition = classifySocketDelivery(
-						action.kind === 'send' && action.ephemeral,
+						false,
 						socket.data.ephemeralBlocked,
 						bufferedAmount,
 						byteLength
@@ -221,14 +260,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 					const result =
 						action.kind === 'send' ? socket.send(action.encoded) : socket.send(action.bytes, true);
 					if (blocksEphemeralAfterSend(result)) socket.data.ephemeralBlocked = true;
-					if (action.kind === 'send' && action.ephemeral && result <= 0) {
-						metrics.standingsDropped();
-						continue;
-					}
 					if (result === 0) {
-						if (action.kind === 'send' && action.ephemeral) {
-							continue;
-						}
 						reliableOverflow = true;
 						break;
 					}
@@ -355,7 +387,8 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 						receiveTail: Promise.resolve(),
 						queuedFrames: 0,
 						closing: false,
-						ephemeralBlocked: false
+						ephemeralBlocked: false,
+						pendingEphemeral: null
 					}
 				});
 			} catch (error) {
@@ -440,6 +473,7 @@ export function startArenaServer(options: StartArenaServerOptions): ArenaServerH
 			},
 			drain(socket) {
 				socket.data.ephemeralBlocked = false;
+				flushPendingEphemeral(socket);
 			},
 			close(socket, code) {
 				metrics.connectionClosed(classifyClose(code));
