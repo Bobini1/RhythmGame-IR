@@ -4,7 +4,8 @@ export const localeCookieName = 'locale';
 export const defaultLocale = AvailableLocales.English_US;
 export const directionMap: Partial<Record<AvailableLocales, DirectionSetting>> = {
 	[AvailableLocales.Polish]: 'lr',
-	[AvailableLocales.English_US]: 'lr'
+	[AvailableLocales.English_US]: 'lr',
+	[AvailableLocales.Chinese_Simplified]: 'lr'
 };
 export const getDirection = (locale: AvailableLocales): DirectionSetting => {
 	const directionSelection = directionMap[locale] ?? directionMap[defaultLocale]!;

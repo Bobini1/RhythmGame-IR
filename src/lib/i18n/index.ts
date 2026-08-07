@@ -87,6 +87,41 @@ const config: Config<Params> = {
 			locale: AvailableLocales.English_US,
 			key: 'integrations',
 			loader: async () => (await import('./en-US/integrations.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'common',
+			loader: async () => (await import('./zh-CN/common.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'seo',
+			loader: async () => (await import('./zh-CN/seo.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'homepage',
+			loader: async () => (await import('./zh-CN/homepage.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'players',
+			loader: async () => (await import('./zh-CN/players.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'charts',
+			loader: async () => (await import('./zh-CN/charts.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'navigation',
+			loader: async () => (await import('./zh-CN/navigation.json')).default
+		},
+		{
+			locale: AvailableLocales.Chinese_Simplified,
+			key: 'integrations',
+			loader: async () => (await import('./zh-CN/integrations.json')).default
 		}
 	]
 };

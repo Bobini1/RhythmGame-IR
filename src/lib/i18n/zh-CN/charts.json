@@ -55,9 +55,6 @@
 	"user_scores": {
 		"title": "{player} 游玩 {chart} 的记录",
 		"description": "{player} 游玩这张谱的所有成绩",
-		"heading": "{player} on {chart}"
+		"heading": "{player} 在 {chart} 上的游玩记录"
 	}
 }
-
-
-

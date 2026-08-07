@@ -21,7 +21,7 @@ export const GET: RequestHandler = async () => {
 		excludeRoutePatterns,
 		lang: {
 			default: AvailableLocales.English_US,
-			alternates: [AvailableLocales.Polish]
+			alternates: [AvailableLocales.Polish, AvailableLocales.Chinese_Simplified]
 		},
 		// Provide parameter values for dynamic routes (e.g. /charts/[md5])
 		paramValues

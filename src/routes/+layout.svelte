@@ -33,7 +33,8 @@
 		}
 		if (document) {
 			const dir = directionMap[locale] ?? $direction;
-			document.dir = dir === 'lr' ? 'ltr' : 'rtl';
+			document.documentElement.lang = locale;
+			document.documentElement.dir = dir === 'lr' ? 'ltr' : 'rtl';
 			direction.set(dir);
 		}
 	}

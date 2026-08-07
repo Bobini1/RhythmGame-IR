@@ -10,6 +10,10 @@ export const LanguageSelectorConfiguration: ComboboxConfiguration = {
 		{
 			value: AvailableLocales.English_US,
 			label: `common.locales.${AvailableLocales.English_US}`
+		},
+		{
+			value: AvailableLocales.Chinese_Simplified,
+			label: `common.locales.${AvailableLocales.Chinese_Simplified}`
 		}
 	],
 	placeholder: 'common.select_language',
