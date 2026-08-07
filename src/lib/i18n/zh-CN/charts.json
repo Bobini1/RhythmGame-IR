@@ -1,0 +1,63 @@
+{
+	"list": {
+		"title": "谱面列表",
+		"description": "已上传成绩的所有谱面",
+		"level": "Lv.",
+		"title_col": "标题",
+		"artist": "艺术家",
+		"play_count": "游玩次数",
+		"search_placeholder": "搜索…"
+	},
+	"page": {
+		"unknown": "未知谱面",
+		"description": "谱面详情与分数",
+		"scores_title": "分数",
+		"search_placeholder": "搜索玩家…"
+	},
+	"info": {
+		"artist": "艺术家",
+		"subartist": "副艺术家",
+		"genre": "流派",
+		"play_level": "游玩等级",
+		"difficulty": "难度",
+		"keymode": "Keymode",
+		"rank": "判定",
+		"notes": "Note 数",
+		"normal": "normal",
+		"scratch": "scratch",
+		"ln": "LN",
+		"bss": "BSS",
+		"mine_count": "Mines",
+		"bpm": "BPM",
+		"sha256": "SHA-256",
+		"md5": "MD5"
+	},
+	"score_table": {
+		"player": "玩家",
+		"score": "分数",
+		"grade": "评级",
+		"combo": "连击",
+		"combo_breaks": "断连",
+		"play_count": "游玩次数",
+		"clear_type": "通关血条",
+		"poor": "Poor",
+		"empty_poor": "E.Poor",
+		"bad": "Bad",
+		"good": "Good",
+		"great": "Great",
+		"perfect": "Perfect",
+		"mine_hit": "Mine Hit",
+		"mine_avoided": "M.Avoid",
+		"ln_end_skip": "LN Skip",
+		"ln_begin_hit": "LN Hit",
+		"date": "日期"
+	},
+	"user_scores": {
+		"title": "{player} 游玩 {chart} 的记录",
+		"description": "{player} 游玩这张谱的所有成绩",
+		"heading": "{player} on {chart}"
+	}
+}
+
+
+

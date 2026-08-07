@@ -1,0 +1,26 @@
+{
+	"hero": {
+		"title": "RhythmGame",
+		"description": "一款在 Windows 和 Linux 运行的自定义 BMS 播放器。"
+	},
+	"download": {
+		"title": "下载",
+		"get_latest": "获取最新版本",
+		"available_for_windows_linux": "支持 Windows 和 Linux",
+		"download_latest": "下载最新版本",
+		"alternative_methods": "其他安装方式",
+		"alternative_methods_description": "适用于高级用户和包管理器。",
+		"aur": "AUR 包"
+	},
+	"latest_scores": {
+		"latest_scores": "最新成绩",
+		"title": "标题",
+		"level": "Lv.",
+		"player": "玩家",
+		"score": "分数",
+		"grade": "评级",
+		"combo": "连击",
+		"clear_type": "通关类型",
+		"date": "日期"
+	}
+}

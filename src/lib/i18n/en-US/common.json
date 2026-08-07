@@ -1,7 +1,8 @@
 {
 	"locales": {
 		"pl-PL": "polski",
-		"en-US": "English"
+		"en-US": "English",
+    "zh-CN": "Chinese"
 	},
 	"brand": {
 		"name": "RhythmGame",
