@@ -1,0 +1,22 @@
+{
+	"bokutachi": {
+		"manage": "管理",
+		"manage_label": "管理您的 Bokutachi 账户",
+		"sync": "上传成绩",
+		"syncing": "上传中…",
+		"synced": "已上成功 ✓",
+		"failed": "失败",
+		"sync_label": "上传您的 Bokutachi 成绩",
+		"disconnect": "断开连接",
+		"disconnect_label": "断连您的 Bokutachi 账户",
+		"connect": "连接",
+		"connect_label": "连接您的 Bokutachi 账户",
+		"actions_label": "Bokutachi 集成操作",
+		"client_id_not_configured": "Bokutachi 客户端 ID 未配置",
+		"disconnect_success": "已从 Bokutachi 断开连接",
+		"disconnect_finish_notice": "请在 Bokutachi 上完成断开连接操作，您很快将被重定向到其集成页面。",
+		"disconnect_failed": "从 Bokutachi 断开失败",
+		"sync_success": "成绩已上传至 Bokutachi",
+		"sync_failed": "上传成绩至 Bokutachi 失败，请尝试重新连接您的账户。"
+	}
+}

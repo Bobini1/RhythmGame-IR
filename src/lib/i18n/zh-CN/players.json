@@ -1,0 +1,29 @@
+{
+	"list": {
+		"title": "玩家",
+		"unknown": "未知玩家",
+		"description": "排行榜上的所有玩家",
+		"player": "玩家",
+		"score_count": "分数",
+		"joined": "加入于",
+		"search_placeholder": "搜索…"
+	},
+	"profile": {
+		"title": "{name} 的名片",
+		"description": "查看 {name} 的分数及排名",
+		"scores_title": "分数",
+		"search_placeholder": "搜索…",
+		"score_table": {
+			"level": "Lv.",
+			"title": "标题",
+			"score": "分数",
+			"grade": "评级",
+			"combo": "连击",
+			"clear_type": "通过情况",
+			"date": "游玩日期"
+		}
+	}
+}
+
+
+

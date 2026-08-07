@@ -1,0 +1,32 @@
+{
+	"description": "RhythmGame 网络排行榜",
+	"pages": {
+		"example": {
+			"description": "一个用于渲染可滚动示例文本的示例页面"
+		},
+		"settings": {
+			"description": "应用通用设置"
+		},
+		"manage_cookies": {
+			"description": "管理您的 Cookie 偏好和设置"
+		},
+		"forgot_password": {
+			"description": "重置您的账户密码"
+		},
+		"reset_password": {
+			"description": "为您的账户设置新密码"
+		},
+		"cookies_policy": {
+			"description": "我们关于 Cookie 和追踪技术的政策"
+		},
+		"privacy_policy": {
+			"description": "我们如何收集、使用和保护您的个人信息"
+		},
+		"terms_of_service": {
+			"description": "使用我们服务的条款和条件"
+		},
+		"signin": {
+			"description": "登录以访问您的账户和功能"
+		}
+	}
+}
