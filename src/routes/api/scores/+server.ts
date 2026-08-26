@@ -37,7 +37,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const filters: ScoresCollectionFilters = {};
 	const md5 = url.searchParams.get('md5');
-	const userParam = url.searchParams.get('user');
+	// `userId` is retained for backwards compatibility with released desktop
+	// clients. New clients and generated links use the canonical `user` name.
+	const userParam = url.searchParams.get('user') ?? url.searchParams.get('userId');
 	if (md5) filters.md5 = md5;
 	if (userParam !== null && !isNaN(Number(userParam))) filters.user = Number(userParam);
 
