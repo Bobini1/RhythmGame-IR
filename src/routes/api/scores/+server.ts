@@ -3,7 +3,8 @@ import {
 	queryScores,
 	queryScoresCount,
 	type ScoresOrderBy,
-	type ScoresCollectionFilters, getScoreById
+	type ScoresCollectionFilters,
+	getScoreById
 } from '$lib/server/api/scores.queries';
 import {
 	parsePagination,
@@ -50,8 +51,10 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const scorePctGte = url.searchParams.get('score_pct_gte');
 	const scorePctLte = url.searchParams.get('score_pct_lte');
-	if (scorePctGte !== null && !isNaN(Number(scorePctGte))) filters.scorePctGte = Number(scorePctGte);
-	if (scorePctLte !== null && !isNaN(Number(scorePctLte))) filters.scorePctLte = Number(scorePctLte);
+	if (scorePctGte !== null && !isNaN(Number(scorePctGte)))
+		filters.scorePctGte = Number(scorePctGte);
+	if (scorePctLte !== null && !isNaN(Number(scorePctLte)))
+		filters.scorePctLte = Number(scorePctLte);
 
 	const comboGte = url.searchParams.get('combo_gte');
 	const comboLte = url.searchParams.get('combo_lte');
@@ -111,22 +114,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		await submitScore(Number(locals.user.id), parsed.data);
-		const tachiToken = locals.tachi?.token;
-		if (tachiToken) {
-			const score = await getScoreById(parsed.data.scoreData.guid);
-			console.log('[POST /api/scores] Score found for GUID', parsed.data.scoreData.guid);
-			if (score) {
-				await uploadScoresToTachi([score], tachiToken);
-			} else {
-				console.error('[POST /api/scores] Score not found for GUID', parsed.data.scoreData.guid);
-			}
-		}
-		return json({ message: 'Score submitted successfully' }, { status: 201 });
 	} catch (err) {
-		if (err instanceof Error && (err as Error & { message?: string }).message === 'DUPLICATE_SCORE') {
+		if (
+			err instanceof Error &&
+			(err as Error & { message?: string }).message === 'DUPLICATE_SCORE'
+		) {
 			return json({ error: 'Score already exists' }, { status: 409 });
 		}
 		console.error('[POST /api/scores]', err);
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
+
+	// The ranking transaction has committed. Optional forwarding must never
+	// report that successful submission as a failure (or a duplicate).
+	const tachiToken = locals.tachi?.token;
+	if (tachiToken) {
+		try {
+			const score = await getScoreById(parsed.data.scoreData.guid);
+			if (!score || !(await uploadScoresToTachi([score], tachiToken))) {
+				console.warn(
+					'[POST /api/scores] Saved score but Bokutachi forwarding did not complete',
+					parsed.data.scoreData.guid
+				);
+			}
+		} catch (err) {
+			console.error(
+				'[POST /api/scores] Saved score but Bokutachi forwarding failed',
+				parsed.data.scoreData.guid,
+				err
+			);
+		}
+	}
+	return json({ message: 'Score submitted successfully' }, { status: 201 });
 };

@@ -148,6 +148,7 @@ function convertRandom(noteOrderAlgorithm: number) {
 			return 'MIRROR';
 		case 2:
 		case 7:
+		case 9: // LR2 Random; EX/Plus variants include the scratch and are not equivalent.
 			return 'RANDOM';
 		case 3:
 			return 'S-RANDOM';
@@ -161,11 +162,15 @@ function convertRandom(noteOrderAlgorithm: number) {
 enum DpOptions {
 	Off,
 	Flip,
-	Battle
+	Battle,
+	Lr2Flip
 }
 
 function checkDpOptions(dpOptions: number) {
 	if (dpOptions == DpOptions.Battle) throw new Error('Battle DP is not supported on Tachi');
+	if (![DpOptions.Off, DpOptions.Flip, DpOptions.Lr2Flip].includes(dpOptions)) {
+		throw new Error(`Unsupported DP option: ${dpOptions}`);
+	}
 }
 
 export function prepareTachiScore(score: ApiScore): TachiScore {
@@ -176,7 +181,10 @@ export function prepareTachiScore(score: ApiScore): TachiScore {
 
 	const judgements = convertJudgements(score.judgementCounts);
 	const random = convertRandom(score.noteOrderAlgorithm);
-	const random2 = convertRandom(score.noteOrderAlgorithmP2);
+	const randomMeta =
+		score.keymode === 10 || score.keymode === 14
+			? [random, convertRandom(score.noteOrderAlgorithmP2)]
+			: random;
 	checkDpOptions(score.dpOptions);
 
 	return {
@@ -193,7 +201,7 @@ export function prepareTachiScore(score: ApiScore): TachiScore {
 			maxCombo: Number(score.maxCombo ?? 0)
 		},
 		scoreMeta: {
-			random: score.keymode === 10 || score.keymode === 14 ? [random, random2] : random
+			random: randomMeta
 			// client: "RhythmGame",
 		}
 	};
@@ -209,7 +217,7 @@ interface TachiImport {
 }
 
 async function uploadScoresToTachiForKeymode(
-	scores: ApiScore[],
+	scores: TachiScore[],
 	token: string,
 	keymode: '7K' | '14K'
 ) {
@@ -219,7 +227,7 @@ async function uploadScoresToTachiForKeymode(
 			playtype: keymode,
 			service: 'RhythmGame'
 		},
-		scores: scores.map(prepareTachiScore)
+		scores
 	};
 
 	const headers: Record<string, string> = {};
@@ -228,12 +236,16 @@ async function uploadScoresToTachiForKeymode(
 	headers['X-User-Intent'] = 'false';
 	headers['X-Infer-Score-TimeAchieved'] = 'false';
 
-	const url = `${PUBLIC_BOKUTACHI_API}/ir/direct-manual/import`;
+	// IR routes are at the site root, not under the versioned REST API.
+	const url = new URL('/ir/direct-manual/import', PUBLIC_BOKUTACHI_API);
 	try {
+		const signal = AbortSignal.timeout(15_000);
 		const res = await fetch(url, {
 			method: 'POST',
 			headers,
-			body: JSON.stringify(payload)
+			body: JSON.stringify(payload),
+			signal,
+			redirect: 'error'
 		});
 
 		const text = await res.text();
@@ -244,46 +256,71 @@ async function uploadScoresToTachiForKeymode(
 			jsonBody = text;
 		}
 
-		if (!res.ok) {
+		if (!res.ok || !isTachiResponse(jsonBody) || !jsonBody.success) {
 			return { success: false, status: res.status, body: jsonBody };
 		}
 
-		return { success: true, status: res.status, body: jsonBody };
+		// Best effort: queued means accepted, not confirmed imported. Do not poll
+		// or retry; only report failures included in the initial response.
+		return { success: !jsonBody.body?.errors?.length, status: res.status, body: jsonBody };
 	} catch (err) {
 		console.error('[uploadScoreToTachi] upload failed', err);
 		return { success: false, status: 0, error: String(err) };
 	}
 }
 
+interface TachiResponse {
+	success: boolean;
+	body?: {
+		errors?: unknown[];
+	};
+}
+
+function isTachiResponse(value: unknown): value is TachiResponse {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'success' in value &&
+		typeof value.success === 'boolean'
+	);
+}
+
 export async function uploadScoresToTachi(scores: ApiScore[], token: string) {
-	const k7: ApiScore[] = [];
-	const k14: ApiScore[] = [];
+	const k7: TachiScore[] = [];
+	const k14: TachiScore[] = [];
+	let success = true;
 	for (const score of scores) {
-		switch (score.keymode) {
-			case 5:
-			case 7:
-				k7.push(score);
-				break;
-			case 10:
-			case 14:
-				k14.push(score);
-				break;
-			default:
+		try {
+			switch (score.keymode) {
+				case 5:
+				case 7:
+					k7.push(prepareTachiScore(score));
+					break;
+				case 10:
+				case 14:
+					k14.push(prepareTachiScore(score));
+					break;
+				default:
+					throw new Error(`Unsupported keymode: ${score.keymode}`);
+			}
+		} catch (err) {
+			console.warn('[uploadScoresToTachi] Skipping unsupported score', score.guid, err);
+			success = false;
 		}
 	}
 	if (k7.length > 0) {
 		const res = await uploadScoresToTachiForKeymode(k7, token, '7K');
 		if (!res.success) {
 			console.error('[uploadScoresToTachi] 7K upload failed', res);
-			return false;
+			success = false;
 		}
 	}
 	if (k14.length > 0) {
 		const res = await uploadScoresToTachiForKeymode(k14, token, '14K');
 		if (!res.success) {
 			console.error('[uploadScoresToTachi] 14K upload failed', res);
-			return false;
+			success = false;
 		}
 	}
-	return true;
+	return success;
 }
