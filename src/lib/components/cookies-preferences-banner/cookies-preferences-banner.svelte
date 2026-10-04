@@ -44,7 +44,7 @@
 			</div>
 		</Card.Title>
 		<Card.Description>
-			By clicking “Accept all cookies”, you agree My Brand can store cookies on your device and
+			By clicking “Accept all cookies”, you agree RhythmGame can store cookies on your device and
 			disclose information in accordance with our
 			<a href={langHref('/policies/cookies')} class="inderline-offset-2 text-muted-foreground underline"
 				>Cookie Policy.</a
