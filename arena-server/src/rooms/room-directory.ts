@@ -1287,13 +1287,29 @@ class InMemoryRoomDirectory implements RoomDirectory {
 			(candidate) => candidate.memberId === seat.seatId
 		);
 		if (
-			runtime?.round.stage !== 'playing' ||
+			runtime === undefined ||
 			participantIndex === undefined ||
 			participantIndex < 0 ||
 			input.roundId !== runtime.round.roundId ||
 			input.launchAttemptId !== runtime.round.launchAttemptId
 		) {
 			return { ok: false, rejection: { code: 'round_stale' } };
+		}
+		if (runtime.round.stage !== 'playing') {
+			if (terminal.kind !== 'dnf') {
+				return { ok: false, rejection: { code: 'round_stale' } };
+			}
+			const effects = this.#cancelRound(room, 'cancelled');
+			return {
+				ok: true,
+				value: {
+					status: 'accepted',
+					terminal: 'dnf',
+					standingsRevision: runtime.standingsRevision
+				},
+				effects,
+				directoryChange: this.#upsert(room)
+			};
 		}
 		const participant = runtime.participants[participantIndex]!;
 		if (participant.terminal !== undefined) {

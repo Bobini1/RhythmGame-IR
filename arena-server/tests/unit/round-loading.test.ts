@@ -421,6 +421,87 @@ describe('Arena probe and loading barrier', () => {
 		}
 	});
 
+	test.each(['probing', 'loading', 'scheduled'] as const)(
+		'abandoning during %s cancels preparation and retains the room',
+		async (stage) => {
+			const directory = createDirectory();
+			const prepared = await prepareRound(directory);
+			const probes = effectOf(prepared.effects, 'round_probe_requested');
+			if (stage !== 'probing') {
+				for (const [index, seat] of prepared.seats.entries()) {
+					expect(
+						directory.reportProbe(
+							seat.binding,
+							probeInput(prepared.round, probes[index]!),
+							NOW + 10
+						).ok
+					).toBe(true);
+				}
+			}
+			if (stage === 'scheduled') {
+				for (const [index, seat] of prepared.seats.entries()) {
+					expect(
+						directory.reportLoaded(seat.binding, loadInput(prepared.round, index + 1), NOW + 20).ok
+					).toBe(true);
+				}
+			}
+			const input = {
+				roundId: prepared.round.roundId,
+				launchAttemptId: prepared.round.launchAttemptId,
+				reason: 'aborted' as const
+			};
+			expect(
+				directory.abandonRound(
+					prepared.seats[0]!.binding,
+					{ ...input, launchAttemptId: 'old' },
+					NOW + 21
+				)
+			).toEqual({ ok: false, rejection: { code: 'round_stale' } });
+			const cancelled = directory.abandonRound(prepared.seats[0]!.binding, input, NOW + 22);
+			expect(cancelled.ok).toBe(true);
+			if (!cancelled.ok) return;
+			expect(effectOf(cancelled.effects, 'round_launch_cancelled')).toEqual([
+				expect.objectContaining({
+					targets: ['c1', 'c2'],
+					reason: 'cancelled',
+					selection: selection()
+				})
+			]);
+			expect(effectOf(cancelled.effects, 'round_finalized')).toHaveLength(0);
+			expect(directory.sweep(NOW + 10_000)).toHaveLength(0);
+			// Both original bindings still work after cancellation.
+			for (const seat of prepared.seats) {
+				expect(directory.sendChat(seat.binding, 'still here', NOW + 23).ok).toBe(true);
+			}
+			expect(
+				directory.reportLoaded(prepared.seats[0]!.binding, loadInput(prepared.round, 1), NOW + 24)
+			).toEqual({ ok: false, rejection: { code: 'round_stale' } });
+		}
+	);
+
+	test("a waiting member cannot cancel another participant's preparation", async () => {
+		const directory = createDirectory();
+		const prepared = await prepareRound(directory, false);
+		const joined = await directory.join({
+			roomId: prepared.seats[0]!.binding.roomId,
+			connectionId: 'c2',
+			identity: bob
+		});
+		if (!joined.ok) throw new Error('waiting join failed');
+		expect(
+			directory.abandonRound(
+				joined.value.binding,
+				{
+					roundId: prepared.round.roundId,
+					launchAttemptId: prepared.round.launchAttemptId,
+					reason: 'aborted'
+				},
+				NOW + 1
+			)
+		).toEqual({ ok: false, rejection: { code: 'round_stale' } });
+		expect(directory.nextDeadlineMs()).toBe(NOW + 15_000);
+	});
+
 	test('resends the current stage on resume and cancels an explicit leave during the lead', async () => {
 		const probeDirectory = createDirectory();
 		const probing = await prepareRound(probeDirectory, false);
